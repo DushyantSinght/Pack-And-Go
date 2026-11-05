@@ -10,7 +10,7 @@ lerna-debug.log*
 # Dependencies
 node_modules/
 
-# Production builds
+# Production builds DST
 dist/
 dist-ssr/
 
