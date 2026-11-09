@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useMove } from '../context/MoveContext';
-import { ROOM_PRESETS, VOICE_SAMPLE_TRANSCRIPTS } from '../data/mockData';
+import { ROOM_PRESETS } from '../data/mockData';
+import { api } from '../services/api';
 import {
   Camera,
   Mic,
@@ -26,103 +27,155 @@ export const AIEstimator = () => {
   const {
     currentEstimate,
     applyPreset,
-    applyVoiceEstimate,
     setActiveTab,
     showToast,
-    openPayment,
-    openInvoice
+    applyItems,
+    openBooking,
+    openMyMoves
   } = useMove();
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState('');
+  const [transcript, setTranscript] = useState('');
+  const [newItem, setNewItem] = useState({ name: '', cuFt: '', fragile: false });
 
   const [activeMode, setActiveMode] = useState('photo'); // 'photo' | 'voice'
   const [showBoundingBoxes, setShowBoundingBoxes] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [customPhotoUrl, setCustomPhotoUrl] = useState(null);
-  const [selectedVoiceSample, setSelectedVoiceSample] = useState(VOICE_SAMPLE_TRANSCRIPTS[0]);
 
   // Current selected preset object
   const activePreset = ROOM_PRESETS.find((p) => p.id === currentEstimate.presetId) || ROOM_PRESETS[0];
 
-  // Handle custom image upload
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setCustomPhotoUrl(event.target.result);
-        showToast('Scanning uploaded photo with Pack&Go CV Engine...', 'info');
-        setTimeout(() => {
-          showToast('Scan complete! 8 household items detected with 94.8% confidence.', 'success');
-        }, 1200);
+  /** Shrink the photo client-side so uploads are fast and under the API limit. */
+  const toJpeg = (file, maxSide = 1600) =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k);
+        c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(img.src);
+        resolve(c.toDataURL('image/jpeg', 0.85));
       };
-      reader.readAsDataURL(file);
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+
+  // AI room scan: the photo goes to Claude, detected items land in the estimate.
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    let dataUrl;
+    try {
+      dataUrl = await toJpeg(file);
+    } catch {
+      showToast('Could not read that image.', 'error');
+      return;
+    }
+    setCustomPhotoUrl(dataUrl);
+    setScanning(true);
+    setScanNote('');
+    try {
+      const r = await api.scanRoom(dataUrl);
+      const append = currentEstimate.presetId === 'custom' && (currentEstimate.items || []).length > 0;
+      applyItems(r.items, { append, label: `Found ${r.items.length} item${r.items.length === 1 ? '' : 's'} — check the list and edit anything that's wrong.` });
+      setScanNote(r.notes || '');
+    } catch (err) {
+      showToast(/not configured/i.test(err.message) ? 'AI scan is not set up on this server yet — add your items by hand below.' : err.message, 'error');
+    } finally {
+      setScanning(false);
     }
   };
 
-  // Trigger microphone simulation or real Web Speech API
+  const parseSpoken = async (text) => {
+    setTranscript(text);
+    setScanning(true);
+    try {
+      const r = await api.parseInventory(text);
+      applyItems(r.items, { append: currentEstimate.presetId === 'custom', label: `Added ${r.items.length} item${r.items.length === 1 ? '' : 's'} from what you said.` });
+    } catch (err) {
+      showToast(/not configured/i.test(err.message) ? 'AI is not set up on this server — add items by hand below.' : err.message, 'error');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  // Voice walkthrough with the browser's speech recognition.
   const handleToggleVoice = () => {
-    if (!isRecording) {
-      setIsRecording(true);
-      showToast('Listening... Describe your room, furniture, and box count.', 'info');
-
-      // Check if browser supports Web Speech API
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        try {
-          const recognition = new SpeechRecognition();
-          recognition.continuous = false;
-          recognition.interimResults = false;
-          recognition.lang = 'en-IN';
-
-          recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            setIsRecording(false);
-            // Apply parsed voice estimate
-            applyVoiceEstimate({
-              detectedItems: ['User Verbal Inventory', 'Study Table', 'Mattress', 'Cartons'],
-              cuFt: 110,
-              labour: '2 Men, 2.5 Hours',
-              cartons: { small: 2, medium: 4, large: 2, wardrobe: 1 },
-              pooledPrice: 3250,
-              soloPrice: 6000
-            });
-            showToast(`Heard: "${transcript}"`, 'success');
-          };
-
-          recognition.onerror = () => {
-            simulateVoiceParsing();
-          };
-
-          recognition.start();
-          return;
-        } catch (err) {
-          simulateVoiceParsing();
-          return;
-        }
-      }
-      simulateVoiceParsing();
-    } else {
-      setIsRecording(false);
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showToast('Voice input isn\'t supported in this browser (try Chrome). You can type instead.', 'error');
+      return;
     }
+    if (isRecording) return;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onresult = (event) => parseSpoken(event.results[0][0].transcript);
+    recognition.onerror = (ev) => showToast(ev.error === 'not-allowed' ? 'Microphone permission denied.' : 'Didn\'t catch that — try again.', 'error');
+    recognition.onend = () => setIsRecording(false);
+    setIsRecording(true);
+    recognition.start();
   };
 
-  const simulateVoiceParsing = () => {
-    setTimeout(() => {
-      setIsRecording(false);
-      applyVoiceEstimate(selectedVoiceSample);
-    }, 2000);
+  const removeItem = (id) => applyItems((currentEstimate.items || []).filter((it) => it.id !== id).map(({ box: _box, ...it }) => it));
+  const addManualItem = (e) => {
+    e.preventDefault();
+    const cuFt = Number(newItem.cuFt);
+    if (!newItem.name.trim() || !(cuFt > 0)) return;
+    applyItems([{ id: Date.now(), name: newItem.name.trim(), category: 'Other', cuFt, weightKg: Math.round(cuFt * 1.6), fragile: newItem.fragile }], { append: true });
+    setNewItem({ name: '', cuFt: '', fragile: false });
   };
 
   const handleLockPrice = () => {
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
-    showToast('Guaranteed Upfront Price Locked! Proceeding to Digital Luggage Passport.', 'success');
-    setTimeout(() => {
-      setActiveTab('passport');
-    }, 800);
+    confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+    openBooking();
   };
+
+  // Typical city move (~10 km, ground floor) — same formula the server uses, for a quick preview.
+  const preview = (() => {
+    const cu = currentEstimate.totalCuFt || 0;
+    const volume = cu * 18, distance = 5 * 28, base = 799;
+    const pooled = Math.round((base + volume + distance - (volume + distance) * 0.4) * 1.18);
+    const solo = Math.round((base + volume + distance) * 1.18);
+    return { pooled, solo, save: solo ? Math.round((1 - pooled / solo) * 100) : 0 };
+  })();
+
+  const renderItemList = () => (
+    <div style={{ marginTop: '18px' }}>
+      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+        <span>YOUR ITEMS ({(currentEstimate.items || []).length}) • {currentEstimate.totalCuFt} ft³</span>
+        {scanning && <span style={{ color: 'var(--primary)' }}>AI is reading…</span>}
+      </div>
+      {scanNote && <div style={{ fontSize: '0.76rem', color: 'var(--amber)', marginBottom: 8 }}>Note: {scanNote}</div>}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        {(currentEstimate.items || []).map((item) => (
+          <span key={item.id} title={item.confidence ? `AI confidence: ${item.confidence}` : undefined} style={{
+            fontSize: '0.75rem', padding: '4px 6px 4px 8px', borderRadius: 'var(--radius-sm)',
+            background: item.fragile ? 'rgba(217, 107, 117, 0.12)' : 'var(--bg-elevated)',
+            border: item.confidence === 'low' ? '1px dashed var(--amber)' : item.fragile ? '1px solid rgba(217, 107, 117, 0.3)' : '1px solid var(--border-subtle)',
+            color: item.fragile ? 'var(--rose)' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px'
+          }}>
+            {item.name}
+            <strong style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{item.cuFt} ft³</strong>
+            <button onClick={() => removeItem(item.id)} title="Remove" aria-label={`Remove ${item.name}`} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '0 2px', fontSize: '0.9rem', lineHeight: 1 }}>×</button>
+          </span>
+        ))}
+      </div>
+      <form onSubmit={addManualItem} style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+        <input value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} placeholder="Add an item (e.g. Bookshelf)" style={{ flex: '2 1 160px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', fontSize: '0.8rem' }} />
+        <input value={newItem.cuFt} onChange={(e) => setNewItem({ ...newItem, cuFt: e.target.value })} type="number" min="0.5" step="0.5" placeholder="ft³" style={{ flex: '0 1 70px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', fontSize: '0.8rem' }} />
+        <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <input type="checkbox" checked={newItem.fragile} onChange={(e) => setNewItem({ ...newItem, fragile: e.target.checked })} /> Fragile
+        </label>
+        <button type="submit" className="btn btn-secondary btn-sm">Add</button>
+      </form>
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -310,8 +363,8 @@ export const AIEstimator = () => {
               <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
                   <Camera size={15} />
-                  Upload Custom Room Sweep
-                  <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
+                  {scanning ? 'Scanning with AI…' : 'Scan a room photo (AI)'}
+                  <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} disabled={scanning} style={{ display: 'none' }} />
                 </label>
                 {customPhotoUrl && (
                   <button
@@ -324,33 +377,8 @@ export const AIEstimator = () => {
                 )}
               </div>
 
-              {/* Detected Items List */}
-              <div style={{ marginTop: '18px' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  DETECTED BELONGINGS ({activePreset.items.length} ITEMS)
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {activePreset.items.map((item) => (
-                    <span
-                      key={item.id}
-                      style={{
-                        fontSize: '0.75rem',
-                        padding: '4px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: item.fragile ? 'rgba(217, 107, 117, 0.12)' : 'var(--bg-elevated)',
-                        border: item.fragile ? '1px solid rgba(217, 107, 117, 0.3)' : '1px solid var(--border-subtle)',
-                        color: item.fragile ? 'var(--rose)' : 'var(--text-main)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
-                      {item.name}
-                      <strong style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{item.cuFt} ft³</strong>
-                    </span>
-                  ))}
-                </div>
-              </div>
+              {/* Your item list (AI scan, voice, preset or manual) */}
+              {renderItemList()}
             </div>
           ) : (
             /* Voice Walkthrough Mode */
@@ -418,39 +446,18 @@ export const AIEstimator = () => {
                 )}
               </div>
 
-              {/* Sample Voice Walkthrough Transcripts */}
-              <div style={{ marginTop: '20px' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  OR TRY PRE-RECORDED VOICE PROMPTS:
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {VOICE_SAMPLE_TRANSCRIPTS.map((vt) => (
-                    <div
-                      key={vt.id}
-                      onClick={() => {
-                        setSelectedVoiceSample(vt);
-                        applyVoiceEstimate(vt);
-                      }}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: selectedVoiceSample.id === vt.id ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                        border: selectedVoiceSample.id === vt.id ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>{vt.label}</span>
-                        <span className="badge badge-indigo" style={{ fontSize: '0.65rem' }}>{vt.cuFt} cu. ft.</span>
-                      </div>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, fontStyle: 'italic' }}>
-                        "{vt.text}"
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {transcript && (
+                <div style={{ marginTop: 14, fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Heard: “{transcript}”</div>
+              )}
+              <form
+                onSubmit={(e) => { e.preventDefault(); const t = e.currentTarget.elements.desc.value.trim(); if (t) parseSpoken(t); }}
+                style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 8 }}
+              >
+                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>OR TYPE WHAT YOU'RE MOVING</label>
+                <textarea name="desc" rows={3} placeholder="e.g. one double bed, a 3-seater sofa, fridge, washing machine, 12 boxes of books and kitchen stuff" style={{ padding: 10, borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', resize: 'vertical' }} />
+                <button type="submit" disabled={scanning} className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }}>{scanning ? 'Working…' : 'Add these items'}</button>
+              </form>
+              {renderItemList()}
             </div>
           )}
         </div>
@@ -548,24 +555,24 @@ export const AIEstimator = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
-                  Solo Charter Truck: ₹{currentEstimate.soloPrice.toLocaleString('en-IN')}
+                  Dedicated truck: ₹{preview.solo.toLocaleString('en-IN')}
                 </div>
                 <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                  ₹{currentEstimate.pooledPrice.toLocaleString('en-IN')}
+                  ₹{preview.pooled.toLocaleString('en-IN')}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <span className="badge badge-emerald" style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
-                  SAVE {currentEstimate.savingsPercent}%
+                  SAVE {preview.save}%
                 </span>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Shared Capacity Savings
+                  with a pooled truck
                 </div>
               </div>
             </div>
 
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '8px' }}>
-              Includes: Loading, Unloading, Digital Luggage Passports, Geofenced Handover & ₹50,000 Transit Escrow.
+              Estimate for a typical ~10 km city move incl. GST. Your exact price is calculated from your addresses and floors when you book. Includes loading, unloading and box QR passports.
             </div>
           </div>
 
@@ -576,29 +583,15 @@ export const AIEstimator = () => {
             style={{ width: '100%', gap: '10px', fontWeight: 700 }}
           >
             <Lock size={18} />
-            Lock Price & Generate Box QR Passports
+            Book this move
             <ArrowRight size={18} />
           </button>
 
-          {/* Quick Pay & Corporate Invoice Secondary Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <button
-              onClick={openPayment}
-              className="btn btn-outline-emerald btn-sm"
-              style={{ gap: '6px', fontSize: '0.8rem', padding: '10px' }}
-            >
-              <CreditCard size={15} />
-              Pay via UPI Escrow
-            </button>
-            <button
-              onClick={openInvoice}
-              className="btn btn-secondary btn-sm"
-              style={{ gap: '6px', fontSize: '0.8rem', padding: '10px' }}
-            >
-              <FileText size={15} />
-              Reimbursement Invoice
-            </button>
-          </div>
+          {/* Existing bookings: pay, receipts, tracking */}
+          <button onClick={() => openMyMoves()} className="btn btn-secondary btn-sm" style={{ gap: '6px', fontSize: '0.8rem', padding: '10px', width: '100%', justifyContent: 'center' }}>
+            <FileText size={15} />
+            My Moves — pay, receipts & tracking
+          </button>
         </div>
       </div>
     </div>

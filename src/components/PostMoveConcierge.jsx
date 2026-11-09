@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useMove } from '../context/MoveContext';
+import { ServiceRequestModal } from './ServiceRequestModal';
 import { POST_MOVE_ACCOMMODATIONS, UPKEEP_SERVICES } from '../data/mockData';
 import {
   UtensilsCrossed,
@@ -24,26 +25,22 @@ export const PostMoveConcierge = () => {
   const [bookedServices, setBookedServices] = useState([]);
   const [activeStorageDays, setActiveStorageDays] = useState(3);
   const [isStorageReserved, setIsStorageReserved] = useState(false);
+  const [request, setRequest] = useState(null);
 
   const handleBookService = (service) => {
-    confetti({
-      particleCount: 50,
-      spread: 60,
-      origin: { y: 0.7 }
-    });
+    setRequest({ type: 'service', title: service.title, subtitle: service.pricing, details: { serviceId: service.id, pricing: service.pricing } });
     setBookedServices((prev) => [...prev, service.id]);
-    showToast(`Booked "${service.title}"! Pack&Go lifestyle coordinator assigned.`, 'success');
   };
 
   const handleReserveStorage = (e) => {
     e.preventDefault();
-    setIsStorageReserved(true);
-    confetti({
-      particleCount: 60,
-      spread: 70,
-      origin: { y: 0.7 }
+    setRequest({
+      type: 'storage',
+      title: `Storage for ${activeStorageDays} days`,
+      subtitle: `Estimated ₹${(activeStorageDays * 149).toLocaleString('en-IN')} — we collect your boxes on the date you choose.`,
+      details: { days: activeStorageDays, estimate: activeStorageDays * 149 }
     });
-    showToast(`QR Smart Storage reserved for ${activeStorageDays} days! Boxes will be transferred to our secure warehouse.`, 'success');
+    setIsStorageReserved(true);
   };
 
   const filteredAccommodations = POST_MOVE_ACCOMMODATIONS.filter((acc) => {
@@ -218,7 +215,7 @@ export const PostMoveConcierge = () => {
 
               <div style={{ padding: '12px 18px 18px', borderTop: '1px solid var(--border-subtle)' }}>
                 <button
-                  onClick={() => showToast(`Visit scheduled for ${acc.name}! Move-in date synced with your truck booking.`, 'success')}
+                  onClick={() => setRequest({ type: 'visit', title: `Visit ${acc.name}`, subtitle: `${acc.neighborhood} • ₹${acc.rent.toLocaleString('en-IN')}/month`, details: { propertyId: acc.id, property: acc.name } })}
                   className="btn btn-outline-emerald btn-sm"
                   style={{ width: '100%' }}
                 >
@@ -359,6 +356,7 @@ export const PostMoveConcierge = () => {
           </form>
         </div>
       </div>
+      <ServiceRequestModal request={request} onClose={() => setRequest(null)} />
     </div>
   );
 };

@@ -1,4 +1,7 @@
 import mongoose from 'mongoose';
+import crypto from 'crypto';
+
+export const generateOtp = () => String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
 
 const itemSchema = new mongoose.Schema(
   {
@@ -98,14 +101,21 @@ const moveBookingSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
+    // Random per booking. Only ever returned to the booking owner, who reads
+    // them out to the Move Captain at pickup / delivery.
     pickupOtp: {
       type: String,
-      default: '582941'
+      default: generateOtp
     },
     deliveryOtp: {
       type: String,
-      default: '910283'
+      default: generateOtp
     },
+    assignedCaptainEmail: { type: String, lowercase: true, trim: true, index: true },
+    pickupVerifiedAt: Date,
+    deliveredAt: Date,
+    otpFailedAttempts: { type: Number, default: 0 },
+    otpLockedUntil: Date,
     transitStatus: {
       type: String,
       default: 'In Transit • 34 km/h • Geofence Validated'
@@ -121,15 +131,55 @@ const moveBookingSchema = new mongoose.Schema(
     escrowStatus: {
       type: String,
       enum: ['pending', 'escrow_locked', 'in_transit', 'released_to_captain', 'refunded'],
-      default: 'escrow_locked'
+      default: 'pending'
     },
+    // Real payment state — nothing is "paid" until the gateway confirms it.
     paymentDetails: {
-      status: { type: String, default: 'Escrow Secured' },
-      method: { type: String, default: 'UPI Autopay' },
-      amountPaid: { type: Number, default: 3190 },
-      transactionId: { type: String, default: 'UPI-TXN-984210' },
-      paidAt: { type: Date, default: Date.now }
+      status: { type: String, enum: ['unpaid', 'paid', 'refunded', 'partially_refunded'], default: 'unpaid' },
+      method: String,
+      amountPaid: { type: Number, default: 0 },
+      transactionId: String,
+      razorpayOrderId: String,
+      paidAt: Date,
+      testMode: { type: Boolean, default: false },
+      refundId: String,
+      refundAmount: Number,
+      refundedAt: Date
     },
+    // Booking lifecycle
+    status: {
+      type: String,
+      enum: ['draft', 'pending_payment', 'confirmed', 'assigned', 'in_transit', 'delivered', 'cancelled'],
+      default: 'draft',
+      index: true
+    },
+    moveDate: Date,
+    timeSlot: String,
+    originLocation: { lat: Number, lng: Number },
+    destinationLocation: { lat: Number, lng: Number },
+    distanceKm: Number,
+    floorsOrigin: { type: Number, default: 0 },
+    floorsDestination: { type: Number, default: 0 },
+    hasLiftOrigin: { type: Boolean, default: true },
+    hasLiftDestination: { type: Boolean, default: true },
+    notes: { type: String, maxlength: 500 },
+    priceBreakdown: {
+      base: Number,
+      volume: Number,
+      distance: Number,
+      floors: Number,
+      subtotal: Number,
+      poolingDiscount: Number,
+      gst: Number,
+      total: Number
+    },
+    assignedAt: Date,
+    captainPayout: { amount: Number, creditedAt: Date },
+    driverLocation: { lat: Number, lng: Number, speedKmh: Number, heading: Number, updatedAt: Date },
+    nearbyNotifiedAt: Date,
+    cancellation: { at: Date, reason: String, refundPercent: Number, by: String },
+    rescheduledCount: { type: Number, default: 0 },
+    review: { rating: { type: Number, min: 1, max: 5 }, comment: String, at: Date },
     depositProtection: {
       certificateNumber: { type: String, default: 'PKG-DEP-ESCROW-8841' },
       depositAmount: { type: Number, default: 30000 },

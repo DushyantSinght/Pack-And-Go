@@ -1,8 +1,9 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { User, Conversation, Message, PooledCorridor, MarketplaceItem } from '../models/index.js';
+import { User, Conversation, Message, PooledCorridor, MarketplaceItem, MoveBooking } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { isOnline, emitToUsers } from '../socket.js';
+import { notify } from '../services/notify.js';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -47,7 +48,16 @@ export const serializeMessage = (m) => ({
 });
 
 /** Resolve who the customer wants to reach from what they clicked on. */
-const resolveContact = async ({ contextType, refId, userId }) => {
+const resolveContact = async ({ contextType, refId, userId, me }) => {
+  if (contextType === 'booking') {
+    // Customer ↔ assigned captain for a specific booking, from either side.
+    const move = await MoveBooking.findOne({ bookingId: refId });
+    if (!move?.assignedCaptainEmail) return null;
+    const otherEmail = me.email === move.userEmail ? move.assignedCaptainEmail : me.email === move.assignedCaptainEmail ? move.userEmail : null;
+    if (!otherEmail) return null;
+    const user = await User.findOne({ email: otherEmail });
+    return user && { user, title: `Move ${move.bookingId}` };
+  }
   if (contextType === 'driver') {
     const corridor = await PooledCorridor.findOne({ corridorId: refId });
     if (!corridor?.driver?.email) return null;
@@ -77,7 +87,7 @@ const loadOwnConversation = async (id, userId) => {
 router.post('/conversations', async (req, res) => {
   try {
     const { contextType, refId, userId } = req.body;
-    const contact = await resolveContact({ contextType, refId, userId });
+    const contact = await resolveContact({ contextType, refId, userId, me: req.user });
     if (!contact) {
       return res.status(404).json({ success: false, message: 'This person is not reachable on Pack&Go yet.' });
     }
@@ -155,6 +165,13 @@ export const createMessage = async ({ conversationId, senderId, text, kind = 'te
   await conv.save();
 
   const payload = serializeMessage(msg);
+  // People who aren't connected get a notification (and an email) so the message isn't missed.
+  const sender = conv.participants.find((p) => String(p._id) === String(senderId));
+  for (const p of conv.participants) {
+    if (String(p._id) !== String(senderId) && !isOnline(String(p._id)) && msg.kind === 'text') {
+      notify(p._id, { type: 'chat', title: `New message from ${sender?.name || 'Pack&Go user'}`, body: clean.slice(0, 200), email: true });
+    }
+  }
   for (const p of conv.participants) {
     emitToUsers([String(p._id)], 'chat:message', {
       message: payload,

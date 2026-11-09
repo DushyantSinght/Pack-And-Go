@@ -66,7 +66,11 @@ const createRinger = () => {
 };
 
 export const CommsProvider = ({ children }) => {
-  const { user, showToast, openAuth } = useMove();
+  const { user, showToast, openAuth, updateUser, setActiveRole, refreshMyMoves } = useMove();
+  const [notifications, setNotifications] = useState([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const refreshMovesRef = useRef(refreshMyMoves);
+  refreshMovesRef.current = refreshMyMoves;
   const myId = user?._id ? String(user._id) : null;
 
   const socketRef = useRef(null);
@@ -208,12 +212,35 @@ export const CommsProvider = ({ children }) => {
       setConversations([]);
       setMessages({});
       setIsChatOpen(false);
+      setNotifications([]);
+      setUnreadNotifications(0);
       return undefined;
     }
 
     const socket = io({ auth: { token }, transports: ['websocket', 'polling'] });
     socketRef.current = socket;
-    socket.on('connect', () => { setConnected(true); refreshInbox(); });
+    socket.on('connect', () => {
+      setConnected(true);
+      refreshInbox();
+      api.getNotifications()
+        .then((r) => { setNotifications(r.notifications || []); setUnreadNotifications(r.unread || 0); })
+        .catch(() => {});
+    });
+
+    socket.on('notification', (n) => {
+      setNotifications((prev) => [n, ...prev].slice(0, 50));
+      setUnreadNotifications((c) => c + 1);
+      if (n.type !== 'chat') showToast(`🔔 ${n.title}`, 'info');
+      if (n.bookingId) refreshMovesRef.current?.();
+      if (document.hidden && window.Notification?.permission === 'granted' && n.type !== 'chat') {
+        new Notification(n.title, { body: n.body || '', tag: n._id });
+      }
+    });
+
+    // Live truck position for my booking → LiveMoveMap listens for this event.
+    socket.on('booking:location', (loc) => {
+      window.dispatchEvent(new CustomEvent('packandgo:booking-location', { detail: loc }));
+    });
     socket.on('disconnect', () => setConnected(false));
     socket.on('connect_error', (err) => console.warn('Realtime connection error:', err.message));
 
@@ -249,6 +276,25 @@ export const CommsProvider = ({ children }) => {
         if (!list) return prev;
         return { ...prev, [conversationId]: list.map((m) => (m.readBy.includes(userId) ? m : { ...m, readBy: [...m.readBy, userId] })) };
       });
+    });
+
+    // Account changes pushed by staff (captain approved / rejected / suspended).
+    socket.on('account:updated', ({ user: fresh }) => {
+      updateUser(fresh);
+      if (fresh.userType === 'captain') {
+        setActiveRole('captain');
+        const msg = {
+          approved: '🎉 You are approved as a Move Captain! Open the Driver Console to take jobs.',
+          rejected: `Your Move Captain application was not approved${fresh.captainApplication?.reviewNote ? `: ${fresh.captainApplication.reviewNote}` : '.'}`,
+          suspended: `Your Move Captain account was suspended${fresh.captainApplication?.reviewNote ? `: ${fresh.captainApplication.reviewNote}` : '.'}`
+        }[fresh.captainStatus];
+        if (msg) showToast(msg, fresh.captainStatus === 'approved' ? 'success' : 'error');
+      }
+    });
+
+    socket.on('admin:captain-application', (app) => {
+      showToast(`New Move Captain application: ${app.name} (${app.vehicleNumber})`, 'info');
+      window.dispatchEvent(new CustomEvent('packandgo:captain-application'));
     });
 
     socket.on('presence', ({ userId, online }) => {
@@ -492,7 +538,24 @@ export const CommsProvider = ({ children }) => {
     document.title = unreadTotal ? `(${unreadTotal}) ${base}` : base;
   }, [unreadTotal]);
 
+  const markNotificationsRead = () => {
+    setUnreadNotifications(0);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    api.markAllNotificationsRead().catch(() => {});
+  };
+
+  /** Driver app: stream GPS for a job over the socket. Returns an ack promise. */
+  const sendDriverLocation = (payload) =>
+    new Promise((resolve) => {
+      if (!socketRef.current?.connected) return resolve({ ok: false, error: 'offline' });
+      socketRef.current.emit('driver:location', payload, (ack) => resolve(ack || { ok: false }));
+    });
+
   const value = {
+    notifications,
+    unreadNotifications,
+    markNotificationsRead,
+    sendDriverLocation,
     myId,
     connected,
     conversations,

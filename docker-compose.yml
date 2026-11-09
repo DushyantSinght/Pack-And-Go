@@ -1,0 +1,29 @@
+# Local production-like stack: MongoDB + Pack&Go on http://localhost:5001
+#   cp server/.env.example server/.env   # fill in secrets
+#   docker compose up --build
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+
+  app:
+    build:
+      context: .
+      args:
+        VITE_COMPANY_NAME: ${VITE_COMPANY_NAME:-Pack&Go}
+        VITE_SUPPORT_EMAIL: ${VITE_SUPPORT_EMAIL:-support@packandgo.in}
+    restart: unless-stopped
+    depends_on: [mongo]
+    env_file: server/.env
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+      MONGODB_URI: mongodb://mongo:27017/packandgo
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:5001}
+    ports:
+      - "5001:5001"
+
+volumes:
+  mongo-data:

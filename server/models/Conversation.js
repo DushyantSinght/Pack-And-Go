@@ -6,7 +6,7 @@ const conversationSchema = new mongoose.Schema(
     // Sorted participant ids joined with ":" + context — makes "find or create" race-free.
     key: { type: String, required: true, unique: true },
     context: {
-      type: { type: String, enum: ['driver', 'seller', 'direct'], default: 'direct' },
+      type: { type: String, enum: ['driver', 'seller', 'direct', 'booking'], default: 'direct' },
       refId: String,
       title: String
     },

@@ -10,6 +10,8 @@
   --bg-card: rgba(18, 20, 26, 0.82);
   --bg-card-hover: rgba(26, 29, 38, 0.92);
   --bg-card-solid: #12141A;
+  --bg-surface: #12141A;
+  --border-glow: rgba(212, 175, 55, 0.32);
   --bg-elevated: rgba(28, 31, 40, 0.75);
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-gold: rgba(212, 175, 55, 0.32);
@@ -57,6 +59,8 @@
   --bg-card: rgba(255, 255, 255, 0.95);
   --bg-card-hover: #FFFFFF;
   --bg-card-solid: #FFFFFF;
+  --bg-surface: #FFFFFF;
+  --border-glow: rgba(170, 124, 17, 0.35);
   --bg-elevated: #ECEAE4;
   --border-subtle: rgba(0, 0, 0, 0.08);
   --border-gold: rgba(184, 146, 40, 0.35);
@@ -577,7 +581,7 @@ h2, h3 {
   padding: 10px 20px;
   display: flex;
   align-items: center;
-  justifyContent: space-between;
+  justify-content: space-between;
   gap: 12px;
   flex-wrap: nowrap;
 }
@@ -640,4 +644,50 @@ h2, h3 {
   0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.45); }
   70% { box-shadow: 0 0 0 22px rgba(212, 175, 55, 0); }
   100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.9s linear infinite; display: inline-block; vertical-align: middle; }
+
+/* ── Phones & small tablets ─────────────────────────────────────── */
+@media (max-width: 1180px) {
+  .nav-dev { display: none !important; }
+}
+@media (max-width: 860px) {
+  .navbar-header {
+    flex-wrap: wrap;
+    top: 0;
+    margin: 0 0 12px;
+    width: 100%;
+    border-radius: 0 !important;
+    padding: 8px 12px;
+  }
+  .navbar-actions {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .navbar-actions::-webkit-scrollbar { display: none; }
+  .nav-label { display: none; }
+  .navbar-brand .badge { display: none; }
+}
+@media (max-width: 600px) {
+  html, body { overflow-x: hidden; }
+  .main-content { padding: 12px 10px 110px !important; }
+  .glass-panel { padding: 16px !important; }
+  h1 { font-size: 1.7rem !important; line-height: 1.2 !important; }
+  h2 { font-size: 1.3rem !important; }
+  .btn { min-height: 38px; }
+  input, select, textarea { font-size: 16px !important; } /* stops iOS zoom on focus */
+  [role="dialog"] { max-height: 100dvh !important; border-radius: 14px !important; }
+}
+
+/* ── Printing receipts & box labels ─────────────────────────────── */
+@media print {
+  body * { visibility: hidden; }
+  .print-root, .print-root * { visibility: visible; }
+  .print-root { position: absolute !important; inset: 0 !important; background: #fff !important; padding: 0 !important; display: block !important; }
+  .no-print { display: none !important; }
 }

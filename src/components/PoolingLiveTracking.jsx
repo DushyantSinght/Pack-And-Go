@@ -23,31 +23,49 @@ import {
 } from 'lucide-react';
 import { InteractiveLeafletMap } from './InteractiveLeafletMap';
 import { PackMyTruckVisualizer } from './PackMyTruckVisualizer';
+import { LiveMoveMap } from './LiveMoveMap';
 
 export const PoolingLiveTracking = () => {
   const {
     corridors,
     selectedCorridorId,
     setSelectedCorridorId,
-    showToast,
-    setActiveTab
+    setActiveTab,
+    myMoves,
+    openMyMoves,
+    openBooking
   } = useMove();
+  const liveMove = (myMoves || []).find((m) => ['assigned', 'in_transit'].includes(m.status));
 
   const { openChat, requestCall } = useComms();
   const activeCorridor = corridors.find((c) => c.id === selectedCorridorId) || corridors[0];
   const [liveSpeed, setLiveSpeed] = useState(activeCorridor.currentSpeedKmH || 32);
   const [mapMode, setMapMode] = useState('leaflet'); // leaflet | schematic
 
-  // Minor speed telemetry jitter simulation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveSpeed((prev) => Math.max(20, Math.min(48, prev + Math.floor(Math.random() * 5) - 2)));
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  useEffect(() => setLiveSpeed(activeCorridor.currentSpeedKmH || 0), [activeCorridor]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* The customer's own live move, when there is one */}
+      {liveMove ? (
+        <div className="glass-panel" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1.15rem' }}>Your move {liveMove.bookingId}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{liveMove.transitStatus}{liveMove.captain ? ` • ${liveMove.captain.name}, ${liveMove.captain.vehicleNumber || ''}` : ''}</div>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={() => openMyMoves(liveMove.bookingId)}>Codes, chat & call</button>
+          </div>
+          <LiveMoveMap booking={liveMove} height={300} />
+        </div>
+      ) : (
+        <div className="glass-panel" style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            You don't have a move on the road right now. The corridors below are <strong>examples</strong> of how pooled routes work.
+          </span>
+          <button className="btn btn-primary btn-sm" onClick={openBooking}>Book a move</button>
+        </div>
+      )}
       {/* Header Banner */}
       <div className="glass-panel" style={{ padding: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>

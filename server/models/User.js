@@ -43,7 +43,31 @@ const userSchema = new mongoose.Schema(
     },
     escrowWalletBalance: { type: Number, default: 0 },
     tripsCompleted: { type: Number, default: 0 },
-    rating: { type: Number, default: 4.9 }
+    rating: { type: Number, default: 4.9 },
+    // Platform staff who can review Move Captain applications.
+    isAdmin: { type: Boolean, default: false },
+    emailVerified: { type: Boolean, default: false },
+    emailVerifyTokenHash: { type: String, select: false },
+    passwordResetTokenHash: { type: String, select: false },
+    passwordResetExpires: { type: Date, select: false },
+    ratingCount: { type: Number, default: 0 },
+    acceptedTermsAt: Date,
+    // Move Captains must be approved before they can take jobs or verify OTPs.
+    captain: {
+      status: {
+        type: String,
+        enum: ['none', 'pending', 'approved', 'rejected', 'suspended'],
+        default: 'none',
+        index: true
+      },
+      licenseNumber: { type: String, trim: true, uppercase: true },
+      vehicleNumber: { type: String, trim: true, uppercase: true },
+      vehicleType: { type: String, trim: true },
+      appliedAt: Date,
+      reviewedAt: Date,
+      reviewedBy: { type: String, lowercase: true, trim: true },
+      reviewNote: { type: String, trim: true, maxlength: 500 }
+    }
   },
   { timestamps: true }
 );

@@ -11,6 +11,7 @@ import {
   SCHEMA_DEFINITIONS
 } from '../models/index.js';
 import { seedDatabase } from '../seed/seedData.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -72,9 +73,14 @@ router.get('/schema', (req, res) => {
   });
 });
 
-// POST /api/database/seed - Seed or reseed database
-router.post('/seed', async (req, res) => {
+// POST /api/database/seed - Seed or reseed database.
+// A forced reseed DELETES every collection, so it needs a signed-in user and is
+// disabled in production unless ALLOW_DB_RESEED=true is set explicitly.
+router.post('/seed', requireAuth, async (req, res) => {
   try {
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DB_RESEED !== 'true') {
+      return res.status(403).json({ success: false, message: 'Database reseeding is disabled in production.' });
+    }
     const force = req.body?.force === true;
     const result = await seedDatabase(force);
     res.json({ success: true, result });

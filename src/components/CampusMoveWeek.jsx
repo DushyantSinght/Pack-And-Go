@@ -34,6 +34,10 @@ export const CampusMoveWeek = () => {
   };
 
   const handleJoinCampusPool = async () => {
+    if (!user) {
+      showToast('Sign in to join your campus move week.', 'info');
+      return;
+    }
     confetti({
       particleCount: 70,
       spread: 70,
@@ -43,9 +47,9 @@ export const CampusMoveWeek = () => {
 
     try {
       await api.joinCampusHub(selectedHub.hubId || selectedHub.id, {
-        name: user?.name || 'Student Resident',
-        email: user?.email || 'student@campus.edu',
-        phone: user?.phone || '9876543210',
+        name: user.name,
+        email: user.email,
+        phone: user.phone || '',
         college: selectedHub.name
       });
     } catch (e) {
@@ -295,16 +299,22 @@ export const CampusMoveWeek = () => {
 
             <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                SMS updates dispatched to registered parent phone
+                Move updates are sent by SMS to the phone on your account
               </span>
               <button
-                onClick={() => {
-                  showToast('Test SMS dispatch alert sent to +91 98*** 44012: "Your child\'s move is 2.4 km from destination."', 'success');
+                onClick={async () => {
+                  if (!user) return showToast('Sign in to send a test SMS to your phone.', 'info');
+                  try {
+                    const r = await api.sendTestSms();
+                    showToast(r.message, r.result === 'sent' ? 'success' : 'info');
+                  } catch (e) {
+                    showToast(e.message, 'error');
+                  }
                 }}
                 className="btn btn-secondary btn-sm"
                 style={{ fontSize: '0.75rem' }}
               >
-                Trigger Test SMS
+                Send test SMS to my phone
               </button>
             </div>
           </div>

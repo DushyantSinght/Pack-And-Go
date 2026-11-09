@@ -1,5 +1,6 @@
 import React from 'react';
 import { useMove } from '../context/MoveContext';
+import { ServiceRequestModal } from './ServiceRequestModal';
 import { THEMED_ROOMS, ARRIVAL_ESSENTIALS_KIT } from '../data/mockData';
 import {
   Sparkles,
@@ -32,16 +33,16 @@ export const ThemedRoomSetup = () => {
     currentEstimate.selectedEssentials.includes(item.id)
   ).reduce((acc, curr) => acc + curr.price, 0);
 
+  const [request, setRequest] = React.useState(null);
   const handleConfirmSetup = () => {
-    confetti({
-      particleCount: 70,
-      spread: 60,
-      origin: { y: 0.6 }
+    const theme = THEMED_ROOMS.find((t) => t.id === currentEstimate.selectedTheme);
+    const essentials = ARRIVAL_ESSENTIALS_KIT.filter((i) => currentEstimate.selectedEssentials.includes(i.id));
+    setRequest({
+      type: 'room_setup',
+      title: `Room setup: ${theme?.name || 'custom'}`,
+      subtitle: `${essentials.length} arrival essentials • ₹${essentialsTotal.toLocaleString('en-IN')} est.`,
+      details: { themeId: currentEstimate.selectedTheme, essentials: essentials.map((e) => e.name), estimate: essentialsTotal }
     });
-    showToast('Themed Setup & Arrival Essentials Scheduled! Crew will stage your room before arrival.', 'success');
-    setTimeout(() => {
-      setActiveTab('postmove');
-    }, 700);
   };
 
   return (
@@ -270,6 +271,7 @@ export const ThemedRoomSetup = () => {
           </button>
         </div>
       </div>
+      <ServiceRequestModal request={request} onClose={() => setRequest(null)} />
     </div>
   );
 };

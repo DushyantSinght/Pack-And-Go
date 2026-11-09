@@ -33,8 +33,6 @@ export const LuggagePassport = () => {
   const [sliderPosition, setSliderPosition] = useState(50); // Before / After comparison slider
   const [showAddBoxModal, setShowAddBoxModal] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState('');
-  const [enteredOtp, setEnteredOtp] = useState('');
-  const [isOtpVerified, setIsOtpVerified] = useState(false);
 
   // New Box Form State
   const [newBoxForm, setNewBoxForm] = useState({
@@ -60,14 +58,21 @@ export const LuggagePassport = () => {
     }
   }, [selectedBox]);
 
-  const handleVerifyOtp = (e) => {
-    e.preventDefault();
-    if (enteredOtp === currentEstimate.pickupOtp || enteredOtp === currentEstimate.deliveryOtp || enteredOtp === '123456') {
-      setIsOtpVerified(true);
-      showToast('OTP & Geofence GPS Checkpoint Verified! Handover logged to blockchain manifest.', 'success');
-    } else {
-      showToast(`Invalid OTP! Enter ${currentEstimate.deliveryOtp} for demo drop-off verification.`, 'error');
-    }
+  // Real printable QR label sheet — the Move Captain scans these while loading.
+  const [labelSheet, setLabelSheet] = useState(null);
+  const printLabels = async () => {
+    if (!passports.length) return showToast('Add a box first.', 'info');
+    const sheet = await Promise.all(
+      passports.map(async (p) => {
+        const boxId = p.boxId || p.id;
+        const dataUrl = await QRCode.toDataURL(JSON.stringify({ boxId, bookingId: currentEstimate.bookingId }), { margin: 1, width: 220 });
+        return { boxId, label: p.label, fragile: p.fragile, boxNumber: p.boxNumber, dataUrl };
+      })
+    );
+    setLabelSheet(sheet);
+    const done = () => { setLabelSheet(null); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(() => window.print(), 250);
   };
 
   const handleCreateNewBox = (e) => {
@@ -116,9 +121,7 @@ export const LuggagePassport = () => {
               <Plus size={16} /> Add Custom Carton
             </button>
             <button
-              onClick={() => {
-                showToast('Printing Pack&Go Thermal QR Box Labels (#PKG-01 through #PKG-04)...', 'info');
-              }}
+              onClick={printLabels}
               className="btn btn-primary btn-sm"
             >
               <QrCode size={16} /> Print All QR Stickers
@@ -410,33 +413,31 @@ export const LuggagePassport = () => {
 
                 <div className="grid-2" style={{ gap: '10px', marginBottom: '12px' }}>
                   <div style={{ background: 'var(--bg-card-solid)', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Pickup Origin OTP (Verified)</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Pickup OTP {currentEstimate.pickupVerifiedAt ? '(Verified ✓)' : ''}</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.1em' }}>
-                      {currentEstimate.pickupOtp}
+                      {currentEstimate.pickupOtp || '••••••'}
                     </div>
                   </div>
                   <div style={{ background: 'var(--bg-card-solid)', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Dropoff Delivery OTP</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Delivery OTP {currentEstimate.deliveredAt ? '(Verified ✓)' : ''}</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent)', letterSpacing: '0.1em' }}>
-                      {currentEstimate.deliveryOtp}
+                      {currentEstimate.deliveryOtp || '••••••'}
                     </div>
                   </div>
                 </div>
 
-                {/* Handover Verification Form */}
-                <form onSubmit={handleVerifyOtp} style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    placeholder={`Enter OTP (e.g. ${currentEstimate.deliveryOtp})`}
-                    value={enteredOtp}
-                    onChange={(e) => setEnteredOtp(e.target.value)}
-                    className="form-input"
-                    style={{ flex: 1, padding: '8px 12px', fontSize: '0.85rem' }}
-                  />
-                  <button type="submit" className="btn btn-primary btn-sm">
-                    {isOtpVerified ? 'Verified ✓' : 'Verify Handover'}
-                  </button>
-                </form>
+                {/* How handover works — the customer never verifies their own code */}
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  {currentEstimate.pickupOtp ? (
+                    <>
+                      Read the <strong>Pickup OTP</strong> to your Move Captain only once your boxes are loaded, and the{' '}
+                      <strong>Delivery OTP</strong> only after you've checked everything arrived. Never share them over chat or before then.
+                      <div style={{ marginTop: '6px', color: 'var(--text-main)' }}>Status: {currentEstimate.transitStatus}</div>
+                    </>
+                  ) : (
+                    'Sign in to see the private handover codes for your booking.'
+                  )}
+                </div>
               </div>
 
               {/* Next Step Button to Truck Pooling */}
@@ -543,6 +544,25 @@ export const LuggagePassport = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {labelSheet && (
+        <div className="print-root" style={{ position: 'fixed', inset: 0, background: '#fff', color: '#000', zIndex: 500, overflow: 'auto', padding: 16 }}>
+          <div className="no-print" style={{ marginBottom: 10, display: 'flex', gap: 8 }}>
+            <button onClick={() => window.print()} className="btn btn-sm" style={{ background: '#000', color: '#fff' }}>Print</button>
+            <button onClick={() => setLabelSheet(null)} className="btn btn-sm" style={{ background: '#E5E7EB', color: '#000' }}>Close</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>
+            {labelSheet.map((l) => (
+              <div key={l.boxId} style={{ border: '2px dashed #000', padding: 10, textAlign: 'center', breakInside: 'avoid', fontFamily: 'system-ui' }}>
+                <div style={{ fontWeight: 800 }}>Pack&Go • {currentEstimate.bookingId}</div>
+                <img src={l.dataUrl} alt={l.boxId} style={{ width: 180, height: 180 }} />
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{l.boxId}</div>
+                <div style={{ fontSize: 12 }}>{l.boxNumber} • {l.label}</div>
+                {l.fragile && <div style={{ fontWeight: 900, fontSize: 16, marginTop: 4 }}>⚠ FRAGILE — HANDLE WITH CARE</div>}
+              </div>
+            ))}
           </div>
         </div>
       )}

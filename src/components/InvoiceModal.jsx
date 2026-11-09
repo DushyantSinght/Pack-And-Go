@@ -1,269 +1,106 @@
-import React, { useRef } from 'react';
+import React from 'react';
+import { Printer, X } from 'lucide-react';
 import { useMove } from '../context/MoveContext';
-import {
-  X,
-  Printer,
-  Download,
-  Building,
-  ShieldCheck,
-  CheckCircle,
-  QrCode,
-  FileText
-} from 'lucide-react';
+
+// Company details for receipts. A GST "Tax Invoice" may only be issued with a real
+// GSTIN — set these in .env (VITE_COMPANY_*) once the business is registered.
+const COMPANY = {
+  name: import.meta.env.VITE_COMPANY_NAME || 'Pack&Go',
+  address: import.meta.env.VITE_COMPANY_ADDRESS || '',
+  gstin: import.meta.env.VITE_COMPANY_GSTIN || '',
+  email: import.meta.env.VITE_SUPPORT_EMAIL || 'support@packandgo.in'
+};
+
+const inr = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmt = (d) => (d ? new Date(d).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' }) : '—');
 
 export const InvoiceModal = ({ isOpen, onClose }) => {
-  const { currentEstimate, user } = useMove();
-  const printRef = useRef();
+  const { invoiceBooking: b, user } = useMove();
+  if (!isOpen || !b) return null;
+  const pb = b.priceBreakdown || {};
+  const pd = b.paymentDetails || {};
+  const isTaxInvoice = !!COMPANY.gstin;
+  const gstPct = pb.subtotal ? Math.round((pb.gst / pb.subtotal) * 100) : 18;
 
-  if (!isOpen) return null;
-
-  const invoiceNumber = 'PKG-INV-2026-0982';
-  const invoiceDate = '17 September 2026';
-  const taxableTransport = currentEstimate.pooledPrice - 390;
-  const cartonsFee = 240;
-  const labourFee = 150;
-  const taxableSubtotal = currentEstimate.pooledPrice;
-  const gstRate = 0.05; // 5% GTA GST
-  const gstAmount = Math.round(taxableSubtotal * gstRate);
-  const totalAmount = taxableSubtotal + gstAmount;
-
-  const handlePrint = () => {
-    window.print();
-  };
+  const rows = [
+    ['Base fare', pb.base],
+    ['Volume charge', pb.volume],
+    ['Distance charge', pb.distance],
+    ...(pb.floors ? [['Stairs (no lift)', pb.floors]] : []),
+    ...(pb.poolingDiscount ? [['Pooling discount', -pb.poolingDiscount]] : [])
+  ];
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.8)',
-      backdropFilter: 'blur(10px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 220,
-      padding: '20px'
-    }}>
-      <div className="glass-panel" style={{
-        width: '100%',
-        maxWidth: '750px',
-        maxHeight: '90vh',
-        overflowY: 'auto',
-        padding: '36px',
-        background: '#FFFFFF',
-        color: '#0F172A',
-        position: 'relative',
-        borderRadius: 'var(--radius-lg)',
-        boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5)'
-      }} id="printable-invoice">
-        {/* Top Controls */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid #E2E8F0', paddingBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="badge badge-emerald" style={{ background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0' }}>
-              Official Tax Invoice
-            </span>
-            <span style={{ fontSize: '0.8rem', color: '#64748B' }}>
-              Employer Reimbursement Compliant
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={handlePrint}
-              className="btn btn-sm btn-primary"
-              style={{ background: '#0F172A', color: '#FFFFFF', gap: '6px' }}
-            >
-              <Printer size={15} /> Print / Save PDF
-            </button>
-            <button
-              onClick={onClose}
-              style={{
-                background: '#F1F5F9',
-                border: 'none',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <X size={18} color="#475569" />
-            </button>
-          </div>
+    <div className="print-root" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 640, maxHeight: '94vh', overflowY: 'auto', background: '#fff', color: '#0F172A', borderRadius: 12, padding: 28, fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem' }}>
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 10 }}>
+          <button onClick={() => window.print()} className="btn btn-sm" style={{ background: '#0F172A', color: '#fff', gap: 6 }}><Printer size={14} /> Print / Save PDF</button>
+          <button onClick={onClose} className="btn btn-sm" style={{ background: '#E2E8F0', color: '#0F172A' }}><X size={14} /></button>
         </div>
 
-        {/* Invoice Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #0F172A', paddingBottom: 12, gap: 16, flexWrap: 'wrap' }}>
           <div>
-            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0F172A', marginBottom: '4px' }}>
-              Pack<span style={{ color: '#D4AF37' }}>&</span>Go Logistics Pvt Ltd
-            </h2>
-            <p style={{ fontSize: '0.8rem', color: '#64748B', lineHeight: 1.5, margin: 0 }}>
-              CIN: U63090KA2025PTC188291 • GSTIN: <strong>29AABCP9921M1Z4</strong><br />
-              Regd Office: 84/2, 4th Cross, Koramangala 4th Block, Bengaluru, KA 560034<br />
-              Goods Transport Agency (GTA) Services • HSN/SAC: <strong>996511</strong>
-            </p>
+            <div style={{ fontWeight: 800, fontSize: '1.3rem' }}>{COMPANY.name}</div>
+            {COMPANY.address && <div style={{ color: '#475569' }}>{COMPANY.address}</div>}
+            {COMPANY.gstin && <div style={{ color: '#475569' }}>GSTIN: {COMPANY.gstin}</div>}
+            <div style={{ color: '#475569' }}>{COMPANY.email}</div>
           </div>
-
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A' }}>{invoiceNumber}</div>
-            <div style={{ fontSize: '0.8rem', color: '#64748B' }}>Date: {invoiceDate}</div>
-            <div style={{ fontSize: '0.8rem', color: '#64748B' }}>Vehicle: <strong>KA-01-MJ-4921 (Tata Ace EV)</strong></div>
+            <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{isTaxInvoice ? 'TAX INVOICE' : 'PAYMENT RECEIPT'}</div>
+            <div>No. {b.bookingId}</div>
+            <div style={{ color: '#475569' }}>Paid: {fmt(pd.paidAt)}</div>
           </div>
         </div>
 
-        {/* Billed To & Corridor Box */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '20px',
-          background: '#F8FAFC',
-          padding: '16px',
-          borderRadius: '8px',
-          marginBottom: '24px',
-          border: '1px solid #E2E8F0',
-          fontSize: '0.85rem'
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, margin: '16px 0' }}>
           <div>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '4px' }}>
-              BILLED TO (EMPLOYEE / TENANT):
-            </div>
-            <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '1rem' }}>
-              {user ? user.name : 'Dushyant Singh'}
-            </div>
-            <div style={{ color: '#475569' }}>Phone: +91 {user?.phone || '98765 43210'}</div>
-            <div style={{ color: '#475569' }}>Email: {user?.email || 'dushyant@example.com'}</div>
-            <div style={{ color: '#64748B', fontSize: '0.75rem', marginTop: '4px' }}>
-              Corporate Claim: <strong>Relocation Allowance Expense</strong>
-            </div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Billed to</div>
+            <div>{b.userName || user?.name}</div>
+            <div style={{ color: '#475569' }}>{b.userEmail}</div>
+            {b.userPhone && <div style={{ color: '#475569' }}>+91 {b.userPhone}</div>}
           </div>
-
           <div>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '4px' }}>
-              TRANSIT CORRIDOR & VOLUME:
-            </div>
-            <div><strong>Origin:</strong> {currentEstimate.origin}</div>
-            <div><strong>Destination:</strong> {currentEstimate.destination}</div>
-            <div><strong>Volume / Weight:</strong> {currentEstimate.totalCuFt} cu. ft. • {currentEstimate.estimatedWeightKg} kg</div>
-            <div><strong>Trip Type:</strong> Shared Corridor Freight Pooling (45% Eco-Consolidation)</div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Move</div>
+            <div style={{ color: '#475569' }}>{fmt(b.moveDate)} ({b.timeSlot})</div>
+            <div style={{ color: '#475569' }}>{b.totalCuFt} cu ft • {b.distanceKm} km</div>
           </div>
         </div>
+        <div style={{ color: '#475569', marginBottom: 14, lineHeight: 1.5 }}>
+          <div><strong style={{ color: '#0F172A' }}>From:</strong> {b.origin}</div>
+          <div><strong style={{ color: '#0F172A' }}>To:</strong> {b.destination}</div>
+        </div>
 
-        {/* Line Items Table */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '24px', fontSize: '0.85rem' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#F1F5F9', borderBottom: '2px solid #CBD5E1', textAlign: 'left' }}>
-              <th style={{ padding: '10px 12px' }}>#</th>
-              <th style={{ padding: '10px 12px' }}>Service Description</th>
-              <th style={{ padding: '10px 12px' }}>SAC Code</th>
-              <th style={{ padding: '10px 12px' }}>Qty</th>
-              <th style={{ padding: '10px 12px', textAlign: 'right' }}>Amount (INR)</th>
+            <tr style={{ background: '#F1F5F9' }}>
+              <th style={{ textAlign: 'left', padding: 8 }}>Description</th>
+              <th style={{ textAlign: 'right', padding: 8 }}>Amount</th>
             </tr>
           </thead>
           <tbody>
-            <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
-              <td style={{ padding: '10px 12px' }}>1</td>
-              <td style={{ padding: '10px 12px' }}>
-                <strong>Corridor Freight Transport (Shared Load Allocation)</strong>
-                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>14ft EV Electric Mini-Truck with GPS Live Geofencing</div>
-              </td>
-              <td style={{ padding: '10px 12px' }}>996511</td>
-              <td style={{ padding: '10px 12px' }}>1 Trip</td>
-              <td style={{ padding: '10px 12px', textAlign: 'right' }}>₹{taxableTransport.toLocaleString('en-IN')}</td>
+            {rows.map(([k, v]) => (
+              <tr key={k} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                <td style={{ padding: 8 }}>{k}</td>
+                <td style={{ padding: 8, textAlign: 'right' }}>{v < 0 ? `− ${inr(-v)}` : inr(v)}</td>
+              </tr>
+            ))}
+            <tr><td style={{ padding: 8, fontWeight: 600 }}>Taxable value</td><td style={{ padding: 8, textAlign: 'right', fontWeight: 600 }}>{inr(pb.subtotal)}</td></tr>
+            <tr><td style={{ padding: 8 }}>CGST ({gstPct / 2}%)</td><td style={{ padding: 8, textAlign: 'right' }}>{inr(pb.gst / 2)}</td></tr>
+            <tr><td style={{ padding: 8 }}>SGST ({gstPct / 2}%)</td><td style={{ padding: 8, textAlign: 'right' }}>{inr(pb.gst / 2)}</td></tr>
+            <tr style={{ background: '#0F172A', color: '#fff' }}>
+              <td style={{ padding: 10, fontWeight: 800 }}>Total paid</td>
+              <td style={{ padding: 10, textAlign: 'right', fontWeight: 800 }}>{inr(pd.amountPaid || pb.total)}</td>
             </tr>
-            <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
-              <td style={{ padding: '10px 12px' }}>2</td>
-              <td style={{ padding: '10px 12px' }}>
-                <strong>Thermal QR Luggage Passports & RFID Tamper Seals</strong>
-                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Box-level digital chain of custody tags (4 cartons)</div>
-              </td>
-              <td style={{ padding: '10px 12px' }}>996511</td>
-              <td style={{ padding: '10px 12px' }}>4 Units</td>
-              <td style={{ padding: '10px 12px', textAlign: 'right' }}>₹{cartonsFee}</td>
-            </tr>
-            <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
-              <td style={{ padding: '10px 12px' }}>3</td>
-              <td style={{ padding: '10px 12px' }}>
-                <strong>Certified Loading & Unloading Labour Assistance</strong>
-                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>1 Move Captain + 1 Certified Helper (2.5 hrs)</div>
-              </td>
-              <td style={{ padding: '10px 12px' }}>996511</td>
-              <td style={{ padding: '10px 12px' }}>Crew</td>
-              <td style={{ padding: '10px 12px', textAlign: 'right' }}>₹{labourFee}</td>
-            </tr>
-            <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
-              <td style={{ padding: '10px 12px' }}>4</td>
-              <td style={{ padding: '10px 12px' }}>
-                <strong>Security Deposit Protection & Transit Escrow Guarantee</strong>
-                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>₹50,000 transit damage coverage + pre-move room audit</div>
-              </td>
-              <td style={{ padding: '10px 12px' }}>996511</td>
-              <td style={{ padding: '10px 12px' }}>Escrow</td>
-              <td style={{ padding: '10px 12px', textAlign: 'right', color: '#059669' }}>FREE</td>
-            </tr>
+            {pd.refundAmount ? (
+              <tr><td style={{ padding: 8, color: '#B91C1C' }}>Refunded {fmt(pd.refundedAt)}</td><td style={{ padding: 8, textAlign: 'right', color: '#B91C1C' }}>− {inr(pd.refundAmount)}</td></tr>
+            ) : null}
           </tbody>
         </table>
 
-        {/* Totals Calculation */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
-          <div style={{ width: '300px', fontSize: '0.85rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-              <span style={{ color: '#64748B' }}>Taxable Value:</span>
-              <strong>₹{taxableSubtotal.toLocaleString('en-IN')}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-              <span style={{ color: '#64748B' }}>CGST (2.5%):</span>
-              <span>₹{(gstAmount / 2).toFixed(2)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-              <span style={{ color: '#64748B' }}>SGST (2.5%):</span>
-              <span>₹{(gstAmount / 2).toFixed(2)}</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              padding: '10px 0',
-              borderTop: '2px solid #0F172A',
-              borderBottom: '2px solid #0F172A',
-              marginTop: '6px',
-              fontSize: '1.15rem'
-            }}>
-              <strong>Total Invoice Amount:</strong>
-              <strong style={{ color: '#059669' }}>₹{totalAmount.toLocaleString('en-IN')}</strong>
-            </div>
-            <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', textAlign: 'right' }}>
-              GST Payable on Forward Charge Basis (GTA)
-            </div>
-          </div>
-        </div>
-
-        {/* Signatures & Security Stamp */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px solid #E2E8F0', paddingTop: '20px' }}>
-          <div style={{ fontSize: '0.75rem', color: '#64748B', maxWidth: '360px', lineHeight: 1.5 }}>
-            <strong>Terms & Regulatory Declarations:</strong><br />
-            This document is a certified Goods Consignment Note & Tax Invoice issued under Rule 4B of the Service Tax Rules, 1994 / Section 31 of CGST Act, 2017. Valid for full corporate claim reimbursement.
-          </div>
-
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              border: '2px dashed #D4AF37',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              color: '#B45309',
-              fontSize: '0.75rem',
-              fontWeight: 800,
-              letterSpacing: '0.05em',
-              marginBottom: '8px'
-            }}>
-              ✓ DIGITALLY VERIFIED GTA ESCROW
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#0F172A', fontWeight: 700 }}>Authorized Signatory</div>
-            <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Pack&Go Automated Dispatch System</div>
-          </div>
+        <div style={{ marginTop: 14, color: '#475569', fontSize: '0.78rem', lineHeight: 1.5 }}>
+          Payment: {pd.method || '—'} • Ref {pd.transactionId || '—'}
+          {pd.testMode && <div style={{ color: '#B45309', fontWeight: 700 }}>TEST PAYMENT — no money was charged. Not valid as a receipt.</div>}
+          {!isTaxInvoice && <div>This is a payment receipt, not a GST tax invoice.</div>}
         </div>
       </div>
     </div>

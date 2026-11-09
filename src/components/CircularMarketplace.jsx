@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useMove } from '../context/MoveContext';
 import { useComms } from '../context/CommsContext';
+import { ServiceRequestModal } from './ServiceRequestModal';
 import { BUYBACK_DEVICES } from '../data/mockData';
 import {
   Repeat,
@@ -70,6 +71,7 @@ export const CircularMarketplace = () => {
   };
 
   const { openChat, requestCall } = useComms();
+  const [buybackRequest, setBuybackRequest] = useState(null);
 
   const handleClaim = (item) => {
     confetti({
@@ -234,18 +236,24 @@ export const CircularMarketplace = () => {
             justifyContent: 'space-between'
           }}>
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Guaranteed Buyback Payout:</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Indicative buyback offer:</div>
               <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--amber)' }}>
                 ₹{appraisedQuote.toLocaleString('en-IN')}
               </div>
             </div>
             <button
               onClick={() => {
-                showToast(`₹${appraisedQuote.toLocaleString('en-IN')} instant buyback credit applied directly against your move balance!`, 'success');
+                const dev = BUYBACK_DEVICES.find((d) => d.id === selectedBuybackDevice);
+                setBuybackRequest({
+                  type: 'service',
+                  title: `Buyback: ${dev?.name || 'device'} (${deviceCondition})`,
+                  subtitle: `Indicative offer ₹${appraisedQuote.toLocaleString('en-IN')} — final price after our technician inspects it at pickup.`,
+                  details: { deviceId: selectedBuybackDevice, condition: deviceCondition, indicativeOffer: appraisedQuote }
+                });
               }}
               className="btn btn-primary btn-sm"
             >
-              Apply to Move Invoice
+              Request pickup & inspection
             </button>
           </div>
         </div>
@@ -505,6 +513,7 @@ export const CircularMarketplace = () => {
           </div>
         </div>
       )}
+      <ServiceRequestModal request={buybackRequest} onClose={() => setBuybackRequest(null)} />
     </div>
   );
 };

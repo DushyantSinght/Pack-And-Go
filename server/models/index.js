@@ -1,13 +1,18 @@
 import { User } from './User.js';
-import { MoveBooking } from './MoveBooking.js';
+import { MoveBooking, generateOtp } from './MoveBooking.js';
 import { LuggagePassport } from './LuggagePassport.js';
 import { MarketplaceItem } from './MarketplaceItem.js';
 import { PooledCorridor } from './PooledCorridor.js';
 import { CampusHub } from './CampusHub.js';
 import { Conversation } from './Conversation.js';
 import { Message } from './Message.js';
+import { Notification } from './Notification.js';
+import { DamageClaim } from './DamageClaim.js';
+import { ServiceRequest } from './ServiceRequest.js';
+import { ErrorLog } from './ErrorLog.js';
 
 export {
+  generateOtp,
   User,
   MoveBooking,
   LuggagePassport,
@@ -15,7 +20,11 @@ export {
   PooledCorridor,
   CampusHub,
   Conversation,
-  Message
+  Message,
+  Notification,
+  DamageClaim,
+  ServiceRequest,
+  ErrorLog
 };
 
 export const SCHEMA_DEFINITIONS = [

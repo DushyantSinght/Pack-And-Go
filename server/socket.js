@@ -1,7 +1,9 @@
 // Real-time layer: chat delivery, typing, presence and WebRTC call signalling.
 import { Server } from 'socket.io';
 import mongoose from 'mongoose';
-import { Conversation, User } from './models/index.js';
+import { Conversation, User, MoveBooking } from './models/index.js';
+import { haversineKm } from './services/pricing.js';
+import { notify } from './services/notify.js';
 import { createMessage } from './routes/chatRoutes.js';
 import { verifyToken } from './middleware/auth.js';
 
@@ -28,9 +30,9 @@ const sharesConversation = async (a, b) => {
   return !!(await Conversation.exists({ participants: { $all: [a, b] } }));
 };
 
-export const initSocket = (httpServer, allowedOrigins) => {
+export const initSocket = (httpServer, corsOrigin) => {
   io = new Server(httpServer, {
-    cors: { origin: allowedOrigins, credentials: true }
+    cors: { origin: corsOrigin, credentials: true }
   });
 
   // Auth + profile lookup happen here, before 'connection', so event handlers
@@ -73,6 +75,44 @@ export const initSocket = (httpServer, allowedOrigins) => {
       if (!conv) return;
       const others = conv.participants.map(String).filter((id) => id !== userId);
       emitToUsers(others, 'chat:typing', { conversationId, userId, typing: !!typing });
+    });
+
+    // ── Live GPS from the assigned Move Captain ──────────────────
+    const lastSaved = new Map(); // bookingId -> ms
+    socket.on('driver:location', async (p = {}, ack) => {
+      try {
+        const lat = Number(p.lat), lng = Number(p.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return ack?.({ ok: false });
+        const me = await User.findById(userId).select('email userType captain.status').lean();
+        if (me?.userType !== 'captain' || me.captain?.status !== 'approved') return ack?.({ ok: false, error: 'not-approved' });
+        const move = await MoveBooking.findOne({ bookingId: p.bookingId, assignedCaptainEmail: me.email, status: { $in: ['assigned', 'in_transit'] } });
+        if (!move) return ack?.({ ok: false, error: 'not-your-active-job' });
+
+        const loc = {
+          lat, lng,
+          speedKmh: Number.isFinite(+p.speedKmh) ? Math.max(0, Math.min(150, +p.speedKmh)) : null,
+          heading: Number.isFinite(+p.heading) ? +p.heading : null,
+          updatedAt: new Date()
+        };
+        const owner = await User.findOne({ email: move.userEmail }).select('_id').lean();
+        const target = move.status === 'assigned' ? move.originLocation : move.destinationLocation;
+        const kmLeft = target?.lat ? haversineKm(loc, target) : null;
+        const etaMin = kmLeft != null ? Math.max(1, Math.round((kmLeft * 1.3) / 22 * 60)) : null; // ~22 km/h city average
+        if (owner) emitToUsers([String(owner._id)], 'booking:location', { bookingId: move.bookingId, ...loc, kmLeft, etaMin, status: move.status });
+
+        if (Date.now() - (lastSaved.get(move.bookingId) || 0) > 10000) {
+          lastSaved.set(move.bookingId, Date.now());
+          const set = { driverLocation: loc };
+          if (move.status === 'assigned' && kmLeft != null && kmLeft < 2 && !move.nearbyNotifiedAt) {
+            set.nearbyNotifiedAt = new Date();
+            notify(move.userEmail, { type: 'driver', bookingId: move.bookingId, title: `Your Move Captain is about ${etaMin} min away`, body: 'Keep your Pickup OTP ready — share it only once your boxes are loaded.', sms: true });
+          }
+          await MoveBooking.updateOne({ _id: move._id }, { $set: set });
+        }
+        ack?.({ ok: true, kmLeft, etaMin });
+      } catch {
+        ack?.({ ok: false });
+      }
     });
 
     // ── Calls (WebRTC signalling relay) ───────────────────────────

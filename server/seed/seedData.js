@@ -110,8 +110,6 @@ export const seedDatabase = async (force = false) => {
       pooledPrice: 3190,
       savingsPercent: 45,
       isPriceLocked: true,
-      pickupOtp: '582941',
-      deliveryOtp: '910283',
       transitStatus: 'In Transit • 34 km/h • Geofence Validated',
       selectedTheme: 'theme-urban-tech',
       selectedEssentials: ['ess-water', 'ess-bedding', 'ess-grocery'],

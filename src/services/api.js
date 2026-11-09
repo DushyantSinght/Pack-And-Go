@@ -73,11 +73,11 @@ export const api = {
    * Sign up with name + email + password + userType.
    * Stores the returned JWT automatically.
    */
-  signup: async ({ name, email, password, userType, college, society, phone }) => {
+  signup: async ({ name, email, password, userType, college, society, phone, licenseNumber, vehicleNumber, vehicleType, acceptTerms }) => {
     const res = await fetch(`${BASE_URL}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, userType, college, society, phone })
+      body: JSON.stringify({ name, email, password, userType, college, society, phone, licenseNumber, vehicleNumber, vehicleType, acceptTerms })
     });
     const data = await handleResponse(res);
     if (data.token) tokenStorage.set(data.token);
@@ -117,6 +117,12 @@ export const api = {
     return handleResponse(res);
   },
 
+  getCaptainJobs: async () => {
+    const res = await fetch(`${BASE_URL}/moves/captain/jobs`, { headers: authHeaders() });
+    return handleResponse(res);
+  },
+
+  /** Move Captain only: { bookingId, otp, stage: 'pickup' | 'delivery' } */
   verifyOtp: async (data) => {
     const res = await fetch(`${BASE_URL}/moves/verify-otp`, {
       method: 'POST',
@@ -278,5 +284,91 @@ export const api = {
       headers: authHeaders()
     });
     return handleResponse(res);
+  },
+
+  // ── Admin: Move Captain approvals ─────────────────────────────────
+  getCaptainApplications: async (status = 'pending') => {
+    const res = await fetch(`${BASE_URL}/admin/captains?status=${encodeURIComponent(status)}`, { headers: authHeaders() });
+    return handleResponse(res);
+  },
+
+  reviewCaptain: async (userId, action, note = '') => {
+    const res = await fetch(`${BASE_URL}/admin/captains/${userId}/review`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ action, note })
+    });
+    return handleResponse(res);
+  },
+
+  // ── Generic helpers for the newer endpoints ──────────────────────
+  get: async (path) => handleResponse(await fetch(`${BASE_URL}${path}`, { headers: authHeaders() })),
+  post: async (path, body = {}) =>
+    handleResponse(await fetch(`${BASE_URL}${path}`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })),
+  patch: async (path, body = {}) =>
+    handleResponse(await fetch(`${BASE_URL}${path}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) })),
+
+  // Bookings
+  quoteMove: (data) => api.post('/moves/quote', data),
+  bookMove: (data) => api.post('/moves/book', data),
+  getMyMoves: () => api.get('/moves/mine'),
+  getMove: (id) => api.get(`/moves/${encodeURIComponent(id)}`),
+  cancelMove: (id, reason) => api.post(`/moves/${encodeURIComponent(id)}/cancel`, { reason }),
+  rescheduleMove: (id, date, timeSlot) => api.post(`/moves/${encodeURIComponent(id)}/reschedule`, { date, timeSlot }),
+  reviewMove: (id, rating, comment) => api.post(`/moves/${encodeURIComponent(id)}/review`, { rating, comment }),
+  acceptJob: (id) => api.post(`/moves/captain/jobs/${encodeURIComponent(id)}/accept`),
+
+  // Payments
+  getPaymentConfig: () => api.get('/payments/config'),
+  testPay: (bookingId) => api.post('/payments/test-pay', { bookingId }),
+
+  // Account
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
+  verifyEmail: (token) => api.post('/auth/verify-email', { token }),
+  resendVerification: () => api.post('/auth/resend-verification'),
+  updateProfile: (data) => api.patch('/auth/me', data),
+
+  // Notifications
+  getNotifications: () => api.get('/notifications'),
+  markAllNotificationsRead: () => api.post('/notifications/read-all'),
+  sendTestSms: () => api.post('/notifications/test-sms'),
+
+  // Support
+  fileClaim: (data) => api.post('/support/claims', data),
+  getMyClaims: () => api.get('/support/claims/mine'),
+  createServiceRequest: (data) => api.post('/support/requests', data),
+
+  // AI
+  assistantStatus: () => api.get('/assistant/status'),
+  assistantChat: (messages) => api.post('/assistant/chat', { messages }),
+  scanRoom: (image) => api.post('/assistant/scan-room', { image }),
+  parseInventory: (text) => api.post('/assistant/parse-inventory', { text }),
+
+  // Admin
+  adminBookings: (status = 'all') => api.get(`/admin/bookings?status=${encodeURIComponent(status)}`),
+  adminCancelBooking: (id, reason) => api.post(`/admin/bookings/${encodeURIComponent(id)}/cancel`, { reason }),
+  adminClaims: (status = 'all') => api.get(`/admin/claims?status=${encodeURIComponent(status)}`),
+  adminResolveClaim: (id, data) => api.post(`/admin/claims/${encodeURIComponent(id)}/resolve`, data),
+  adminRequests: (status = 'all') => api.get(`/admin/requests?status=${encodeURIComponent(status)}`),
+  adminUpdateRequest: (id, status, note) => api.post(`/admin/requests/${encodeURIComponent(id)}/status`, { status, note })
+};
+
+/** Report a client error to the server (best effort, never throws). */
+export const reportClientError = (error, meta) => {
+  try {
+    fetch(`${BASE_URL}/logs/client-error`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        message: String(error?.message || error).slice(0, 2000),
+        stack: String(error?.stack || '').slice(0, 8000),
+        url: window.location.href,
+        meta
+      }),
+      keepalive: true
+    }).catch(() => {});
+  } catch {
+    /* ignore */
   }
 };

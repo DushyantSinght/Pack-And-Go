@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { api } from '../services/api';
+import { DriverJobPanel } from './DriverJobPanel';
 import confetti from 'canvas-confetti';
 import { useMove } from '../context/MoveContext';
 import { useComms } from '../context/CommsContext';
@@ -19,66 +21,56 @@ import {
 } from 'lucide-react';
 
 export const DriverConsoleModal = ({ isOpen, onClose }) => {
-  const { currentEstimate, showToast, user } = useMove();
+  const { showToast, user, openAuth, updateUser } = useMove();
   const { openInbox, unreadTotal } = useComms();
 
-  const [geofenceStatus, setGeofenceStatus] = useState('en-route'); // en-route | arrived | verified
-  const [scannedBoxes, setScannedBoxes] = useState(['PKG-BOX-01', 'PKG-BOX-02']);
   const [inputOtp, setInputOtp] = useState('');
-  const [otpStage, setOtpStage] = useState('pickup'); // pickup | delivery | completed
-  const [isScanning, setIsScanning] = useState(false);
+  const [jobs, setJobs] = useState([]);
+  const [selectedJobId, setSelectedJobId] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const isCaptain = user?.userType === 'captain' && user?.captainStatus === 'approved';
+  const captainStatus = user?.userType === 'captain' ? user?.captainStatus : null;
+
+  // Load real jobs from the server. Captains never receive customer OTPs.
+  useEffect(() => {
+    if (!isOpen || !isCaptain) return;
+    api.getCaptainJobs()
+      .then((res) => {
+        setJobs(res.jobs || []);
+        setSelectedJobId((prev) => prev || res.jobs?.[0]?.bookingId || '');
+      })
+      .catch((err) => showToast(err.message, 'error'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, isCaptain]);
 
   if (!isOpen) return null;
 
-  const totalBoxes = [
-    { id: 'PKG-BOX-01', label: 'Monitor & Workstation', fragile: true },
-    { id: 'PKG-BOX-02', label: 'Wardrobe Essentials', fragile: false },
-    { id: 'PKG-BOX-03', label: 'Kitchen & Cookware', fragile: true },
-    { id: 'PKG-BOX-04', label: 'Study Books & Notes', fragile: false }
-  ];
+  const selectedJob = jobs.find((j) => j.bookingId === selectedJobId && j.assignedToMe);
+  const otpStage = selectedJob?.stage || 'pickup'; // pickup | delivery | completed
 
-  const handleSimulateGeofence = () => {
-    setGeofenceStatus('arrived');
-    showToast('GPS: Vehicle KA-01-MJ-4921 entered 150m pickup geofence!', 'info');
-  };
-
-  const handleScanNextBox = () => {
-    setIsScanning(true);
-    setTimeout(() => {
-      setIsScanning(false);
-      const remaining = totalBoxes.find((b) => !scannedBoxes.includes(b.id));
-      if (remaining) {
-        setScannedBoxes((prev) => [...prev, remaining.id]);
-        showToast(`Audited & Scanned ${remaining.id} (${remaining.label})`, 'success');
-      } else {
-        showToast('All 4 boxes audited and safely boarded!', 'info');
-      }
-    }, 800);
-  };
-
-  const handleVerifyOtp = (e) => {
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
-    if (otpStage === 'pickup') {
-      if (inputOtp === currentEstimate.pickupOtp || inputOtp === '582941') {
-        setOtpStage('delivery');
-        setInputOtp('');
-        showToast('✓ Pickup OTP verified! Transit legally started.', 'success');
+    if (!selectedJob) return;
+    if (!/^\d{6}$/.test(inputOtp)) {
+      showToast('Enter the 6-digit code the customer reads out to you.', 'error');
+      return;
+    }
+    setIsVerifying(true);
+    try {
+      const res = await api.verifyOtp({ bookingId: selectedJob.bookingId, otp: inputOtp, stage: otpStage });
+      setJobs((prev) => prev.map((j) => (j.bookingId === res.job.bookingId ? res.job : j)));
+      setInputOtp('');
+      if (res.job.stage === 'completed') {
+        confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
+        showToast('✓ Delivery verified! Your payout is in your wallet.', 'success');
+        api.getMe().then((r) => r?.user && updateUser(r.user)).catch(() => {});
       } else {
-        showToast('Invalid Pickup OTP. Hint: Use ' + currentEstimate.pickupOtp, 'error');
+        showToast('✓ Pickup verified! Transit has started.', 'success');
       }
-    } else if (otpStage === 'delivery') {
-      if (inputOtp === currentEstimate.deliveryOtp || inputOtp === '910283') {
-        setOtpStage('completed');
-        setInputOtp('');
-        confetti({
-          particleCount: 100,
-          spread: 80,
-          origin: { y: 0.5 }
-        });
-        showToast('✓ Delivery OTP verified! ₹1,890 Escrow credited to Driver Wallet.', 'success');
-      } else {
-        showToast('Invalid Delivery OTP. Hint: Use ' + currentEstimate.deliveryOtp, 'error');
-      }
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -152,13 +144,13 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
               <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>
                 <Radio size={10} /> Active Move Captain
               </span>
-              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>ID: PKG-CPT-491</span>
+              
             </div>
             <h3 style={{ fontSize: '1.2rem', margin: '2px 0 0 0', fontWeight: 700 }}>
-              Captain {user?.userType === 'captain' && user?.name ? user.name : 'Rajesh Sharma'}
+              {user?.userType === 'captain' && user?.name ? `Captain ${user.name}` : 'Move Captain Console'}
             </h3>
             <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
-              Vehicle: <strong>KA-01-MJ-4921 (Tata Ace EV)</strong> • ⭐ 4.9 (420+ shifts)
+              Vehicle: <strong>{user?.captainApplication?.vehicleNumber || '—'}{user?.captainApplication?.vehicleType ? ` (${user.captainApplication.vehicleType})` : ''}</strong> • ⭐ {user?.rating ?? '—'} ({user?.tripsCompleted ?? 0} moves) • Wallet ₹{(user?.escrowWalletBalance || 0).toLocaleString('en-IN')}
             </div>
           </div>
         </div>
@@ -182,100 +174,9 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
           )}
         </button>
 
-        {/* Step 1: Geofence Check-in */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: 'var(--radius-md)',
-          padding: '16px',
-          marginBottom: '16px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Navigation size={15} color="#10B981" /> 1. Geofence Waypoint Status
-            </span>
-            <span className={`badge ${geofenceStatus === 'arrived' ? 'badge-emerald' : 'badge-indigo'}`}>
-              {geofenceStatus === 'arrived' ? 'Within 150m Geofence' : 'En Route (800m away)'}
-            </span>
-          </div>
-
-          <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '0 0 10px 0' }}>
-            Current Waypoint: <strong>HSR Layout Sector 1, Bengaluru</strong>
-          </p>
-
-          {geofenceStatus !== 'arrived' ? (
-            <button
-              onClick={handleSimulateGeofence}
-              className="btn btn-sm btn-outline-emerald"
-              style={{ width: '100%', fontSize: '0.8rem' }}
-            >
-              Simulate Arrival at 150m Geofence
-            </button>
-          ) : (
-            <div style={{ fontSize: '0.75rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <CheckCircle2 size={14} /> Customer notified of captain arrival via WhatsApp & SMS.
-            </div>
-          )}
-        </div>
-
-        {/* Step 2: Camera QR Luggage Audit Scanner */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: 'var(--radius-md)',
-          padding: '16px',
-          marginBottom: '16px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <QrCode size={15} color="var(--primary)" /> 2. Luggage Passport QR Scanner
-            </span>
-            <span style={{ fontSize: '0.75rem', color: '#D4AF37', fontWeight: 600 }}>
-              {scannedBoxes.length} / {totalBoxes.length} Scanned
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
-            {totalBoxes.map((b) => {
-              const isScanned = scannedBoxes.includes(b.id);
-              return (
-                <div
-                  key={b.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '8px 10px',
-                    background: isScanned ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.02)',
-                    border: `1px solid ${isScanned ? '#10B981' : 'rgba(255, 255, 255, 0.08)'}`,
-                    borderRadius: '6px',
-                    fontSize: '0.78rem'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: isScanned ? '#10B981' : '#64748B' }}>
-                      {isScanned ? '✓' : '○'}
-                    </span>
-                    <strong>{b.id}</strong> — {b.label}
-                  </div>
-                  {b.fragile && <span style={{ color: '#F87171', fontSize: '0.7rem' }}>⚠️ FRAGILE</span>}
-                </div>
-              );
-            })}
-          </div>
-
-          {scannedBoxes.length < totalBoxes.length && (
-            <button
-              onClick={handleScanNextBox}
-              disabled={isScanning}
-              className="btn btn-sm btn-primary"
-              style={{ width: '100%', fontSize: '0.8rem', gap: '6px' }}
-            >
-              <Camera size={14} />
-              {isScanning ? 'Auditing RFID Seal...' : 'Simulate Camera Scan on Box'}
-            </button>
-          )}
-        </div>
+        {isCaptain && (
+          <DriverJobPanel jobs={jobs} setJobs={setJobs} selectedJobId={selectedJobId} setSelectedJobId={setSelectedJobId} />
+        )}
 
         {/* Step 3: Dual-End OTP Handover & Escrow Release */}
         <div style={{
@@ -286,15 +187,29 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <span style={{ fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <KeyRound size={15} color="#D4AF37" /> 3. Customer OTP Verification
+              <KeyRound size={15} color="#D4AF37" /> 3. Handover OTP
             </span>
             <span className="badge badge-gold" style={{ fontSize: '0.7rem' }}>
               {otpStage === 'pickup' ? 'Pickup Verification' : otpStage === 'delivery' ? 'Delivery Handover' : 'Completed'}
             </span>
           </div>
 
-          {otpStage !== 'completed' ? (
+          {captainStatus && captainStatus !== 'approved' ? (
+            <div style={{ fontSize: '0.8rem', color: '#94A3B8', lineHeight: 1.5 }}>
+              {captainStatus === 'pending'
+                ? <>⏳ <strong style={{ color: '#FBBF24' }}>Application under review.</strong> Pack&Go is checking your licence and vehicle ({user.captainApplication?.vehicleNumber}). You'll be notified here as soon as you're approved.</>
+                : <>⛔ <strong style={{ color: '#F87171' }}>Account {captainStatus}.</strong> {user.captainApplication?.reviewNote || 'Contact Pack&Go support.'}</>}
+            </div>
+          ) : !isCaptain ? (
+            <div style={{ fontSize: '0.8rem', color: '#94A3B8' }}>
+              Sign in with a Move Captain account to verify customer handover codes.{' '}
+              <button type="button" onClick={() => { onClose(); openAuth('login'); }} className="btn btn-sm btn-outline-emerald" style={{ marginLeft: 6 }}>Sign in</button>
+            </div>
+          ) : !selectedJob ? (
+            <div style={{ fontSize: '0.8rem', color: '#94A3B8' }}>Accept a job, then enter the customer's code at pickup and at delivery.</div>
+          ) : otpStage !== 'completed' ? (
             <form onSubmit={handleVerifyOtp}>
+
               <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '0 0 10px 0' }}>
                 {otpStage === 'pickup'
                   ? 'Ask customer for their 6-digit Pickup OTP to authorize loading.'
@@ -306,7 +221,9 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
                   type="text"
                   maxLength={6}
                   value={inputOtp}
-                  onChange={(e) => setInputOtp(e.target.value)}
+                  onChange={(e) => setInputOtp(e.target.value.replace(/\D/g, ''))}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                   placeholder={`Enter 6-digit ${otpStage} OTP`}
                   style={{
                     flex: 1,
@@ -325,13 +242,14 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
                   type="submit"
                   className="btn btn-sm btn-outline-emerald"
                   style={{ whiteSpace: 'nowrap' }}
+                  disabled={isVerifying}
                 >
-                  Verify OTP
+                  {isVerifying ? 'Checking…' : 'Verify OTP'}
                 </button>
               </div>
 
               <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '6px' }}>
-                Demo Hint: {otpStage === 'pickup' ? `Customer OTP is ${currentEstimate.pickupOtp}` : `Customer OTP is ${currentEstimate.deliveryOtp}`}
+                Codes are checked on the server. 5 wrong tries lock the booking for 15 minutes.
               </div>
             </form>
           ) : (

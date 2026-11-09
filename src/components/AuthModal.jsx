@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { api } from '../services/api';
 import { useMove } from '../context/MoveContext';
 import {
   X, Mail, Lock, User, ShieldCheck, Sparkles, ArrowRight,
@@ -16,7 +17,8 @@ const USER_TYPES = [
 const DEMO_ACCOUNTS = [
   { email: 'demo@packandgo.in', label: 'Customer', icon: User },
   { email: 'captain.manju@packandgo.in', label: 'Driver', icon: Truck },
-  { email: 'ananya.roy@packandgo.in', label: 'Seller', icon: ShoppingBag }
+  { email: 'ananya.roy@packandgo.in', label: 'Seller', icon: ShoppingBag },
+  { email: 'admin@packandgo.in', label: 'Admin', icon: ShieldCheck }
 ];
 
 const validate = (formData, mode) => {
@@ -24,6 +26,15 @@ const validate = (formData, mode) => {
   if (mode === 'signup' && !formData.name.trim()) errors.name = 'Full name is required.';
   if (mode === 'signup' && formData.phone && !/^(\+?91[\s-]?)?[6-9]\d{9}$/.test(formData.phone.replace(/\s/g, ''))) {
     errors.phone = 'Enter a valid 10-digit Indian mobile number.';
+  }
+  if (mode === 'signup' && formData.userType === 'captain') {
+    if (!formData.phone) errors.phone = 'Move Captains must add a mobile number.';
+    if (!/^[A-Z]{2}\d{2}[A-Z0-9]{9,12}$/.test(formData.licenseNumber.toUpperCase().replace(/[\s-]/g, ''))) {
+      errors.licenseNumber = 'Enter your driving licence number, e.g. KA01 20190001234.';
+    }
+    if (!/^[A-Z]{2}\d{1,2}[A-Z]{0,3}\d{4}$/.test(formData.vehicleNumber.toUpperCase().replace(/[\s-]/g, ''))) {
+      errors.vehicleNumber = 'Enter the vehicle registration, e.g. KA01 MJ 4921.';
+    }
   }
   if (!formData.email.trim()) {
     errors.email = 'Email is required.';
@@ -38,13 +49,45 @@ const validate = (formData, mode) => {
   if (mode === 'signup' && formData.password && formData.password !== formData.confirmPassword) {
     errors.confirmPassword = 'Passwords do not match.';
   }
+  if (mode === 'signup' && !formData.acceptTerms) errors.acceptTerms = 'Please accept the Terms and Privacy Policy.';
   return errors;
 };
 
 export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
-  const { login, signup, showToast } = useMove();
+  const { login, signup, showToast, resetToken, setResetToken, setLegalDoc } = useMove();
 
   const [authMode, setAuthMode] = useState(initialMode);
+  useEffect(() => {
+    if (isOpen) setAuthMode(initialMode);
+  }, [isOpen, initialMode]);
+  const [recovery, setRecovery] = useState({ email: '', password: '', confirm: '', message: '', devLink: '', error: '', busy: false });
+
+  const sendReset = async (e) => {
+    e.preventDefault();
+    setRecovery((r) => ({ ...r, busy: true, error: '', message: '' }));
+    try {
+      const res = await api.forgotPassword(recovery.email.trim().toLowerCase());
+      setRecovery((r) => ({ ...r, busy: false, message: res.message, devLink: res.devResetLink || '' }));
+    } catch (err) {
+      setRecovery((r) => ({ ...r, busy: false, error: err.message }));
+    }
+  };
+
+  const doReset = async (e) => {
+    e.preventDefault();
+    if (recovery.password.length < 6) return setRecovery((r) => ({ ...r, error: 'Password must be at least 6 characters.' }));
+    if (recovery.password !== recovery.confirm) return setRecovery((r) => ({ ...r, error: 'Passwords do not match.' }));
+    setRecovery((r) => ({ ...r, busy: true, error: '' }));
+    try {
+      const res = await api.resetPassword(resetToken, recovery.password);
+      showToast(res.message, 'success');
+      setResetToken(null);
+      setRecovery({ email: '', password: '', confirm: '', message: '', devLink: '', error: '', busy: false });
+      setAuthMode('login');
+    } catch (err) {
+      setRecovery((r) => ({ ...r, busy: false, error: err.message }));
+    }
+  };
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -57,7 +100,11 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
     password: '',
     confirmPassword: '',
     phone: '',
-    userType: 'student'
+    acceptTerms: false,
+    userType: 'student',
+    licenseNumber: '',
+    vehicleNumber: '',
+    vehicleType: 'Tata Ace / mini-truck'
   });
 
   if (!isOpen) return null;
@@ -71,7 +118,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
     setAuthMode(mode);
     setErrors({});
     setSuccess(false);
-    setFormData({ name: '', email: '', password: '', confirmPassword: '', phone: '', userType: 'student' });
+    setFormData({ name: '', email: '', password: '', confirmPassword: '', phone: '', acceptTerms: false, userType: 'student', licenseNumber: '', vehicleNumber: '', vehicleType: 'Tata Ace / mini-truck' });
   };
 
   const handleSubmit = async (e) => {
@@ -90,15 +137,29 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
         confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
         showToast('Welcome back! Logged in successfully.', 'success');
       } else {
-        await signup({
+        const isCaptain = formData.userType === 'captain';
+        const res = await signup({
           name: formData.name.trim(),
           email: formData.email.trim().toLowerCase(),
           password: formData.password,
           phone: formData.phone.replace(/\D/g, '').slice(-10),
-          userType: formData.userType
+          userType: formData.userType,
+          acceptTerms: formData.acceptTerms,
+          ...(isCaptain && {
+            licenseNumber: formData.licenseNumber,
+            vehicleNumber: formData.vehicleNumber,
+            vehicleType: formData.vehicleType
+          })
         });
         confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-        showToast('Account created! Welcome to Pack&Go.', 'success');
+        showToast(
+          isCaptain
+            ? 'Application submitted! Verify your email — our team will check your licence and vehicle.'
+            : res?.devVerifyLink
+              ? 'Account created! Development: the email-verification link is in the yellow banner.'
+              : 'Account created! Check your inbox to verify your email.',
+          'success'
+        );
       }
       setSuccess(true);
       setTimeout(() => onClose(), 800);
@@ -162,7 +223,43 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
           </div>
         )}
 
-        {!success && (
+        {!success && ['forgot', 'reset'].includes(authMode) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--text-main)' }}>
+              {authMode === 'forgot' ? 'Reset your password' : 'Choose a new password'}
+            </div>
+            {authMode === 'forgot' ? (
+              <form onSubmit={sendReset} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>We'll email you a link to set a new password.</div>
+                <input type="email" required autoComplete="email" placeholder="you@example.com" value={recovery.email}
+                  onChange={(e) => setRecovery((r) => ({ ...r, email: e.target.value }))} style={{ ...inputStyle('email'), paddingLeft: 12 }} />
+                <button type="submit" disabled={recovery.busy} className="btn btn-primary" style={{ justifyContent: 'center' }}>
+                  {recovery.busy ? 'Sending…' : 'Send reset link'}
+                </button>
+                {recovery.message && <div style={{ fontSize: '0.82rem', color: 'var(--emerald-light)' }}>{recovery.message}</div>}
+                {recovery.devLink && (
+                  <a href={recovery.devLink} style={{ fontSize: '0.78rem', color: 'var(--primary)' }}>Development (no email server): open the reset link</a>
+                )}
+              </form>
+            ) : (
+              <form onSubmit={doReset} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <input type="password" autoComplete="new-password" placeholder="New password (6+ characters)" value={recovery.password}
+                  onChange={(e) => setRecovery((r) => ({ ...r, password: e.target.value }))} style={{ ...inputStyle('password'), paddingLeft: 12 }} />
+                <input type="password" autoComplete="new-password" placeholder="Confirm new password" value={recovery.confirm}
+                  onChange={(e) => setRecovery((r) => ({ ...r, confirm: e.target.value }))} style={{ ...inputStyle('confirmPassword'), paddingLeft: 12 }} />
+                <button type="submit" disabled={recovery.busy} className="btn btn-primary" style={{ justifyContent: 'center' }}>
+                  {recovery.busy ? 'Saving…' : 'Save new password'}
+                </button>
+              </form>
+            )}
+            {recovery.error && <div style={{ fontSize: '0.82rem', color: '#EF4444' }}>{recovery.error}</div>}
+            <button type="button" onClick={() => setAuthMode('login')} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.82rem' }}>
+              ← Back to sign in
+            </button>
+          </div>
+        )}
+
+        {!success && !['forgot', 'reset'].includes(authMode) && (
           <>
             {/* Header */}
             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
@@ -267,6 +364,44 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
                 </div>
               )}
 
+              {/* Move Captain application (verified by Pack&Go staff before approval) */}
+              {authMode === 'signup' && formData.userType === 'captain' && (
+                <div style={{ border: '1px solid var(--border-gold)', borderRadius: 'var(--radius-md)', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                    <strong style={{ color: 'var(--primary)' }}>Driver verification.</strong> We check your licence and vehicle registration before you can accept jobs. This usually takes under 24 hours.
+                  </div>
+                  {[
+                    { key: 'licenseNumber', label: 'Driving Licence Number', placeholder: 'KA01 20190001234' },
+                    { key: 'vehicleNumber', label: 'Vehicle Registration Number', placeholder: 'KA01 MJ 4921' }
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key}>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>{label}</label>
+                      <input
+                        type="text"
+                        placeholder={placeholder}
+                        value={formData[key]}
+                        onChange={(e) => updateField(key, e.target.value.toUpperCase())}
+                        style={{ ...inputStyle(key), paddingLeft: '12px', letterSpacing: '0.04em' }}
+                        autoComplete="off"
+                      />
+                      {errors[key] && <p style={{ fontSize: '0.75rem', color: '#EF4444', margin: '4px 0 0' }}>{errors[key]}</p>}
+                    </div>
+                  ))}
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px', fontWeight: 600 }}>Vehicle Type</label>
+                    <select
+                      value={formData.vehicleType}
+                      onChange={(e) => updateField('vehicleType', e.target.value)}
+                      style={{ ...inputStyle('vehicleType'), paddingLeft: '12px' }}
+                    >
+                      {['Tata Ace / mini-truck', '14ft truck', '17ft+ truck', 'Pickup / tempo', 'Electric cargo (EV)'].map((v) => (
+                        <option key={v} value={v} style={{ background: '#111827' }}>{v}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               {/* Email */}
               <div>
                 <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px', fontWeight: 600 }}>
@@ -340,6 +475,28 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
                 </div>
               )}
 
+              {/* Forgot password (login) / Terms (signup) */}
+              {authMode === 'login' && (
+                <button type="button" onClick={() => { setAuthMode('forgot'); setRecovery((r) => ({ ...r, email: formData.email })); }}
+                  style={{ alignSelf: 'flex-end', background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.78rem', marginTop: -6 }}>
+                  Forgot password?
+                </button>
+              )}
+              {authMode === 'signup' && (
+                <div>
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: '0.78rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={formData.acceptTerms} onChange={(e) => updateField('acceptTerms', e.target.checked)} style={{ marginTop: 2 }} />
+                    <span>
+                      I agree to the{' '}
+                      <button type="button" onClick={() => setLegalDoc('terms')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline', font: 'inherit' }}>Terms of Service</button>
+                      {' '}and{' '}
+                      <button type="button" onClick={() => setLegalDoc('privacy')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline', font: 'inherit' }}>Privacy Policy</button>.
+                    </span>
+                  </label>
+                  {errors.acceptTerms && <p style={{ fontSize: '0.75rem', color: '#EF4444', margin: '4px 0 0' }}>{errors.acceptTerms}</p>}
+                </div>
+              )}
+
               {/* Server error */}
               {errors.submit && (
                 <div style={{
@@ -378,12 +535,13 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
               Passwords hashed with bcrypt · JWT secured · 7-day session
             </div>
 
-            {/* Demo accounts */}
+            {/* Demo accounts — development only */}
+            {import.meta.env.DEV && (
             <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textAlign: 'center', marginBottom: '8px', letterSpacing: '0.05em' }}>
                 QUICK DEMO LOGIN
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {DEMO_ACCOUNTS.map(({ email, label, icon: Icon }) => (
                   <button
                     key={email}
@@ -414,6 +572,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
                 Tip: sign in as the Driver or Seller in a private window to reply to chats & calls in real time.
               </div>
             </div>
+            )}
           </>
         )}
       </div>

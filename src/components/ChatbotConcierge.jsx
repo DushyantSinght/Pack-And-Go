@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMove } from '../context/MoveContext';
+import { api } from '../services/api';
 import {
   MessageSquare,
   X,
@@ -16,7 +17,12 @@ import {
 } from 'lucide-react';
 
 export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) => {
-  const { setActiveTab, showToast, currentEstimate } = useMove();
+  const { setActiveTab, showToast, openMyMoves } = useMove();
+  const [aiOn, setAiOn] = useState(null); // null = unknown, true = Claude, false = basic keyword mode
+  useEffect(() => {
+    if (aiOn !== null) return;
+    api.assistantStatus().then((r) => setAiOn(!!r.configured)).catch(() => setAiOn(false));
+  }, [aiOn]);
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -26,11 +32,11 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
     {
       id: 1,
       sender: 'bot',
-      text: 'Namaste! I am PackBot, your 24/7 Luxury Relocation Concierge. How may I assist your micro-relocation across Bengaluru or Delhi-NCR today?',
+      text: 'Namaste! I am PackBot. Ask me about prices, your booking, cancellations, payments or anything about your move.',
       chips: [
-        'How does freight pooling cut cost by 45%?',
-        'Landlord deposit protection guarantee?',
-        'Can I get a GST invoice for company reimbursement?',
+        'How is my price calculated?',
+        'What is the cancellation policy?',
+        'Where is my booking?',
         'Find Pure Veg / Jain PGs'
       ]
     }
@@ -47,18 +53,18 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
   const botResponses = [
     {
       keywords: ['pool', 'share', 'cost', 'save', '45%', 'cheap', 'price'],
-      reply: `Our dynamic freight pooling engine groups moves heading along identical corridors (like HSR ➔ Whitefield). Instead of paying ₹3,499 for an entire 14ft truck running half-empty, you share the cargo bay with compartmentalized dividers for just ₹${currentEstimate.pooledPrice} (saving 45%!).`,
-      action: { label: 'View Shared Truck Load', tab: 'tracking' }
+      reply: 'Your price is worked out from the volume of your items, the road distance and any stairs without a lift. Choosing a pooled truck (sharing space with other moves on your route) takes about 40% off the volume and distance charges. GST is added on top.',
+      action: { label: 'Get a price', tab: 'estimator' }
     },
     {
       keywords: ['deposit', 'landlord', 'security', 'protection', 'certificate', 'deduction'],
-      reply: 'Pack&Go eliminates arbitrary security deposit deductions under the Model Tenancy Act! Move Captains take pre-move and post-move photos of your walls, switches, and tiles, backed by an immutable SHA-256 digital certificate.',
+      reply: 'Our Deposit Protection Certificate records the condition of your old home with photos at move-out, which you can show your landlord if there is a dispute about deductions.',
       action: { label: 'Open Deposit Certificate', custom: 'cert' }
     },
     {
       keywords: ['invoice', 'gst', 'corporate', 'reimbursement', 'tax', 'hsn', 'claim'],
-      reply: 'Yes! Every Pack&Go booking comes with an employer-compliant GST Tax Invoice under GTA HSN/SAC 996511 (with 5% GST forward charge). It includes your corporate details and trip telemetry.',
-      action: { label: 'Generate GST Invoice', custom: 'invoice' }
+      reply: 'Every paid booking has a downloadable receipt with the GST breakdown in My Moves. You can print it or save it as a PDF for reimbursement.',
+      action: { label: 'Open My Moves', custom: 'mymoves' }
     },
     {
       keywords: ['veg', 'jain', 'food', 'mess', 'tiffin', 'pg', 'meal'],
@@ -67,13 +73,23 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
     },
     {
       keywords: ['passport', 'qr', 'box', 'luggage', 'rfid', 'tag', 'tape'],
-      reply: 'Every box receives a thermal-printed Digital Luggage Passport QR code and tamper-evident RFID tape. You can scan any box with your phone camera to see the full contents without unpacking!',
+      reply: 'Each box gets a Luggage Passport with a QR code listing what is inside. Print the labels, stick them on your boxes, and your Move Captain scans them while loading.',
       action: { label: 'View Luggage Passports', tab: 'passport' }
     },
     {
       keywords: ['pay', 'payment', 'escrow', 'upi', 'razorpay'],
-      reply: 'Pack&Go holds 100% of your booking fee in an RBI-regulated escrow account. Funds are released to Move Captain Rajesh only after you inspect your boxes and share the 6-digit delivery OTP.',
-      action: { label: 'Open Escrow Payment', custom: 'payment' }
+      reply: 'You pay online when you book. We hold the money and release your Move Captain\'s share only after you check your boxes and read out your 6-digit Delivery OTP.',
+      action: { label: 'Open My Moves', custom: 'mymoves' }
+    },
+    {
+      keywords: ['cancel', 'refund', 'reschedule'],
+      reply: 'Cancel from My Moves: 100% refund 24h+ before your slot, 50% between 24h and 4h, none after that or after pickup. You can reschedule up to twice, until 4 hours before your slot.',
+      action: { label: 'Open My Moves', custom: 'mymoves' }
+    },
+    {
+      keywords: ['where', 'status', 'track', 'booking', 'driver', 'captain'],
+      reply: 'Open My Moves to see your booking status, your Move Captain, and live tracking once they start driving.',
+      action: { label: 'Open My Moves', custom: 'mymoves' }
     }
   ];
 
@@ -91,6 +107,28 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
     if (!userText) setInputMessage('');
     setIsTyping(true);
 
+    if (aiOn) {
+      const history = [...messages, newMsg]
+        .filter((m) => m.id !== 1 && m.text)
+        .map((m) => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text }));
+      api.assistantChat(history)
+        .then((r) => {
+          const ACTION_MAP = {
+            go_estimator: { tab: 'estimator' }, go_passport: { tab: 'passport' }, go_tracking: { tab: 'tracking' },
+            go_marketplace: { tab: 'marketplace' }, go_themes: { tab: 'themes' }, go_postmove: { tab: 'postmove' },
+            go_campus: { tab: 'campus' }, open_my_moves: { custom: 'mymoves' }, open_payment: { custom: 'payment' }, open_invoice: { custom: 'mymoves' }
+          };
+          const action = ACTION_MAP[r.action] ? { ...ACTION_MAP[r.action], label: r.actionLabel || 'Open' } : undefined;
+          setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'bot', text: r.reply, action }]);
+        })
+        .catch((e) => {
+          if (/not configured/i.test(e.message)) setAiOn(false);
+          setMessages((prev) => [...prev, { id: Date.now() + 1, sender: 'bot', text: `Sorry — ${e.message} You can also chat with your Move Captain from My Moves.` }]);
+        })
+        .finally(() => setIsTyping(false));
+      return;
+    }
+
     setTimeout(() => {
       setIsTyping(false);
       const lower = textToSend.toLowerCase();
@@ -106,12 +144,8 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
         : {
             id: Date.now() + 1,
             sender: 'bot',
-            text: `I've noted that! As your Pack&Go AI Concierge, I can assist you with freight pooling along active city corridors, generating GST reimbursement invoices, landlord deposit certificates, or arranging pure-veg meal plans.`,
-            chips: [
-              'Generate GST Tax Invoice',
-              'Open 3D Pack-My-Truck Bay',
-              'View Live GPS Leaflet Route'
-            ]
+            text: "I'm in basic mode and didn't catch that. I can help with prices, payments, cancellations, your booking status, box passports and PGs.",
+            chips: ['How is my price calculated?', 'What is the cancellation policy?', 'Where is my booking?']
           };
 
       setMessages((prev) => [...prev, botReply]);
@@ -121,7 +155,9 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
   const handleActionClick = (action) => {
     if (action.tab) {
       setActiveTab(action.tab);
-      showToast(`Navigated to ${action.tab.toUpperCase()}!`, 'info');
+
+    } else if (action.custom === 'mymoves') {
+      openMyMoves();
     } else if (action.custom === 'invoice' && onOpenInvoice) {
       onOpenInvoice();
     } else if (action.custom === 'payment' && onOpenPayment) {
@@ -183,8 +219,8 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
           maxWidth: 'calc(100vw - 32px)',
           height: '520px',
           maxHeight: 'calc(100vh - 48px)',
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-glow)',
+          background: 'var(--bg-card-solid)',
+          border: '1px solid var(--border-gold)',
           borderRadius: 'var(--radius-lg)',
           boxShadow: '0 25px 60px rgba(0, 0, 0, 0.65)',
           zIndex: 200,
@@ -223,7 +259,7 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
                   <span className="radar-dot"></span>
                 </div>
                 <div style={{ fontSize: '0.7rem', color: '#94A3B8' }}>
-                  AI Relocation Advisor • Instant Help
+                  {aiOn ? 'AI assistant • answers about your booking' : 'Basic help mode'}
                 </div>
               </div>
             </div>
@@ -350,7 +386,7 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
             style={{
               padding: '12px',
               borderTop: '1px solid var(--border-subtle)',
-              background: 'var(--bg-surface)',
+              background: 'var(--bg-card-solid)',
               display: 'flex',
               gap: '8px'
             }}

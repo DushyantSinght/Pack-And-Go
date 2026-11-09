@@ -33,8 +33,9 @@ export const MoveProvider = ({ children }) => {
     pooledPrice: ROOM_PRESETS[0].pooledPrice,
     savingsPercent: ROOM_PRESETS[0].savingsPercent,
     isPriceLocked: true,
-    pickupOtp: '582941',
-    deliveryOtp: '910283',
+    // Real codes come from the server for the signed-in owner only.
+    pickupOtp: null,
+    deliveryOtp: null,
     transitStatus: 'In Transit • 34 km/h • Geofence Validated',
     selectedTheme: 'theme-urban-tech',
     selectedEssentials: ['ess-water', 'ess-bedding', 'ess-grocery']
@@ -82,11 +83,77 @@ export const MoveProvider = ({ children }) => {
   const [isDepositCertOpen, setIsDepositCertOpen] = useState(false);
   const [isDriverConsoleOpen, setIsDriverConsoleOpen] = useState(false);
 
-  const openInvoice = () => setIsInvoiceModalOpen(true);
-  const openPayment = () => setIsPaymentModalOpen(true);
+  // ── Real bookings ────────────────────────────────────────────────
+  const [myMoves, setMyMoves] = useState([]);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [isMyMovesOpen, setIsMyMovesOpen] = useState(false);
+  const [selectedMoveId, setSelectedMoveId] = useState(null);
+  const [payingBooking, setPayingBooking] = useState(null);
+  const [invoiceBooking, setInvoiceBooking] = useState(null);
+  const [legalDoc, setLegalDoc] = useState(null); // 'terms' | 'privacy' | 'refunds' | null
+  const [resetToken, setResetToken] = useState(null);
+
+  const refreshMyMoves = async () => {
+    if (!tokenStorage.get()) return [];
+    try {
+      const res = await api.getMyMoves();
+      setMyMoves(res.moves || []);
+      return res.moves || [];
+    } catch {
+      return [];
+    }
+  };
+  const upsertMove = (move) => {
+    setMyMoves((prev) => {
+      const rest = prev.filter((m) => m.bookingId !== move.bookingId);
+      return [move, ...rest].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    });
+    setCurrentEstimate((prev) => (prev.bookingId === move.bookingId ? { ...prev, ...move } : prev));
+  };
+
+  const requireSignIn = (what) => {
+    if (tokenStorage.get()) return true;
+    showToast(`Please sign in to ${what}.`, 'info');
+    setAuthModalMode('login');
+    setIsAuthModalOpen(true);
+    return false;
+  };
+  const openBooking = () => requireSignIn('book a move') && setIsBookingOpen(true);
+  const openMyMoves = (bookingId = null) => {
+    if (!requireSignIn('see your moves')) return;
+    setSelectedMoveId(bookingId);
+    setIsMyMovesOpen(true);
+    refreshMyMoves();
+  };
+
+  const openInvoice = (booking = null) => {
+    const b = booking && booking.bookingId ? booking : myMoves.find((m) => m.paymentDetails?.status === 'paid');
+    if (!b) {
+      showToast('Receipts are available once a booking is paid.', 'info');
+      return;
+    }
+    setInvoiceBooking(b);
+    setIsInvoiceModalOpen(true);
+  };
+  /** Pay for a specific booking; with none given, use the first booking awaiting payment. */
+  const openPayment = (booking = null) => {
+    if (!requireSignIn('pay')) return;
+    const b = booking && booking.bookingId ? booking : myMoves.find((m) => m.status === 'pending_payment');
+    if (!b) {
+      showToast('Nothing to pay yet — book a move first.', 'info');
+      setIsBookingOpen(true);
+      return;
+    }
+    setPayingBooking(b);
+    setIsPaymentModalOpen(true);
+  };
   const openDepositCert = () => setIsDepositCertOpen(true);
   const openDriverConsole = () => setIsDriverConsoleOpen(true);
   const openDbModal = () => setIsDbModalOpen(true);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+
+  /** Merge fresh profile data (e.g. captain approved) into the signed-in user. */
+  const updateUser = (patch) => setUser((prev) => (prev ? { ...prev, ...patch, isAuthenticated: true } : prev));
 
   // Initial Sync from Real MongoDB Database
   useEffect(() => {
@@ -132,7 +199,33 @@ export const MoveProvider = ({ children }) => {
     };
 
     syncFromMongoDB();
+    if (user?._id) refreshMyMoves();
+    else setMyMoves([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?._id]);
+
+  // Links from emails: ?verify=<token> and ?reset=<token>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const verify = params.get('verify');
+    const reset = params.get('reset');
+    if (!verify && !reset) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    if (verify) {
+      api.verifyEmail(verify)
+        .then((res) => {
+          showToast('✅ Email verified — you can book moves now.', 'success');
+          setUser((prev) => (prev && res.user?._id === prev._id ? { ...prev, ...res.user, isAuthenticated: true } : prev));
+        })
+        .catch((e) => showToast(e.message, 'error'));
+    }
+    if (reset) {
+      setResetToken(reset);
+      setAuthModalMode('reset');
+      setIsAuthModalOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A JWT restored from localStorage only carries id/email — load the full profile.
   useEffect(() => {
@@ -162,7 +255,7 @@ export const MoveProvider = ({ children }) => {
 
   const signup = async (userData) => {
     const res = await api.signup(userData);
-    const newUser = { ...res.user, isAuthenticated: true };
+    const newUser = { ...res.user, isAuthenticated: true, devVerifyLink: res.devVerifyLink };
     setUser(newUser);
     if (newUser.userType === 'captain') setActiveRole('captain');
     if (newUser.userType === 'parent') setActiveRole('parent');
@@ -172,6 +265,9 @@ export const MoveProvider = ({ children }) => {
   const logout = () => {
     api.logout(); // Clears JWT from localStorage
     setUser(null);
+    setCurrentEstimate((prev) => ({ ...prev, pickupOtp: null, deliveryOtp: null }));
+    setMyMoves([]);
+    setIsMyMovesOpen(false);
     setActiveRole('customer');
     showToast('Logged out of Pack&Go.', 'info');
   };
@@ -215,7 +311,7 @@ export const MoveProvider = ({ children }) => {
       isPriceLocked: true
     };
     setCurrentEstimate((prev) => ({ ...prev, ...updated }));
-    showToast(`Applied "${preset.name}" AI inventory sweep!`, 'info');
+    showToast(`Loaded the "${preset.name}" example — edit the items to match your home.`, 'info');
 
     try {
       await api.saveMoveEstimate({
@@ -250,6 +346,39 @@ export const MoveProvider = ({ children }) => {
     } catch (e) {
       console.warn('MongoDB voice estimate sync notice:', e.message);
     }
+  };
+
+  /** Replace or extend the estimate's item list (AI scan, voice, manual edits) and derive totals. */
+  const applyItems = (items, { append = false, label } = {}) => {
+    setCurrentEstimate((prev) => {
+      const base = append ? prev.items || [] : [];
+      const all = [...base, ...items];
+      // Simple shelf layout so the bounding-box overlay and truck visualiser can draw each item.
+      let x = 2, y = 2, rowH = 0;
+      const laidOut = all.map((it) => {
+        const side = Math.max(8, Math.min(40, Math.sqrt(it.cuFt || 1) * 5));
+        if (x + side > 98) { x = 2; y += rowH + 2; rowH = 0; }
+        const boxPos = [x, Math.min(y, 90), side, Math.min(side, 98 - Math.min(y, 90))];
+        x += side + 2;
+        rowH = Math.max(rowH, side);
+        return { ...it, box: it.box || boxPos };
+      });
+      const cuFt = Math.round(all.reduce((n, it) => n + (Number(it.cuFt) || 0), 0));
+      const kg = Math.round(all.reduce((n, it) => n + (Number(it.weightKg) || 0), 0));
+      const next = {
+        ...prev,
+        presetId: 'custom',
+        items: laidOut,
+        totalCuFt: cuFt,
+        estimatedWeightKg: kg,
+        cartons: { small: Math.ceil(cuFt / 60), medium: Math.ceil(cuFt / 30), large: Math.ceil(cuFt / 80), wardrobe: cuFt > 80 ? 1 : 0 },
+        vehicle: cuFt <= 150 ? 'Tata Ace / 7ft mini-truck' : cuFt <= 400 ? '14ft truck' : '17ft+ truck',
+        labour: cuFt <= 120 ? '1 Captain + 1 helper (~2 hrs)' : cuFt <= 350 ? '1 Captain + 2 helpers (~3 hrs)' : '1 Captain + 3 helpers (~5 hrs)'
+      };
+      api.saveMoveEstimate({ bookingId: prev.bookingId, items: next.items, totalCuFt: next.totalCuFt, estimatedWeightKg: next.estimatedWeightKg, cartons: next.cartons, vehicle: next.vehicle, labour: next.labour, presetId: 'custom' }).catch(() => {});
+      return next;
+    });
+    if (label) showToast(label, 'success');
   };
 
   // Add box to passports & persist to MongoDB
@@ -416,7 +545,28 @@ export const MoveProvider = ({ children }) => {
         openPayment,
         openDepositCert,
         openDriverConsole,
-        openDbModal
+        openDbModal,
+        isAdminOpen,
+        setIsAdminOpen,
+        updateUser,
+        applyItems,
+        myMoves,
+        refreshMyMoves,
+        upsertMove,
+        isBookingOpen,
+        setIsBookingOpen,
+        openBooking,
+        isMyMovesOpen,
+        setIsMyMovesOpen,
+        selectedMoveId,
+        setSelectedMoveId,
+        openMyMoves,
+        payingBooking,
+        invoiceBooking,
+        legalDoc,
+        setLegalDoc,
+        resetToken,
+        setResetToken
       }}
     >
       {children}

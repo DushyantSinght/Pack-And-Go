@@ -1,6 +1,7 @@
 import React from 'react';
 import { useMove } from '../context/MoveContext';
 import { useComms } from '../context/CommsContext';
+import { NotificationBell } from './NotificationBell';
 import {
   Truck,
   Box,
@@ -18,7 +19,9 @@ import {
   FileText,
   Lock,
   Database,
-  MessageSquare
+  MessageSquare,
+  PackageCheck,
+  CalendarPlus
 } from 'lucide-react';
 
 export const Navbar = () => {
@@ -37,8 +40,13 @@ export const Navbar = () => {
     openPayment,
     openDriverConsole,
     openDbModal,
-    dbStatus
+    dbStatus,
+    setIsAdminOpen,
+    openBooking,
+    openMyMoves,
+    myMoves
   } = useMove();
+  const activeMoves = (myMoves || []).filter((m) => ['pending_payment', 'confirmed', 'assigned', 'in_transit'].includes(m.status)).length;
   const { openInbox, unreadTotal } = useComms();
 
   return (
@@ -96,10 +104,11 @@ export const Navbar = () => {
           <span>{carbonSavedTotalKg} kg CO₂</span>
         </div>
 
-        {/* MongoDB Database & Schema Modal Trigger */}
+        {/* MongoDB explorer — developer tool, hidden in production builds */}
+        {import.meta.env.DEV && (
         <button
           onClick={openDbModal}
-          className="btn btn-secondary btn-sm"
+          className="btn btn-secondary btn-sm nav-dev"
           style={{
             padding: '5px 10px',
             fontSize: '0.76rem',
@@ -119,31 +128,24 @@ export const Navbar = () => {
             boxShadow: '0 0 6px #10B981'
           }} />
         </button>
+        )}
 
-        {/* GST Invoice Modal Trigger */}
-        <button
-          onClick={openInvoice}
-          className="btn btn-secondary btn-sm"
-          style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }}
-          title="Download Employer Reimbursement GST Invoice"
-        >
-          <FileText size={13} color="var(--primary)" />
-          <span>GST Invoice</span>
+        {/* Book / My Moves */}
+        <button onClick={openBooking} className="btn btn-primary btn-sm" style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }} title="Book a move">
+          <CalendarPlus size={13} />
+          <span className="nav-label">Book a move</span>
         </button>
+        {user && (
+          <button onClick={() => openMyMoves()} className="btn btn-secondary btn-sm" style={{ position: 'relative', padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }} title="My Moves">
+            <PackageCheck size={13} color="var(--primary)" />
+            <span className="nav-label">My Moves</span>
+            {activeMoves > 0 && <span style={{ background: 'var(--primary)', color: '#111', borderRadius: 999, fontSize: '0.62rem', fontWeight: 800, padding: '0 5px' }}>{activeMoves}</span>}
+          </button>
+        )}
 
-        {/* Escrow Pay Modal Trigger */}
-        <button
-          onClick={openPayment}
-          className="btn btn-outline-emerald btn-sm"
-          style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }}
-          title="Lock Booking with Escrow Vault"
-        >
-          <Lock size={12} />
-          <span>Escrow Pay</span>
-        </button>
-
-        {/* Role Switcher */}
-        <div style={{
+        {/* Role Switcher — development preview only; real roles come from the account */}
+        {import.meta.env.DEV && (
+        <div className="nav-dev" style={{
           display: 'flex',
           alignItems: 'center',
           gap: '4px',
@@ -177,6 +179,21 @@ export const Navbar = () => {
             <option value="parent" style={{ background: '#111827', color: '#fff' }}>Parent</option>
           </select>
         </div>
+        )}
+
+        {/* Staff approvals */}
+        {user?.isAdmin && (
+          <button
+            onClick={() => setIsAdminOpen(true)}
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '0.76rem', padding: '5px 10px', gap: '5px', flexShrink: 0 }}
+            title="Review Move Captain applications"
+          >
+            <ShieldCheck size={13} /> <span className="nav-label">Ops</span>
+          </button>
+        )}
+
+        {user && <NotificationBell />}
 
         {/* Messages inbox */}
         {user && (

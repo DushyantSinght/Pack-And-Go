@@ -18,6 +18,11 @@ import { ChatbotConcierge } from './components/ChatbotConcierge';
 import { DatabaseSchemaModal } from './components/DatabaseSchemaModal';
 import { ChatDrawer } from './components/ChatDrawer';
 import { CallModal } from './components/CallModal';
+import { AdminCaptainsModal } from './components/AdminCaptainsModal';
+import { BookingWizard } from './components/BookingWizard';
+import { MyMovesModal } from './components/MyMovesModal';
+import { LegalModal } from './components/LegalModal';
+import { VerifyEmailBanner } from './components/VerifyEmailBanner';
 import {
   ShieldAlert,
   Smartphone,
@@ -53,8 +58,13 @@ export function App() {
     openPayment,
     openDepositCert,
     openDriverConsole,
-    openDbModal
+    openDbModal,
+    user,
+    isAdminOpen,
+    setIsAdminOpen,
+    setLegalDoc
   } = useMove();
+  const captainPending = user?.userType === 'captain' && user?.captainStatus && user.captainStatus !== 'approved';
 
   return (
     <div className="app-container">
@@ -79,7 +89,13 @@ export function App() {
             {activeRole === 'captain' && (
               <>
                 <Truck size={16} />
-                <span>Move Captain Mode Active: Geofence Checkpoints & OTP Handover verification enabled.</span>
+                <span>
+                  {captainPending
+                    ? user.captainStatus === 'pending'
+                      ? 'Move Captain application under review — you can take jobs once Pack&Go approves your licence & vehicle.'
+                      : `Move Captain account ${user.captainStatus}. Contact Pack&Go support.`
+                    : 'Move Captain Mode Active: Geofence Checkpoints & OTP Handover verification enabled.'}
+                </span>
                 <button
                   onClick={openDriverConsole}
                   style={{
@@ -127,6 +143,8 @@ export function App() {
           </button>
         </div>
       )}
+
+      <VerifyEmailBanner />
 
       {/* Main Sticky Navbar */}
       <Navbar />
@@ -186,10 +204,16 @@ export function App() {
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1rem' }}>
-            Pack<span style={{ color: 'var(--primary)' }}>&</span>Go — Capstone Project
+            Pack<span style={{ color: 'var(--primary)' }}>&</span>Go
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-            Tagline: <em>Packed with care. Settled with ease.</em> • Built with React & Modern Web Standards
+            <em>Packed with care. Settled with ease.</em>
+          </div>
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', fontSize: '0.78rem' }}>
+            {[['terms', 'Terms of Service'], ['privacy', 'Privacy Policy'], ['refunds', 'Refund & Cancellation']].map(([k, label]) => (
+              <button key={k} onClick={() => setLegalDoc(k)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit' }}>{label}</button>
+            ))}
+            <a href={`mailto:${import.meta.env.VITE_SUPPORT_EMAIL || 'support@packandgo.in'}`} style={{ color: 'var(--text-muted)' }}>Contact support</a>
           </div>
         </div>
       </footer>
@@ -211,9 +235,9 @@ export function App() {
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
-        onOpenInvoice={() => {
+        onOpenInvoice={(booking) => {
           setIsPaymentModalOpen(false);
-          setIsInvoiceModalOpen(true);
+          openInvoice(booking);
         }}
       />
 
@@ -245,6 +269,14 @@ export function App() {
       {/* Real-time messaging (Socket.IO) and calling */}
       <ChatDrawer />
       <CallModal />
+
+      {/* Staff: Move Captain application review */}
+      <AdminCaptainsModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
+
+      {/* Real bookings */}
+      <BookingWizard />
+      <MyMovesModal />
+      <LegalModal />
     </div>
   );
 }
