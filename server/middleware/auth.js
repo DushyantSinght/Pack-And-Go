@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import jwt from 'jsonwebtoken';
 
 // Read lazily: ES module imports run before dotenv.config() in server.js,

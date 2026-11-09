@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import express from 'express';
 import { PooledCorridor } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';

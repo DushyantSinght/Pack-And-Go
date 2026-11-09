@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { DriverJobPanel } from './DriverJobPanel';

@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 // Client-side error reporting. Errors land in a capped Mongo collection and the server log.
 import express from 'express';
 import rateLimit from 'express-rate-limit';

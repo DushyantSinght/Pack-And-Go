@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { useComms } from '../context/CommsContext';

@@ -1,5 +1,6 @@
 /* ════════════════════════════════════════════════════════════════
    Pack&Go motion & polish layer
+   © 2026 Dushyant Singh Tanwar (DST). All rights reserved. See LICENSE.
    Everything here degrades gracefully and is disabled for users who
    prefer reduced motion (see bottom of file).
    ════════════════════════════════════════════════════════════════ */
@@ -470,3 +471,27 @@ input:focus, textarea:focus, select:focus { border-color: var(--primary) !import
 .map-road { stroke: rgba(255, 255, 255, 0.06); }
 [data-theme="light"] .map-block { fill: rgba(0, 0, 0, 0.03); stroke: rgba(0, 0, 0, 0.06); }
 [data-theme="light"] .map-road { stroke: rgba(0, 0, 0, 0.06); }
+
+/* DST signature credit */
+.dst-credit { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); text-decoration: none; transition: color 0.25s; }
+.dst-credit strong {
+  font-family: var(--font-heading);
+  letter-spacing: 0.12em;
+  background: linear-gradient(90deg, var(--gold-3), var(--gold-1), var(--gold-2), var(--gold-1), var(--gold-3));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 6s linear infinite;
+}
+.dst-credit:hover { color: var(--text-main); }
+
+/* Auth dialog: fits short screens and scrolls inside */
+.auth-dialog { scrollbar-width: thin; }
+@media (max-height: 820px) {
+  .auth-dialog { padding: 22px 26px !important; }
+  .auth-dialog input { padding-top: 9px !important; padding-bottom: 9px !important; }
+}
+@media (max-width: 600px) {
+  .auth-dialog { padding: 20px 18px !important; max-height: calc(100dvh - 24px) !important; }
+}

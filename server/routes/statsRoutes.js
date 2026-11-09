@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 // Public, cached platform numbers for the landing page. Real data only.
 import express from 'express';
 import { MoveBooking, User, LuggagePassport, MarketplaceItem } from '../models/index.js';

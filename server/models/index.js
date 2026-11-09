@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import { User } from './User.js';
 import { MoveBooking, generateOtp } from './MoveBooking.js';
 import { LuggagePassport } from './LuggagePassport.js';

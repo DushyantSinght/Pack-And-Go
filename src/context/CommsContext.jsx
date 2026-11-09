@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 // Real-time communications: inbox, 1:1 chat over Socket.IO, and voice calls
 // (native phone dialer via tel: links, or in-app WebRTC audio calls).
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';

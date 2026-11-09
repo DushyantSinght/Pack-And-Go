@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 // PackBot (support chat) and AI room scan, powered by Claude.
 // Requires ANTHROPIC_API_KEY (or another Anthropic credential source). Without
 // one, endpoints answer 503 and the client falls back to non-AI behaviour —

@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useRef, useState } from 'react';
 import { MapPin, Loader2, LocateFixed } from 'lucide-react';
 

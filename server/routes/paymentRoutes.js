@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import crypto from 'crypto';
 import express from 'express';
 import { MoveBooking } from '../models/index.js';

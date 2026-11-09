@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useState, useEffect, useRef } from 'react';
 import { useMove } from '../context/MoveContext';
 import QRCode from 'qrcode';

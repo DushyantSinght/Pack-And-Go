@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 // Server-side pricing — the client can preview, but the server's number is the one charged.
 export const GST_RATE = Number(process.env.GST_RATE || 0.18); // packers & movers services: 18% GST
 export const PLATFORM_FEE_RATE = 0.2; // Pack&Go keeps 20% of the pre-tax fare; captain gets 80%

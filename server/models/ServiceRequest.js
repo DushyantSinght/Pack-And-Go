@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import mongoose from 'mongoose';
 
 // Requests that need a human on the Pack&Go ops team to follow up:

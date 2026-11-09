@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Loader2, Truck, Users, X } from 'lucide-react';
 import { useMove } from '../context/MoveContext';

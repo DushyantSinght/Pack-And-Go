@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useState } from 'react';
 import { ArrowUp, Truck } from 'lucide-react';
 
@@ -43,6 +44,7 @@ export const Splash = () => {
         Pack<span style={{ color: 'var(--primary)', fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}>&</span>Go
       </div>
       <div className="splash-bar" />
+      <div style={{ fontSize: '0.68rem', letterSpacing: '0.3em', color: 'var(--text-dim)', animation: 'fadeIn .6s .3s both' }}>BY DST &amp; TEAM</div>
     </div>
   );
 };

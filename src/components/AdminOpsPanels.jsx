@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useCallback, useEffect, useState } from 'react';
 import { Phone } from 'lucide-react';
 import { api } from '../services/api';

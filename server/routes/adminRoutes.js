@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import express from 'express';
 import mongoose from 'mongoose';
 import { User, MoveBooking, DamageClaim, ServiceRequest } from '../models/index.js';

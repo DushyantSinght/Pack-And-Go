@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 // End-to-end API test of the booking lifecycle. Run with the API on :5001:  npm test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

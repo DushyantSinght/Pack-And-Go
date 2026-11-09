@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { CheckCircle2, CreditCard, FileText, Loader2, Lock, ShieldCheck, X, FlaskConical } from 'lucide-react';

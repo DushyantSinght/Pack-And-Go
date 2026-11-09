@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, CheckCheck, MessageSquare, Phone, PhoneCall, Send, Truck, ShoppingBag, X, WifiOff } from 'lucide-react';
 import { useComms } from '../context/CommsContext';

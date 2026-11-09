@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -80,6 +81,12 @@ app.use(cors({
   },
   credentials: true
 }));
+
+// Provenance header on every response
+app.use((req, res, next) => {
+  res.set('X-Built-By', 'DST (Dushyant Singh Tanwar)');
+  next();
+});
 
 // ── Rate Limiters ─────────────────────────────────────────────────
 // General API: 1000 requests per 15 minutes per IP (chat history + inbox refreshes add up)

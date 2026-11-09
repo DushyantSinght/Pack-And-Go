@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 // Pack&Go Comprehensive Realistic Mock Data & Logic Engine
 
 export const ROOM_PRESETS = [

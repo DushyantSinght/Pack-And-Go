@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 // Notification fan-out: in-app (Mongo + live socket), email (SMTP) and SMS (Twilio).
 // Email/SMS switch on automatically when their env vars are set. Without them,
 // messages are written to the server log so nothing is silently "sent".

@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft, CalendarClock, Camera, CheckCircle2, FileText, KeyRound, Loader2, MessageSquare,

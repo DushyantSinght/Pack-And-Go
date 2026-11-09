@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useMove } from '../context/MoveContext';
 import { api } from '../services/api';

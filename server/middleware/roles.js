@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 // Role checks that read the user from the database on every request, so an
 // approval, rejection or suspension takes effect immediately (JWTs are 7 days).
 import { User } from '../models/index.js';

@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useState } from 'react';
 import { Copy, Mic, MicOff, Phone, PhoneIncoming, PhoneOff, Smartphone, Wifi, X, MessageCircle } from 'lucide-react';
 import { useComms, toE164, formatDuration } from '../context/CommsContext';

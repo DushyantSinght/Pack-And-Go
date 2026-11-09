@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import mongoose from 'mongoose';
 
 const loadSchema = new mongoose.Schema(

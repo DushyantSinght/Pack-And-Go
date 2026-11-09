@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useMove } from '../context/MoveContext';
@@ -193,9 +194,12 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 200, padding: '20px'
     }}>
-      <div className="glass-panel" style={{
+      <div className="glass-panel auth-dialog" role="dialog" aria-label="Sign in or create account" style={{
         width: '100%', maxWidth: '480px',
-        padding: '32px',
+        maxHeight: 'calc(100dvh - 40px)',
+        overflowY: 'auto',
+        overscrollBehavior: 'contain',
+        padding: '28px 32px',
         position: 'relative',
         background: 'var(--bg-card-solid)',
         border: '1px solid var(--border-gold)',
@@ -293,7 +297,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
               ))}
             </div>
 
-            <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {/* Name (signup only) */}
               {authMode === 'signup' && (
                 <div>

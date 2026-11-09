@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useState } from 'react';
 import {
   ArrowRight, Camera, CalendarCheck, Lock, KeyRound, Navigation, QrCode, MessageSquare, ShieldCheck,
@@ -170,7 +171,9 @@ export const SiteFooter = () => {
       </div>
       <div style={{ maxWidth: 1360, margin: '32px auto 0', paddingTop: 18, borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
         <span>© {new Date().getFullYear()} {import.meta.env.VITE_COMPANY_NAME || 'Pack&Go'}. All rights reserved.</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Star size={12} /> Made in India for people on the move</span>
+        <a className="dst-credit" href="https://github.com/DushyantSinght" target="_blank" rel="noreferrer" data-author="DST" title="Dushyant Singh Tanwar">
+          <Star size={12} /> Designed & built by <strong>DST</strong>
+        </a>
       </div>
     </footer>
   );

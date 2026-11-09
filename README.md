@@ -1,5 +1,7 @@
 # Pack&Go — home relocation platform
 
+> Designed & built by **DST — Dushyant Singh Tanwar**. © 2026, all rights reserved. See [LICENSE](LICENSE).
+
 Customers estimate what they're moving (AI photo scan, voice or by hand), book a time slot, pay into escrow, and track their Move Captain live. Approved drivers accept paid jobs, share GPS, scan box QR labels and confirm pickup/delivery with the customer's one-time codes. Staff review drivers, bookings, damage claims and service requests.
 
 **Stack:** React 19 + Vite · Express 5 · MongoDB (Mongoose) · Socket.IO · Razorpay · Claude (Anthropic) · Leaflet/OpenStreetMap
@@ -121,3 +123,11 @@ src/
   context/             MoveContext (app + bookings), CommsContext (socket, chat, calls, notifications)
   components/          UI: BookingWizard, MyMovesModal, PaymentModal, DriverConsoleModal, ChatDrawer, CallModal, …
 ```
+
+---
+
+## License & author
+
+**© 2026 Dushyant Singh Tanwar (DST). All rights reserved.**
+
+This is proprietary software. The source is published for viewing only. Copying, modifying, redistributing or reusing any part of it, including in coursework, portfolios or other products, requires written permission from DST. See [LICENSE](LICENSE).

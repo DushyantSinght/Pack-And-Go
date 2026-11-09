@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import bcrypt from 'bcryptjs';
 import { User, PooledCorridor, MarketplaceItem } from '../models/index.js';
 

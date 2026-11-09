@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 // Pack&Go API Service — connects frontend to Express/MongoDB backend.
 // Automatically attaches JWT from localStorage to all authenticated requests.
 

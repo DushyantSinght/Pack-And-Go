@@ -1,3 +1,4 @@
+// © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useState, useCallback } from 'react';
 import { BadgeCheck, Ban, CheckCircle2, Clock, Phone, ShieldCheck, Truck, X, XCircle } from 'lucide-react';
 import { api } from '../services/api';
