@@ -217,7 +217,7 @@ export const CampusMoveWeek = () => {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
               <span className="badge badge-cyan">
-                <ShieldCheck size={12} /> Peace of Mind Guarantee
+                <ShieldCheck size={12} /> Peace of mind for parents
               </span>
             </div>
             <h3 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -302,7 +302,7 @@ export const CIRCULAR_MARKETPLACE_ITEMS = [
     zeroTransitFee: false,
     co2SavedKg: 55,
     imageUrl: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=600&q=80',
-    description: 'Tested and certified by Pack&Go technician. 6 months operational guarantee.'
+    description: 'Tested by the seller before listing. Inspect it at handover before you pay.'
   },
   {
     id: 'circ-4',

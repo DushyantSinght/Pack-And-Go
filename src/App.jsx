@@ -23,6 +23,9 @@ import { BookingWizard } from './components/BookingWizard';
 import { MyMovesModal } from './components/MyMovesModal';
 import { LegalModal } from './components/LegalModal';
 import { VerifyEmailBanner } from './components/VerifyEmailBanner';
+import { AmbientBackground, ScrollProgress, BackToTop, Splash } from './components/Ambient';
+import { HowItWorks, FeatureGrid, FAQ, CtaBand, SiteFooter } from './components/LandingSections';
+import { useGlobalMotion } from './hooks/useMotion';
 import {
   ShieldAlert,
   Smartphone,
@@ -64,9 +67,14 @@ export function App() {
     setIsAdminOpen,
     setLegalDoc
   } = useMove();
+  useGlobalMotion();
   const captainPending = user?.userType === 'captain' && user?.captainStatus && user.captainStatus !== 'approved';
 
   return (
+    <>
+    <Splash />
+    <AmbientBackground />
+    <ScrollProgress />
     <div className="app-container">
       {/* Role-Specific Notification Banner */}
       {activeRole !== 'customer' && (
@@ -154,18 +162,30 @@ export function App() {
         <HeroBanner />
 
         {/* Dynamic View Tab Rendering */}
-        {activeTab === 'estimator' && <AIEstimator />}
-        {activeTab === 'passport' && <LuggagePassport />}
-        {activeTab === 'tracking' && <PoolingLiveTracking />}
-        {activeTab === 'marketplace' && <CircularMarketplace />}
-        {activeTab === 'themes' && <ThemedRoomSetup />}
-        {activeTab === 'postmove' && <PostMoveConcierge />}
-        {activeTab === 'campus' && <CampusMoveWeek />}
+        <div key={activeTab} className="page-enter">
+          {activeTab === 'estimator' && <AIEstimator />}
+          {activeTab === 'passport' && <LuggagePassport />}
+          {activeTab === 'tracking' && <PoolingLiveTracking />}
+          {activeTab === 'marketplace' && <CircularMarketplace />}
+          {activeTab === 'themes' && <ThemedRoomSetup />}
+          {activeTab === 'postmove' && <PostMoveConcierge />}
+          {activeTab === 'campus' && <CampusMoveWeek />}
+        </div>
+
+        {/* Landing sections — hidden for drivers, who use the app as a tool */}
+        {activeRole !== 'captain' && (
+          <>
+            <HowItWorks />
+            <FeatureGrid />
+            <FAQ />
+            <CtaBand />
+          </>
+        )}
       </main>
 
       {/* Modern Floating Toast Notification */}
       {toast && (
-        <div style={{
+        <div key={toast.id} className="toast" role="status" aria-live="polite" style={{
           position: 'fixed',
           bottom: '24px',
           right: '24px',
@@ -179,8 +199,8 @@ export function App() {
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
-          maxWidth: '420px',
-          animation: 'slideUp 0.3s ease'
+          maxWidth: 'min(420px, calc(100vw - 32px))',
+          backdropFilter: 'blur(14px)'
         }}>
           {toast.type === 'error' ? (
             <AlertCircle size={20} color="#FFFFFF" />
@@ -193,30 +213,8 @@ export function App() {
         </div>
       )}
 
-      {/* Footer */}
-      <footer style={{
-        borderTop: '1px solid var(--border-subtle)',
-        padding: '32px 24px',
-        textAlign: 'center',
-        color: 'var(--text-muted)',
-        fontSize: '0.85rem',
-        marginTop: 'auto'
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1rem' }}>
-            Pack<span style={{ color: 'var(--primary)' }}>&</span>Go
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-            <em>Packed with care. Settled with ease.</em>
-          </div>
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', fontSize: '0.78rem' }}>
-            {[['terms', 'Terms of Service'], ['privacy', 'Privacy Policy'], ['refunds', 'Refund & Cancellation']].map(([k, label]) => (
-              <button key={k} onClick={() => setLegalDoc(k)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit' }}>{label}</button>
-            ))}
-            <a href={`mailto:${import.meta.env.VITE_SUPPORT_EMAIL || 'support@packandgo.in'}`} style={{ color: 'var(--text-muted)' }}>Contact support</a>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
+      <BackToTop />
 
       {/* Auth Modal (Login / Sign Up) */}
       <AuthModal
@@ -278,6 +276,7 @@ export function App() {
       <MyMovesModal />
       <LegalModal />
     </div>
+    </>
   );
 }
 

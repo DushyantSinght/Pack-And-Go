@@ -191,7 +191,7 @@ export const AIEstimator = () => {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
               <span className="badge badge-emerald">Zero-Touch Estimation</span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Patented Computer Vision & NLP</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>AI photo & voice estimate</span>
             </div>
             <h2 style={{ fontSize: '1.6rem' }}>AI Volumetric Scan & Price-Lock Engine</h2>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
@@ -467,10 +467,10 @@ export const AIEstimator = () => {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span className="badge badge-emerald">
-                <ShieldAlert size={12} /> Guaranteed Price-Lock
+                <ShieldAlert size={12} /> Fixed upfront price
               </span>
               <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>
-                100% Upfront Commitment
+                No moving-day surprises
               </span>
             </div>
             <h3 style={{ fontSize: '1.4rem' }}>Transparent Volumetric Breakdown</h3>
@@ -539,7 +539,7 @@ export const AIEstimator = () => {
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
-                <Users size={16} color="var(--accent)" /> Certified Crew:
+                <Users size={16} color="var(--accent)" /> Verified crew:
               </span>
               <strong>{currentEstimate.labour}</strong>
             </div>

@@ -339,6 +339,9 @@ export const api = {
   getMyClaims: () => api.get('/support/claims/mine'),
   createServiceRequest: (data) => api.post('/support/requests', data),
 
+  // Public landing-page numbers
+  getPublicStats: () => api.get('/stats'),
+
   // AI
   assistantStatus: () => api.get('/assistant/status'),
   assistantChat: (messages) => api.post('/assistant/chat', { messages }),

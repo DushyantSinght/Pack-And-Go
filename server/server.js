@@ -24,6 +24,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import logRoutes from './routes/logRoutes.js';
 import assistantRoutes from './routes/assistantRoutes.js';
+import statsRoutes from './routes/statsRoutes.js';
 import { ErrorLog } from './models/index.js';
 import chatRoutes from './routes/chatRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
@@ -165,6 +166,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/assistant', assistantRoutes);
+app.use('/api/stats', statsRoutes);
 
 // ── Production: serve the built React app from /dist ─────────────
 if (process.env.NODE_ENV === 'production') {

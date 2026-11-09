@@ -141,7 +141,7 @@ export const DepositProtectionCertificate = ({ isOpen, onClose }) => {
               INDEPENDENT 3RD-PARTY AUDITOR:
             </div>
             <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '1rem' }}>
-              Pack&Go Certified Move Captain
+              Pack&Go Verified Move Captain
             </div>
             <div style={{ color: '#475569' }}>Auditor Name: Rajesh Sharma (ID: PKG-CPT-491)</div>
             <div style={{ color: '#475569' }}>Inspection Type: Before & After Move Visual Audit</div>
@@ -216,7 +216,7 @@ export const DepositProtectionCertificate = ({ isOpen, onClose }) => {
           color: '#92400E'
         }}>
           <strong>Legal Tenancy Declaration (Sec 13, Model Tenancy Act):</strong><br />
-          The certified inspection confirms that zero structural, cosmetic, or fixtures damage was inflicted upon the premises during packing, transit, or departure. Under Indian tenancy law, landlords are legally prohibited from deducting painting charges or normal wear-and-tear from the refundable security deposit.
+          This record documents the condition of the premises at move-out, as photographed and checked by the Move Captain. Share it with your landlord as evidence if there is a disagreement about deposit deductions. Deductions for normal wear and tear are usually governed by your rental agreement and local tenancy rules.
         </div>
 
         {/* Cryptographic Seal & Signatures */}
@@ -253,7 +253,7 @@ export const DepositProtectionCertificate = ({ isOpen, onClose }) => {
               ✓ VERIFIED ZERO-DAMAGE SEAL
             </div>
             <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0F172A' }}>Rajesh Sharma</div>
-            <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Certified Pack&Go Move Captain</div>
+            <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Verified Pack&Go Move Captain</div>
           </div>
         </div>
       </div>
