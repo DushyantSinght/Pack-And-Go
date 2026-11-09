@@ -4,6 +4,8 @@ import { LuggagePassport } from './LuggagePassport.js';
 import { MarketplaceItem } from './MarketplaceItem.js';
 import { PooledCorridor } from './PooledCorridor.js';
 import { CampusHub } from './CampusHub.js';
+import { Conversation } from './Conversation.js';
+import { Message } from './Message.js';
 
 export {
   User,
@@ -11,7 +13,9 @@ export {
   LuggagePassport,
   MarketplaceItem,
   PooledCorridor,
-  CampusHub
+  CampusHub,
+  Conversation,
+  Message
 };
 
 export const SCHEMA_DEFINITIONS = [
@@ -23,7 +27,7 @@ export const SCHEMA_DEFINITIONS = [
       { name: '_id', type: 'ObjectId', description: 'Unique MongoDB identifier' },
       { name: 'name', type: 'String', required: true, description: 'Full name' },
       { name: 'email', type: 'String', required: true, unique: true, indexed: true, description: 'Email address' },
-      { name: 'phone', type: 'String', required: true, indexed: true, description: '10-digit mobile number' },
+      { name: 'phone', type: 'String', indexed: true, description: 'Mobile number (used for click-to-call)' },
       { name: 'userType', type: 'String', enum: ['student', 'professional', 'captain', 'parent', 'outgoing', 'customer'], description: 'Active persona' },
       { name: 'college', type: 'String', description: 'Educational institution for student verification' },
       { name: 'society', type: 'String', description: 'Apartment society or gated community' },
@@ -112,6 +116,29 @@ export const SCHEMA_DEFINITIONS = [
       { name: 'activeStudentsJoining', type: 'Number', description: 'Number of enrolled students in move pool' },
       { name: 'discountTier', type: 'Number', description: 'Current group discount percentage (up to 50%)' },
       { name: 'dates', type: 'String', description: 'Semester-end relocation schedule window' }
+    ]
+  },
+  {
+    collection: 'conversations',
+    model: 'Conversation',
+    description: 'Real-time 1:1 chat threads between customers, Move Captains and marketplace sellers.',
+    fields: [
+      { name: 'participants', type: 'Array<ObjectId>', required: true, indexed: true, description: 'Users in this thread (ref: users)' },
+      { name: 'context', type: 'Object', description: 'What the chat is about (driver corridor or marketplace listing)' },
+      { name: 'lastMessage', type: 'Object', description: 'Preview of the latest message for the inbox' },
+      { name: 'unread', type: 'Map<String, Number>', description: 'Unread counts keyed by user id' }
+    ]
+  },
+  {
+    collection: 'messages',
+    model: 'Message',
+    description: 'Chat messages and call logs delivered over Socket.IO.',
+    fields: [
+      { name: 'conversation', type: 'ObjectId', required: true, indexed: true, description: 'Parent conversation' },
+      { name: 'sender', type: 'ObjectId', required: true, description: 'Author (ref: users)' },
+      { name: 'kind', type: 'String', enum: ['text', 'call'], description: 'Text message or call log entry' },
+      { name: 'text', type: 'String', required: true, description: 'Message body' },
+      { name: 'readBy', type: 'Array<ObjectId>', description: 'Users who have read the message' }
     ]
   }
 ];

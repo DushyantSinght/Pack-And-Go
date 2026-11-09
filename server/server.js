@@ -1,10 +1,15 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import http from 'http';
 import { connectDB, getDBStatus } from './config/db.js';
 import { seedDatabase } from './seed/seedData.js';
+import { ensureDemoAccounts } from './seed/demoAccounts.js';
+import { initSocket } from './socket.js';
 
 // Import Route Handlers
 import databaseRoutes from './routes/databaseRoutes.js';
@@ -15,6 +20,7 @@ import marketplaceRoutes from './routes/marketplaceRoutes.js';
 import corridorRoutes from './routes/corridorRoutes.js';
 import campusRoutes from './routes/campusRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,11 +30,49 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// ── Middlewares ──────────────────────────────────────────────────
+// ── Security Headers (Helmet) ─────────────────────────────────────
+app.use(helmet());
+
+// ── CORS ──────────────────────────────────────────────────────────
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174', // Vite sometimes picks 5174
+  process.env.CLIENT_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. curl, Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin '${origin}' not allowed`));
+  },
   credentials: true
 }));
+
+// ── Rate Limiters ─────────────────────────────────────────────────
+// General API: 1000 requests per 15 minutes per IP (chat history + inbox refreshes add up)
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests. Please try again later.' }
+});
+
+// Auth routes: stricter — 30 requests per 15 minutes per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many auth attempts. Please try again in 15 minutes.' }
+});
+
+app.use('/api', generalLimiter);
+app.use('/api/auth', authLimiter);
+
+// ── Body Parsers ─────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -53,9 +97,9 @@ app.get('/api', (req, res) => {
     database: dbStatus,
     auth: 'JWT Bearer Token (7 day expiry)',
     endpoints: [
-      '/api/auth/send-otp',
       '/api/auth/login',
       '/api/auth/signup',
+      '/api/auth/logout',
       '/api/auth/me',
       '/api/moves/current',
       '/api/passports',
@@ -63,6 +107,7 @@ app.get('/api', (req, res) => {
       '/api/corridors',
       '/api/campus',
       '/api/payments/create-order',
+      '/api/chat/conversations',
       '/api/payments/verify',
       '/api/database/status',
       '/api/database/schema'
@@ -79,13 +124,20 @@ app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/corridors', corridorRoutes);
 app.use('/api/campus', campusRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/chat', chatRoutes);
+
+// ── 404 Handler ───────────────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.url}` });
+});
 
 // ── Global Error Handler ─────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('Server Error:', err);
-  res.status(500).json({
+  res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal Server Error',
+    // Only expose stack traces in development
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
@@ -99,19 +151,28 @@ const startServer = async () => {
     try {
       await seedDatabase(false);
     } catch (seedErr) {
-      console.warn('⚠️ Seed check notice:', seedErr.message);
+      console.warn('⚠️  Seed skipped or failed:', seedErr.message);
     }
-  } else {
-    console.warn('⚠️ Started without active MongoDB connection.');
+    try {
+      await ensureDemoAccounts();
+    } catch (err) {
+      console.warn('⚠️  Demo contact accounts not synced:', err.message);
+    }
   }
 
-  app.listen(PORT, () => {
-    console.log(`📡 Pack&Go API Server running on http://localhost:${PORT}`);
-    console.log(`🔐 Auth: JWT enabled (7-day tokens)`);
-    console.log(`💳 Payments: Razorpay ${process.env.RAZORPAY_KEY_ID ? '✅ configured' : '⚠️  keys not set'}`);
-    console.log(`📊 Schema Inspector: http://localhost:${PORT}/api/database/schema`);
-    console.log(`🏥 Health: http://localhost:${PORT}/api/database/status`);
+  const httpServer = http.createServer(app);
+  initSocket(httpServer, allowedOrigins);
+
+  httpServer.listen(PORT, () => {
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+    console.log(`   NODE_ENV : ${process.env.NODE_ENV || 'development'}`);
+    console.log(`   CORS     : ${allowedOrigins.join(', ')}`);
+    console.log(`   DB       : ${process.env.MONGODB_URI}`);
+    console.log(`   Realtime : Socket.IO chat + call signalling enabled`);
   });
 };
 
-startServer();
+startServer().catch((err) => {
+  console.error('❌ Failed to start server:', err);
+  process.exit(1);
+});

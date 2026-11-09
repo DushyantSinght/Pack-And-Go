@@ -1,9 +1,9 @@
-// Client-side API Service — connects the Frontend to the Express/MongoDB backend
-// Automatically attaches JWT token to all authenticated requests.
+// Pack&Go API Service — connects frontend to Express/MongoDB backend.
+// Automatically attaches JWT from localStorage to all authenticated requests.
 
 const BASE_URL = '/api';
 
-// ── Token helpers ────────────────────────────────────────────────
+// ── Token storage helpers ────────────────────────────────────────
 export const tokenStorage = {
   get: () => localStorage.getItem('pkg_token'),
   set: (t) => localStorage.setItem('pkg_token', t),
@@ -12,21 +12,23 @@ export const tokenStorage = {
 
 const authHeaders = () => {
   const token = tokenStorage.get();
-  return token
-    ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-    : { 'Content-Type': 'application/json' };
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` })
+  };
 };
 
 const handleResponse = async (res) => {
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const errorJson = await res.json().catch(() => ({}));
-    throw new Error(errorJson.message || errorJson.error || `HTTP error ${res.status}`);
+    throw new Error(data.message || data.error || `Request failed (HTTP ${res.status})`);
   }
-  return res.json();
+  return data;
 };
 
 export const api = {
-  // ── Database health & Schema Inspector ──────────────────────────
+
+  // ── Database ─────────────────────────────────────────────────────
   getDBStatus: async () => {
     try {
       const res = await fetch(`${BASE_URL}/database/status`);
@@ -38,7 +40,7 @@ export const api = {
 
   getDBSchema: async () => {
     const res = await fetch(`${BASE_URL}/database/schema`);
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
   reseedDatabase: async (force = true) => {
@@ -47,33 +49,20 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify({ force })
     });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
-  // ── Authentication ───────────────────────────────────────────────
+  // ── Authentication ────────────────────────────────────────────────
 
   /**
-   * Request an OTP to be sent to a phone number.
-   * In development mode, the server returns { devOtp } in the response.
-   */
-  sendOtp: async (phone) => {
-    const res = await fetch(`${BASE_URL}/auth/send-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone })
-    });
-    return await handleResponse(res);
-  },
-
-  /**
-   * Login with phone + OTP (primary) or email + password (fallback).
+   * Login with email + password.
    * Stores the returned JWT automatically.
    */
-  login: async (credentials) => {
+  login: async ({ email, password }) => {
     const res = await fetch(`${BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials)
+      body: JSON.stringify({ email, password })
     });
     const data = await handleResponse(res);
     if (data.token) tokenStorage.set(data.token);
@@ -81,14 +70,14 @@ export const api = {
   },
 
   /**
-   * Signup with name, phone, OTP (+ optional email, password, userType).
+   * Sign up with name + email + password + userType.
    * Stores the returned JWT automatically.
    */
-  signup: async (userData) => {
+  signup: async ({ name, email, password, userType, college, society, phone }) => {
     const res = await fetch(`${BASE_URL}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userData)
+      body: JSON.stringify({ name, email, password, userType, college, society, phone })
     });
     const data = await handleResponse(res);
     if (data.token) tokenStorage.set(data.token);
@@ -100,25 +89,23 @@ export const api = {
    */
   getMe: async () => {
     const res = await fetch(`${BASE_URL}/auth/me`, { headers: authHeaders() });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
   /**
    * Sign out — clears local token.
    */
-  logout: () => {
-    tokenStorage.clear();
-  },
+  logout: () => tokenStorage.clear(),
 
   getUsers: async () => {
     const res = await fetch(`${BASE_URL}/auth/users`, { headers: authHeaders() });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
-  // ── Active Move & Estimates ──────────────────────────────────────
+  // ── Move Bookings ─────────────────────────────────────────────────
   getCurrentMove: async () => {
     const res = await fetch(`${BASE_URL}/moves/current`, { headers: authHeaders() });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
   saveMoveEstimate: async (moveData) => {
@@ -127,7 +114,7 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify(moveData)
     });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
   verifyOtp: async (data) => {
@@ -136,13 +123,13 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify(data)
     });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
-  // ── Digital Luggage Passports ────────────────────────────────────
+  // ── Luggage Passports ─────────────────────────────────────────────
   getPassports: async () => {
     const res = await fetch(`${BASE_URL}/passports`, { headers: authHeaders() });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
   createPassport: async (boxData) => {
@@ -151,7 +138,7 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify(boxData)
     });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
   updatePassport: async (boxId, updateData) => {
@@ -160,17 +147,17 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify(updateData)
     });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
-  // ── Circular Marketplace ─────────────────────────────────────────
+  // ── Circular Marketplace ──────────────────────────────────────────
   getMarketplaceItems: async (filters = {}) => {
     const params = new URLSearchParams();
     if (filters.category && filters.category !== 'All') params.append('category', filters.category);
     if (filters.society && filters.society !== 'All') params.append('society', filters.society);
-    const url = `${BASE_URL}/marketplace${params.toString() ? '?' + params.toString() : ''}`;
+    const url = `${BASE_URL}/marketplace${params.size ? '?' + params : ''}`;
     const res = await fetch(url, { headers: authHeaders() });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
   createMarketplaceItem: async (itemData) => {
@@ -179,7 +166,7 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify(itemData)
     });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
   claimMarketplaceItem: async (itemId) => {
@@ -188,13 +175,13 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify({})
     });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
-  // ── Pooled Corridors ─────────────────────────────────────────────
+  // ── Pooled Corridors ──────────────────────────────────────────────
   getCorridors: async () => {
     const res = await fetch(`${BASE_URL}/corridors`, { headers: authHeaders() });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
   verifyCorridorStop: async (corridorId, stopId) => {
@@ -203,13 +190,13 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify({ stopId })
     });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
-  // ── Campus Hubs ──────────────────────────────────────────────────
+  // ── Campus Hubs ───────────────────────────────────────────────────
   getCampusHubs: async () => {
     const res = await fetch(`${BASE_URL}/campus`, { headers: authHeaders() });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
   joinCampusHub: async (hubId, studentData) => {
@@ -218,14 +205,13 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify(studentData)
     });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
-  // ── Payments (Razorpay) ──────────────────────────────────────────
+  // ── Payments (Razorpay) ───────────────────────────────────────────
 
   /**
-   * Create a Razorpay order on the server.
-   * Returns { order: { id, amount, currency }, key }.
+   * Create a Razorpay order. Returns { order: { id, amount, currency }, key }.
    * @param {string} bookingId
    * @param {number} amountInPaise  e.g. ₹1890 → 189000
    */
@@ -235,12 +221,11 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify({ bookingId, amount: amountInPaise })
     });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
   /**
-   * Verify a completed Razorpay payment by HMAC signature.
-   * Call this from the Razorpay success handler.
+   * Verify Razorpay payment signature server-side.
    */
   verifyPayment: async (paymentData) => {
     const res = await fetch(`${BASE_URL}/payments/verify`, {
@@ -248,16 +233,50 @@ export const api = {
       headers: authHeaders(),
       body: JSON.stringify(paymentData)
     });
-    return await handleResponse(res);
+    return handleResponse(res);
   },
 
-  /**
-   * Get the payment and escrow status for a booking.
-   */
   getPaymentStatus: async (bookingId) => {
     const res = await fetch(`${BASE_URL}/payments/status/${bookingId}`, {
       headers: authHeaders()
     });
-    return await handleResponse(res);
+    return handleResponse(res);
+  },
+
+  // ── Chat (real-time delivery happens over Socket.IO) ─────────────
+  startConversation: async ({ contextType, refId, userId }) => {
+    const res = await fetch(`${BASE_URL}/chat/conversations`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ contextType, refId, userId })
+    });
+    return handleResponse(res);
+  },
+
+  getConversations: async () => {
+    const res = await fetch(`${BASE_URL}/chat/conversations`, { headers: authHeaders() });
+    return handleResponse(res);
+  },
+
+  getMessages: async (conversationId) => {
+    const res = await fetch(`${BASE_URL}/chat/conversations/${conversationId}/messages`, { headers: authHeaders() });
+    return handleResponse(res);
+  },
+
+  sendMessage: async (conversationId, text, kind = 'text') => {
+    const res = await fetch(`${BASE_URL}/chat/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ text, kind })
+    });
+    return handleResponse(res);
+  },
+
+  markConversationRead: async (conversationId) => {
+    const res = await fetch(`${BASE_URL}/chat/conversations/${conversationId}/read`, {
+      method: 'POST',
+      headers: authHeaders()
+    });
+    return handleResponse(res);
   }
 };

@@ -18,9 +18,10 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      required: [true, 'Phone number is required'],
+      required: false, // optional — email-only auth
       trim: true,
-      index: true
+      index: true,
+      sparse: true     // allows multiple null values in a unique-like index
     },
     password: {
       type: String,
@@ -47,17 +48,10 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Hash password before saving (only if modified)
-// Note: Routes hash the password manually before create/update,
-// so this hook only fires when password is set directly on a model instance.
-userSchema.pre('save', async function () {
-  // Only re-hash if it's a plaintext (not yet bcrypt-hashed) value
-  if (!this.isModified('password') || !this.password) return;
-  if (this.password.startsWith('$2')) return; // Already a bcrypt hash
-  this.password = await bcrypt.hash(this.password, 10);
-});
+// NOTE: Password hashing is performed explicitly in routes (bcrypt, salt 12).
+// The pre-save hook has been removed to give routes full, transparent control.
 
-// Instance method to compare passwords
+// Instance method to compare a plaintext candidate against the stored hash.
 userSchema.methods.comparePassword = function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };

@@ -1,5 +1,5 @@
 import express from 'express';
-import { MarketplaceItem } from '../models/index.js';
+import { MarketplaceItem, User } from '../models/index.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -34,6 +34,7 @@ router.post('/', requireAuth, async (req, res) => {
     const parsedPrice = Number(price);
     const co2SavedKg = Math.round(parsedPrice / 100) + 15;
     const itemId = `circ-${Date.now()}`;
+    const me = await User.findById(req.user._id).lean();
 
     const newItem = await MarketplaceItem.create({
       itemId,
@@ -49,9 +50,10 @@ router.post('/', requireAuth, async (req, res) => {
       imageUrl: imageUrl || 'https://images.unsplash.com/photo-1580481077194-46327b876404?auto=format&fit=crop&w=600&q=80',
       description: description || 'Outgoing tenant zero-transit handoff.',
       seller: {
-        name: req.user.name || 'Outgoing Tenant',
-        phone: req.user.phone || '+91 98765 43210',
-        email: req.user.email
+        name: me?.name || 'Outgoing Tenant',
+        phone: me?.phone || '',
+        email: req.user.email,
+        userType: me?.userType || 'outgoing'
       },
       status: 'available'
     });
@@ -74,9 +76,10 @@ router.post('/:itemId/claim', requireAuth, async (req, res) => {
     }
 
     item.status = 'claimed';
+    const me = await User.findById(req.user._id).lean();
     item.claimedBy = {
-      name: req.user.name || 'Incoming Resident',
-      phone: req.user.phone || '9876543210',
+      name: me?.name || 'Incoming Resident',
+      phone: me?.phone || '',
       email: req.user.email,
       claimedAt: new Date()
     };

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 import { connectDB } from '../config/db.js';
 import {
   User,
@@ -8,6 +9,7 @@ import {
   PooledCorridor,
   CampusHub
 } from '../models/index.js';
+import { ensureDemoAccounts } from './demoAccounts.js';
 
 export const seedDatabase = async (force = false) => {
   try {
@@ -26,6 +28,8 @@ export const seedDatabase = async (force = false) => {
       await MarketplaceItem.deleteMany({});
       await PooledCorridor.deleteMany({});
       await CampusHub.deleteMany({});
+      await mongoose.connection.collection('conversations').deleteMany({}).catch(() => {});
+      await mongoose.connection.collection('messages').deleteMany({}).catch(() => {});
       console.log('🧹 Cleared existing collections.');
     }
 
@@ -417,6 +421,8 @@ export const seedDatabase = async (force = false) => {
     ]);
     console.log(`✅ Seeded ${hubs.length} campus hubs.`);
 
+    await ensureDemoAccounts();
+    console.log('🔑 All seeded accounts can sign in with password "demo1234".');
     console.log('🎉 MongoDB database successfully seeded!');
     return { seeded: true, users: users.length, passports: passports.length, marketplace: marketplaceItems.length };
   } catch (err) {

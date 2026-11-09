@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useMove } from '../context/MoveContext';
+import { useComms } from '../context/CommsContext';
 import { BUYBACK_DEVICES } from '../data/mockData';
 import {
   Repeat,
@@ -14,6 +15,8 @@ import {
   Zap,
   ArrowRight,
   Calculator,
+  MessageSquare,
+  Phone,
   CheckCircle2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -65,6 +68,8 @@ export const CircularMarketplace = () => {
     setDeviceCondition(cond);
     calculateBuyback(selectedBuybackDevice, cond);
   };
+
+  const { openChat, requestCall } = useComms();
 
   const handleClaim = (item) => {
     confetti({
@@ -365,15 +370,34 @@ export const CircularMarketplace = () => {
               </div>
             </div>
 
-            <div style={{ padding: '12px 18px 18px', borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ padding: '12px 18px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 onClick={() => handleClaim(item)}
+                disabled={item.status && item.status !== 'available'}
                 className="btn btn-primary btn-sm"
-                style={{ width: '100%', gap: '6px' }}
+                style={{ width: '100%', gap: '6px', opacity: item.status && item.status !== 'available' ? 0.55 : 1 }}
               >
                 <ShoppingBag size={14} />
-                Claim / Arrange Handoff
+                {item.status && item.status !== 'available' ? 'Already Claimed' : 'Claim / Arrange Handoff'}
               </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => openChat({ contextType: 'seller', refId: item.itemId || item.id })}
+                  className="btn btn-secondary btn-sm"
+                  style={{ flex: 1, gap: '6px' }}
+                  title="Chat with seller"
+                >
+                  <MessageSquare size={14} /> Chat
+                </button>
+                <button
+                  onClick={() => requestCall({ contextType: 'seller', refId: item.itemId || item.id })}
+                  className="btn btn-outline-emerald btn-sm"
+                  style={{ flex: 1, gap: '6px' }}
+                  title="Call seller"
+                >
+                  <Phone size={14} /> Call
+                </button>
+              </div>
             </div>
           </div>
         ))}

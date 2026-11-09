@@ -115,7 +115,7 @@ export const MoveProvider = ({ children }) => {
         // Fetch Corridors from MongoDB
         const corrRes = await api.getCorridors().catch(() => null);
         if (corrRes?.corridors && corrRes.corridors.length > 0) {
-          setCorridors(corrRes.corridors);
+          setCorridors(corrRes.corridors.map((c) => ({ ...c, id: c.id || c.corridorId })));
         }
 
         // Fetch Move Booking from MongoDB
@@ -132,7 +132,23 @@ export const MoveProvider = ({ children }) => {
     };
 
     syncFromMongoDB();
-  }, []);
+  }, [user?._id]);
+
+  // A JWT restored from localStorage only carries id/email — load the full profile.
+  useEffect(() => {
+    if (!user?._id || user.name) return;
+    api.getMe()
+      .then((res) => {
+        if (!res?.user) return;
+        setUser((prev) => ({ ...prev, ...res.user, isAuthenticated: true }));
+        if (res.user.userType === 'captain') setActiveRole('captain');
+        if (res.user.userType === 'parent') setActiveRole('parent');
+      })
+      .catch(() => {
+        tokenStorage.clear();
+        setUser(null);
+      });
+  }, [user?._id, user?.name]);
 
   const login = async (credentials) => {
     // api.login stores the JWT and returns { user, token }

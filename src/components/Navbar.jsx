@@ -1,5 +1,6 @@
 import React from 'react';
 import { useMove } from '../context/MoveContext';
+import { useComms } from '../context/CommsContext';
 import {
   Truck,
   Box,
@@ -16,7 +17,8 @@ import {
   User,
   FileText,
   Lock,
-  Database
+  Database,
+  MessageSquare
 } from 'lucide-react';
 
 export const Navbar = () => {
@@ -37,6 +39,7 @@ export const Navbar = () => {
     openDbModal,
     dbStatus
   } = useMove();
+  const { openInbox, unreadTotal } = useComms();
 
   return (
     <header className="glass-panel navbar-header">
@@ -175,6 +178,23 @@ export const Navbar = () => {
           </select>
         </div>
 
+        {/* Messages inbox */}
+        {user && (
+          <button
+            onClick={openInbox}
+            className="btn btn-secondary btn-sm"
+            style={{ position: 'relative', width: '34px', height: '34px', padding: 0, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            title={unreadTotal ? `${unreadTotal} unread message${unreadTotal > 1 ? 's' : ''}` : 'Messages'}
+          >
+            <MessageSquare size={15} />
+            {unreadTotal > 0 && (
+              <span style={{ position: 'absolute', top: -4, right: -4, background: '#EF4444', color: '#fff', fontSize: '0.62rem', fontWeight: 800, minWidth: 17, height: 17, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                {unreadTotal > 99 ? '99+' : unreadTotal}
+              </span>
+            )}
+          </button>
+        )}
+
         {/* User Account / Auth Section */}
         {user ? (
           <div style={{
@@ -198,10 +218,10 @@ export const Navbar = () => {
               fontSize: '0.7rem',
               fontWeight: 800
             }}>
-              {user.name.charAt(0)}
+              {user.name?.charAt(0) || '•'}
             </div>
             <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)' }}>
-              {user.name.split(' ')[0]}
+              {user.name?.split(' ')[0] || 'Account'}
             </span>
             <button
               onClick={logout}

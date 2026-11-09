@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMove } from '../context/MoveContext';
+import { useComms } from '../context/CommsContext';
 import { ACTIVE_POOLED_CORRIDORS } from '../data/mockData';
 import {
   Truck,
@@ -32,6 +33,7 @@ export const PoolingLiveTracking = () => {
     setActiveTab
   } = useMove();
 
+  const { openChat, requestCall } = useComms();
   const activeCorridor = corridors.find((c) => c.id === selectedCorridorId) || corridors[0];
   const [liveSpeed, setLiveSpeed] = useState(activeCorridor.currentSpeedKmH || 32);
   const [mapMode, setMapMode] = useState('leaflet'); // leaflet | schematic
@@ -227,18 +229,18 @@ export const PoolingLiveTracking = () => {
 
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
-                onClick={() => showToast(`Calling Move Captain ${activeCorridor.driver.name}...`, 'info')}
+                onClick={() => requestCall({ contextType: 'driver', refId: activeCorridor.corridorId || activeCorridor.id })}
                 className="btn btn-outline-emerald btn-sm"
                 title="Call Driver"
               >
                 <Phone size={14} /> Call
               </button>
               <button
-                onClick={() => showToast(`Opening secure dispatch chat with ${activeCorridor.driver.name}...`, 'info')}
+                onClick={() => openChat({ contextType: 'driver', refId: activeCorridor.corridorId || activeCorridor.id })}
                 className="btn btn-secondary btn-sm"
                 title="Message Driver"
               >
-                <MessageSquare size={14} />
+                <MessageSquare size={14} /> Chat
               </button>
             </div>
           </div>

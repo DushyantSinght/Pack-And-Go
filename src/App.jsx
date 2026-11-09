@@ -16,6 +16,8 @@ import { DepositProtectionCertificate } from './components/DepositProtectionCert
 import { DriverConsoleModal } from './components/DriverConsoleModal';
 import { ChatbotConcierge } from './components/ChatbotConcierge';
 import { DatabaseSchemaModal } from './components/DatabaseSchemaModal';
+import { ChatDrawer } from './components/ChatDrawer';
+import { CallModal } from './components/CallModal';
 import {
   ShieldAlert,
   Smartphone,
@@ -149,7 +151,7 @@ export function App() {
           position: 'fixed',
           bottom: '24px',
           right: '24px',
-          zIndex: 100,
+          zIndex: 400,
           background: toast.type === 'error' ? '#EF4444' : '#111827',
           color: '#FFFFFF',
           border: toast.type === 'error' ? '1px solid #F87171' : '1px solid var(--border-glow)',
@@ -239,6 +241,10 @@ export function App() {
         onOpenPayment={openPayment}
         onOpenCert={openDepositCert}
       />
+
+      {/* Real-time messaging (Socket.IO) and calling */}
+      <ChatDrawer />
+      <CallModal />
     </div>
   );
 }

@@ -2,82 +2,118 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { User } from '../models/index.js';
 import { signToken, requireAuth } from '../middleware/auth.js';
-import { generateOtp, verifyOtp, peekOtp } from '../middleware/otpStore.js';
 
 const router = express.Router();
 
+// ─── Validation helpers ───────────────────────────────────────────
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateEmail(email) {
+  return typeof email === 'string' && EMAIL_RE.test(email.trim());
+}
+
+function validatePassword(password) {
+  return typeof password === 'string' && password.length >= 6;
+}
+
 // ─────────────────────────────────────────────────────────────────
-// POST /api/auth/send-otp
-// Sends a 6-digit OTP to the given phone number.
+// POST /api/auth/signup
+// name + email + password + userType → bcrypt hash → JWT + user
 // ─────────────────────────────────────────────────────────────────
-router.post('/send-otp', async (req, res) => {
+router.post('/signup', async (req, res) => {
   try {
-    const { phone } = req.body;
-    if (!phone || phone.length < 10) {
-      return res.status(400).json({ success: false, message: 'Please provide a valid 10-digit phone number.' });
+    const { name, email, password, userType, college, society, phone } = req.body;
+    const cleanPhone = typeof phone === 'string' ? phone.replace(/\D/g, '').slice(-10) : '';
+
+    // ── Validation ───────────────────────────────────────────────
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Name is required.' });
+    }
+    if (!validateEmail(email)) {
+      return res.status(400).json({ success: false, message: 'A valid email address is required.' });
+    }
+    if (!validatePassword(password)) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
     }
 
-    const otp = generateOtp(phone.trim());
+    const normalizedEmail = email.toLowerCase().trim();
 
-    // ── In production, call an SMS gateway here (e.g. Twilio, MSG91) ──
-    // await smsClient.send({ to: `+91${phone}`, body: `Your Pack&Go OTP is ${otp}. Valid for 5 minutes.` });
+    // ── Duplicate check ──────────────────────────────────────────
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
+    }
 
-    console.log(`[OTP] +91 ${phone} → ${otp}`); // Dev console only
+    // ── Hash password (salt rounds 12 for production) ────────────
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    return res.json({
+    const newUser = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+      userType: ['student', 'professional', 'captain', 'parent', 'outgoing'].includes(userType) ? userType : 'student',
+      ...(cleanPhone.length === 10 && { phone: cleanPhone }),
+      college: college || '',
+      society: society || ''
+    });
+
+    const token = signToken({ _id: newUser._id, email: newUser.email, userType: newUser.userType });
+
+    return res.status(201).json({
       success: true,
-      message: `OTP sent to +91 ${phone}.`,
-      // Dev helper: expose OTP only in development mode
-      ...(process.env.NODE_ENV === 'development' && { devOtp: otp })
+      token,
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        avatar: newUser.avatar,
+        userType: newUser.userType,
+        college: newUser.college,
+        society: newUser.society,
+        escrowWalletBalance: newUser.escrowWalletBalance,
+        createdAt: newUser.createdAt
+      }
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    if (error.code === 11000) {
+      return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
+    }
+    res.status(500).json({ success: false, message: 'Server error during signup.' });
   }
 });
 
 // ─────────────────────────────────────────────────────────────────
 // POST /api/auth/login
-// Accepts phone + OTP (primary) or email + password (fallback).
-// Returns JWT + user profile.
+// email + password → JWT + user
 // ─────────────────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
-    const { phone, otp, email, password, name, userType } = req.body;
+    const { email, password } = req.body;
 
-    let user;
-
-    // ── Phone + OTP path (primary) ──────────────────────────────
-    if (phone) {
-      const result = verifyOtp(phone.trim(), otp);
-      if (!result.valid) {
-        return res.status(400).json({ success: false, message: result.reason });
-      }
-
-      user = await User.findOne({ phone: phone.trim() });
-      if (!user) {
-        // Auto-provision on first OTP login — pre-save hook will hash the password
-        user = await User.create({
-          name: name || `User +91${phone.slice(-4)}`,
-          email: `user_${phone}@packandgo.in`,
-          phone: phone.trim(),
-          password: 'packandgo_default',
-          userType: userType || 'student'
-        });
-      }
+    // ── Validation ───────────────────────────────────────────────
+    if (!validateEmail(email)) {
+      return res.status(400).json({ success: false, message: 'A valid email address is required.' });
+    }
+    if (!validatePassword(password)) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
     }
 
-    // ── Email + Password path (fallback) ────────────────────────
-    else if (email && password) {
-      user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
-      if (!user) {
-        return res.status(401).json({ success: false, message: 'No account found with this email.' });
-      }
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(401).json({ success: false, message: 'Incorrect password. Please try again.' });
-      }
-    } else {
-      return res.status(400).json({ success: false, message: 'Provide either (phone + otp) or (email + password).' });
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // ── Look up user (include password field) ────────────────────
+    const user = await User.findOne({ email: normalizedEmail }).select('+password');
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'No account found with this email.' });
+    }
+
+    if (!user.password) {
+      return res.status(401).json({ success: false, message: 'This account has no password set. Please sign up.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Incorrect password. Please try again.' });
     }
 
     const token = signToken({ _id: user._id, email: user.email, userType: user.userType });
@@ -90,69 +126,26 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        avatar: user.avatar,
         userType: user.userType,
         college: user.college,
         society: user.society,
-        escrowWalletBalance: user.escrowWalletBalance
+        escrowWalletBalance: user.escrowWalletBalance,
+        tripsCompleted: user.tripsCompleted,
+        rating: user.rating
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: 'Server error during login.' });
   }
 });
 
 // ─────────────────────────────────────────────────────────────────
-// POST /api/auth/signup
-// Creates a new account with hashed password.
-// Returns JWT + user profile.
+// POST /api/auth/logout
+// Token invalidation is client-side. Server simply confirms.
 // ─────────────────────────────────────────────────────────────────
-router.post('/signup', async (req, res) => {
-  try {
-    const { name, email, phone, password, otp, userType, college, society } = req.body;
-
-    if (!phone) {
-      return res.status(400).json({ success: false, message: 'Phone number is required for signup.' });
-    }
-
-    // Verify OTP
-    const result = verifyOtp(phone.trim(), otp);
-    if (!result.valid) {
-      return res.status(400).json({ success: false, message: result.reason });
-    }
-
-    // Check for existing user
-    const existingUser = await User.findOne({
-      $or: [
-        { email: email?.toLowerCase().trim() },
-        { phone: phone.trim() }
-      ]
-    });
-
-    if (existingUser) {
-      const token = signToken({ _id: existingUser._id, email: existingUser.email, userType: existingUser.userType });
-      return res.json({ success: true, token, user: existingUser, message: 'Account already exists. Logged in.' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password || 'packandgo_default', 10);
-    const newUser = await User.create({
-      name: name || 'New Resident',
-      email: email ? email.toLowerCase().trim() : `user_${phone}@packandgo.in`,
-      phone: phone.trim(),
-      password: hashedPassword,
-      userType: userType || 'student',
-      college: college || '',
-      society: society || ''
-    });
-
-    const token = signToken({ _id: newUser._id, email: newUser.email, userType: newUser.userType });
-
-    return res.status(201).json({ success: true, token, user: newUser });
-  } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({ success: false, message: 'An account with this email or phone already exists.' });
-    }
-    res.status(500).json({ success: false, error: error.message });
-  }
+router.post('/logout', (req, res) => {
+  return res.json({ success: true, message: 'Logged out successfully. Please discard your token.' });
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -165,19 +158,20 @@ router.get('/me', requireAuth, async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
     return res.json({ success: true, user });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: 'Server error fetching profile.' });
   }
 });
 
 // ─────────────────────────────────────────────────────────────────
 // GET /api/auth/users  (protected — admin use)
+// Lists most recent users. No passwords exposed.
 // ─────────────────────────────────────────────────────────────────
 router.get('/users', requireAuth, async (req, res) => {
   try {
-    const users = await User.find().sort({ createdAt: -1 }).limit(10);
-    return res.json({ success: true, users });
+    const users = await User.find().sort({ createdAt: -1 }).limit(50);
+    return res.json({ success: true, count: users.length, users });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: 'Server error fetching users.' });
   }
 });
 

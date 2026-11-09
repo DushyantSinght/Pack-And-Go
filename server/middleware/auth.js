@@ -1,6 +1,10 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'packandgo_jwt_secret_dev_2026';
+// Read lazily: ES module imports run before dotenv.config() in server.js,
+// so a module-level constant would silently ignore JWT_SECRET from .env.
+const getSecret = () => process.env.JWT_SECRET || 'packandgo_jwt_secret_dev_2026';
+
+export const verifyToken = (token) => jwt.verify(token, getSecret());
 
 /**
  * Middleware: Require a valid Bearer JWT to proceed.
@@ -14,7 +18,7 @@ export const requireAuth = (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = verifyToken(token);
     req.user = decoded;
     next();
   } catch (err) {
@@ -30,7 +34,7 @@ export const optionalAuth = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
-      req.user = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      req.user = verifyToken(authHeader.split(' ')[1]);
     } catch {
       req.user = null;
     }
@@ -39,6 +43,6 @@ export const optionalAuth = (req, res, next) => {
 };
 
 export const signToken = (payload) => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, getSecret(), { expiresIn: '7d' });
 };
 

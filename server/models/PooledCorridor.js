@@ -49,6 +49,7 @@ const pooledCorridorSchema = new mongoose.Schema(
       name: { type: String, default: 'Manjunath Gowda' },
       rating: { type: Number, default: 4.9 },
       phone: { type: String, default: '+91 98452 11029' },
+      email: { type: String, lowercase: true, trim: true },
       tripsCompleted: { type: Number, default: 1420 },
       photo: { type: String, default: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80' }
     },

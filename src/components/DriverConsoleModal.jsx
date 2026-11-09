@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { useMove } from '../context/MoveContext';
+import { useComms } from '../context/CommsContext';
 import {
   Truck,
   QrCode,
@@ -13,11 +14,13 @@ import {
   KeyRound,
   Radio,
   Camera,
-  AlertCircle
+  AlertCircle,
+  MessageSquare
 } from 'lucide-react';
 
 export const DriverConsoleModal = ({ isOpen, onClose }) => {
-  const { currentEstimate, showToast } = useMove();
+  const { currentEstimate, showToast, user } = useMove();
+  const { openInbox, unreadTotal } = useComms();
 
   const [geofenceStatus, setGeofenceStatus] = useState('en-route'); // en-route | arrived | verified
   const [scannedBoxes, setScannedBoxes] = useState(['PKG-BOX-01', 'PKG-BOX-02']);
@@ -152,13 +155,32 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
               <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>ID: PKG-CPT-491</span>
             </div>
             <h3 style={{ fontSize: '1.2rem', margin: '2px 0 0 0', fontWeight: 700 }}>
-              Captain Rajesh Sharma
+              Captain {user?.userType === 'captain' && user?.name ? user.name : 'Rajesh Sharma'}
             </h3>
             <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
               Vehicle: <strong>KA-01-MJ-4921 (Tata Ace EV)</strong> • ⭐ 4.9 (420+ shifts)
             </div>
           </div>
         </div>
+
+        {/* Customer messages & calls */}
+        <button
+          onClick={() => { onClose(); openInbox(); }}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+            background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: 'var(--radius-md)',
+            padding: '12px 14px', color: '#FFFFFF', cursor: 'pointer', marginBottom: '16px', fontWeight: 600, fontSize: '0.88rem'
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <MessageSquare size={16} color="#10B981" /> Customer messages & calls
+          </span>
+          {unreadTotal > 0 ? (
+            <span style={{ background: '#EF4444', borderRadius: 999, padding: '1px 8px', fontSize: '0.72rem', fontWeight: 800 }}>{unreadTotal} new</span>
+          ) : (
+            <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>Open inbox →</span>
+          )}
+        </button>
 
         {/* Step 1: Geofence Check-in */}
         <div style={{
