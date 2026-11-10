@@ -6,6 +6,7 @@ import { useMove } from '../context/MoveContext';
 import { AdminBookings, AdminClaims, AdminRequests } from './AdminOpsPanels';
 import { SkeletonList } from './ui/Skeleton';
 import { EmptyState } from './ui/EmptyState';
+import { UserAvatar } from './ui/SafeImage';
 
 const TABS = [
   { id: 'pending', label: 'Pending', icon: Clock },
@@ -123,7 +124,7 @@ export const AdminCaptainsModal = ({ isOpen, onClose }) => {
           {data.captains.map((c) => (
             <div key={c._id} style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 14, background: 'var(--bg-elevated)' }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                <img src={c.avatar} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
+                <UserAvatar src={c.avatar} name={c.name} size={44} />
                 <div style={{ flex: 1, minWidth: 220 }}>
                   <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{c.name}</div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{c.email}</div>

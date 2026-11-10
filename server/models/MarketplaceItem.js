@@ -57,7 +57,7 @@ const marketplaceItemSchema = new mongoose.Schema(
     },
     imageUrl: {
       type: String,
-      default: 'https://images.unsplash.com/photo-1580481077194-46327b876404?auto=format&fit=crop&w=600&q=80'
+      default: '' // no photo → the app shows a category placeholder
     },
     description: {
       type: String,

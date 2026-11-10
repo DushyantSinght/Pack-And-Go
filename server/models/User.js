@@ -38,10 +38,7 @@ const userSchema = new mongoose.Schema(
     college: { type: String, trim: true },
     company: { type: String, trim: true },
     society: { type: String, trim: true },
-    avatar: {
-      type: String,
-      default: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'
-    },
+    avatar: { type: String, default: '' }, // no photo → initials in the UI
     escrowWalletBalance: { type: Number, default: 0 },
     tripsCompleted: { type: Number, default: 0 },
     rating: { type: Number, default: 4.9 },

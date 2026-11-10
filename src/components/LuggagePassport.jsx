@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { PageIcon } from './ui/PageIcon';
 import { FlipCode } from './ui/FlipCode';
+import { SafeImage } from './ui/SafeImage';
 
 export const LuggagePassport = () => {
   const {
@@ -235,7 +236,7 @@ export const LuggagePassport = () => {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 {qrDataUrl ? (
-                  <img
+                  <SafeImage
                     src={qrDataUrl}
                     alt="Digital Luggage QR Passport"
                     style={{ width: '110px', height: '110px', borderRadius: '4px', border: '1px solid #E2E8F0' }}
@@ -325,7 +326,7 @@ export const LuggagePassport = () => {
                   border: '1px solid var(--border-subtle)'
                 }}>
                   {/* Before Move Image (Full Width Behind) */}
-                  <img
+                  <SafeImage
                     src={selectedBox.preMovePhotoUrl}
                     alt="Pre-Move Condition"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -341,7 +342,7 @@ export const LuggagePassport = () => {
                     overflow: 'hidden',
                     borderRight: '3px solid var(--primary)'
                   }}>
-                    <img
+                    <SafeImage
                       src={selectedBox.postMovePhotoUrl}
                       alt="Post-Move Delivery Audit"
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}

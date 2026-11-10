@@ -12,6 +12,7 @@ import {
   UserCheck,
   AlertCircle
 } from 'lucide-react';
+import { SafeImage } from './ui/SafeImage';
 
 export const DepositProtectionCertificate = ({ isOpen, onClose }) => {
   const { currentEstimate, user } = useMove();
@@ -26,8 +27,8 @@ export const DepositProtectionCertificate = ({ isOpen, onClose }) => {
   const inspectionItems = [
     { area: 'Room & Hallway Paint', status: 'Passed', remark: 'Zero scuffs; padded blanket corner guards deployed.', prePhoto: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=400&q=80', postPhoto: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=400&q=80' },
     { area: 'Vitrified Floor Tiles', status: 'Passed', remark: 'No drag scratches; heavy goods moved on rubber dollies.', prePhoto: 'https://images.unsplash.com/photo-1581858726788-75bc0f6a952d?auto=format&fit=crop&w=400&q=80', postPhoto: 'https://images.unsplash.com/photo-1581858726788-75bc0f6a952d?auto=format&fit=crop&w=400&q=80' },
-    { area: 'Electrical Fittings & AC', status: 'Passed', remark: 'All 6 switchboards and MCB audited undamaged.', prePhoto: 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=400&q=80', postPhoto: 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=400&q=80' },
-    { area: 'Main Door & Trim Seal', status: 'Passed', remark: 'Door frame foam buffer removed cleanly post-move.', prePhoto: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=400&q=80', postPhoto: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=400&q=80' }
+    { area: 'Electrical Fittings & AC', status: 'Passed', remark: 'All 6 switchboards and MCB audited undamaged.', prePhoto: 'https://images.unsplash.com/photo-1556217994-22de7face210?auto=format&fit=crop&w=400&q=80', postPhoto: 'https://images.unsplash.com/photo-1556217994-22de7face210?auto=format&fit=crop&w=400&q=80' },
+    { area: 'Main Door & Trim Seal', status: 'Passed', remark: 'Door frame foam buffer removed cleanly post-move.', prePhoto: 'https://images.unsplash.com/photo-1536160885591-301854e2ed04?auto=format&fit=crop&w=400&q=80', postPhoto: 'https://images.unsplash.com/photo-1536160885591-301854e2ed04?auto=format&fit=crop&w=400&q=80' }
   ];
 
   return (
@@ -182,7 +183,7 @@ export const DepositProtectionCertificate = ({ isOpen, onClose }) => {
 
               <div>
                 <div style={{ fontSize: '0.7rem', color: '#64748B', marginBottom: '2px' }}>Pre-Move Photo</div>
-                <img
+                <SafeImage
                   src={item.prePhoto}
                   alt={item.area}
                   style={{ width: '60px', height: '40px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #CBD5E1' }}
@@ -191,7 +192,7 @@ export const DepositProtectionCertificate = ({ isOpen, onClose }) => {
 
               <div>
                 <div style={{ fontSize: '0.7rem', color: '#64748B', marginBottom: '2px' }}>Post-Move Audit</div>
-                <img
+                <SafeImage
                   src={item.postPhoto}
                   alt={item.area}
                   style={{ width: '60px', height: '40px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #CBD5E1' }}

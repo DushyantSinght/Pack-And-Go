@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PageIcon } from './ui/PageIcon';
+import { SafeImage } from './ui/SafeImage';
 
 export const ThemedRoomSetup = () => {
   const {
@@ -95,7 +96,7 @@ export const ThemedRoomSetup = () => {
                 onClick={() => selectTheme(theme.id)}
               >
                 <div style={{ position: 'relative', aspectRatio: '16/10', overflow: 'hidden' }}>
-                  <img
+                  <SafeImage
                     src={theme.previewUrl}
                     alt={theme.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}

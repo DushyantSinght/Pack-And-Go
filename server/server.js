@@ -17,7 +17,7 @@ import databaseRoutes from './routes/databaseRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import moveRoutes, { rotateLegacyOtps, migrateLegacyBookings } from './routes/moveRoutes.js';
 import passportRoutes from './routes/passportRoutes.js';
-import marketplaceRoutes from './routes/marketplaceRoutes.js';
+import marketplaceRoutes, { repairListingPhotos } from './routes/marketplaceRoutes.js';
 import corridorRoutes from './routes/corridorRoutes.js';
 import campusRoutes from './routes/campusRoutes.js';
 import paymentRoutes, { razorpayWebhook } from './routes/paymentRoutes.js';
@@ -26,7 +26,7 @@ import supportRoutes from './routes/supportRoutes.js';
 import logRoutes from './routes/logRoutes.js';
 import assistantRoutes from './routes/assistantRoutes.js';
 import statsRoutes from './routes/statsRoutes.js';
-import { ErrorLog } from './models/index.js';
+import { ErrorLog, User } from './models/index.js';
 import chatRoutes from './routes/chatRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 
@@ -221,6 +221,10 @@ const startServer = async () => {
     try {
       const migrated = await migrateLegacyBookings();
       if (migrated) console.log(`🧾 Reset ${migrated} legacy booking(s) with placeholder payment data to drafts.`);
+      const repaired = await repairListingPhotos();
+      if (repaired) console.log(`🖼️  Repaired ${repaired} listing photo(s) that were missing or wrong.`);
+      // Profile pictures: drop the old stock-photo default so the app shows initials.
+      await User.updateMany({ avatar: { $regex: 'photo-1535713875002-d1d0cf377fde' } }, { $set: { avatar: '' } });
       const rotated = await rotateLegacyOtps();
       if (rotated) console.log(`🔐 Replaced shared demo OTPs on ${rotated} booking(s) with unique codes.`);
     } catch (err) {

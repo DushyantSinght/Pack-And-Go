@@ -4,6 +4,7 @@ import { ArrowLeft, Check, CheckCheck, MessageSquare, Phone, PhoneCall, Send, Tr
 import { useComms } from '../context/CommsContext';
 import { SkeletonList, SkeletonBubbles } from './ui/Skeleton';
 import { EmptyState } from './ui/EmptyState';
+import { UserAvatar } from './ui/SafeImage';
 
 const ROLE_LABEL = { captain: 'Move Captain', outgoing: 'Seller', student: 'Customer', professional: 'Customer', parent: 'Parent', customer: 'Customer' };
 
@@ -17,13 +18,7 @@ const timeLabel = (iso) => {
 
 export const Avatar = ({ person, size = 40 }) => (
   <div style={{ position: 'relative', flexShrink: 0 }}>
-    {person?.avatar ? (
-      <img src={person.avatar} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-subtle)' }} />
-    ) : (
-      <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--accent))', color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
-        {person?.name?.charAt(0) || '?'}
-      </div>
-    )}
+    <UserAvatar src={person?.avatar} name={person?.name} size={size} />
     {person?.online !== undefined && (
       <span style={{
         position: 'absolute', right: 0, bottom: 0, width: size / 4, height: size / 4, minWidth: 9, minHeight: 9,

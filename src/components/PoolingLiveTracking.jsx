@@ -26,6 +26,7 @@ import { InteractiveLeafletMap } from './InteractiveLeafletMap';
 import { PackMyTruckVisualizer } from './PackMyTruckVisualizer';
 import { LiveMoveMap } from './LiveMoveMap';
 import { PageIcon } from './ui/PageIcon';
+import { UserAvatar } from './ui/SafeImage';
 
 export const PoolingLiveTracking = () => {
   const {
@@ -237,11 +238,7 @@ export const PoolingLiveTracking = () => {
             gap: '12px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img
-                src={activeCorridor.driver.photo}
-                alt={activeCorridor.driver.name}
-                style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }}
-              />
+              <UserAvatar src={activeCorridor.driver.photo} name={activeCorridor.driver.name} size={48} style={{ border: '2px solid var(--primary)' }} />
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{activeCorridor.driver.name}</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>

@@ -1,6 +1,7 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React from 'react';
 import { Building, Leaf, MessageSquare, Phone, ShoppingBag, X, Tag } from 'lucide-react';
+import { SafeImage } from './ui/SafeImage';
 
 const vtName = (item) => `item-${String(item.itemId || item.id).replace(/[^a-zA-Z0-9-]/g, '')}`;
 export const itemViewTransitionName = vtName;
@@ -15,7 +16,7 @@ export const MarketplaceItemSheet = ({ item, onClose, onClaim, onChat, onCall })
     <div style={{ position: 'fixed', inset: 0, zIndex: 255, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }} onClick={onClose}>
       <div role="dialog" aria-label={item.title} onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 620, maxHeight: '94vh', overflowY: 'auto', background: 'var(--bg-card-solid)', border: '1px solid var(--border-gold)', borderRadius: 22, padding: 16, position: 'relative', boxShadow: '0 40px 90px -20px rgba(0,0,0,0.7)' }}>
         <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ position: 'absolute', top: 24, right: 24, width: 34, height: 34, padding: 0, borderRadius: '50%', zIndex: 2 }} aria-label="Close"><X size={16} /></button>
-        <img src={item.imageUrl} alt={item.title} className="sheet-img" style={{ viewTransitionName: vtName(item) }} />
+        <SafeImage src={item.imageUrl} alt={item.title} kind={item.category} className="sheet-img" style={{ viewTransitionName: vtName(item) }} />
         <div style={{ padding: '16px 8px 4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--text-muted)' }}><Building size={13} color="var(--cyan)" /> {item.society}</div>
           <h3 style={{ fontSize: '1.35rem', margin: '6px 0 4px' }}>{item.title}</h3>

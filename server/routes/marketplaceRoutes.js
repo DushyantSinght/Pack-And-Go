@@ -5,6 +5,30 @@ import { requireAuth, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
+const MAX_PHOTO_BYTES = 1.5 * 1024 * 1024;
+/** Accept an https image link or an uploaded photo (data URL); anything else → no photo. */
+const cleanImage = (v) => {
+  const s = String(v || '').trim();
+  if (/^https:\/\/[^\s"'<>]+$/i.test(s) && s.length < 2048) return s;
+  if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s) && s.length * 0.75 <= MAX_PHOTO_BYTES) return s;
+  return '';
+};
+
+/** Startup fix: listings pointing at photos that no longer exist or show the wrong thing. */
+export const repairListingPhotos = async () => {
+  const DEAD = 'photo-1580481077194-46327b876404';
+  const YARN = 'photo-1584992236310-6edddc08acff';
+  const CHAIR = 'https://images.unsplash.com/photo-1688578735352-9a6f2ac3b70a?auto=format&fit=crop&w=600&q=80';
+  const FRIDGE = 'https://images.unsplash.com/photo-1540961403310-79825242906e?auto=format&fit=crop&w=600&q=80';
+  const r1 = await MarketplaceItem.updateMany(
+    { itemId: 'circ-2', imageUrl: { $regex: DEAD } },
+    { $set: { imageUrl: CHAIR, title: 'Green Soul Ergonomic Office Chair (Grey)' } }
+  );
+  const r2 = await MarketplaceItem.updateMany({ imageUrl: { $regex: DEAD } }, { $set: { imageUrl: '' } });
+  const r3 = await MarketplaceItem.updateMany({ imageUrl: { $regex: YARN } }, { $set: { imageUrl: FRIDGE } });
+  return r1.modifiedCount + r2.modifiedCount + r3.modifiedCount;
+};
+
 // GET /api/marketplace — List items (public, optionally filtered)
 router.get('/', optionalAuth, async (req, res) => {
   try {
@@ -48,7 +72,7 @@ router.post('/', requireAuth, async (req, res) => {
       handoffType: 'Direct In-Building P2P',
       zeroTransitFee: true,
       co2SavedKg,
-      imageUrl: imageUrl || 'https://images.unsplash.com/photo-1580481077194-46327b876404?auto=format&fit=crop&w=600&q=80',
+      imageUrl: cleanImage(imageUrl),
       description: description || 'Outgoing tenant zero-transit handoff.',
       seller: {
         name: me?.name || 'Outgoing Tenant',

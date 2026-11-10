@@ -14,6 +14,7 @@ import { SkeletonList } from './ui/Skeleton';
 import { EmptyState } from './ui/EmptyState';
 import { withViewTransition } from '../utils/viewTransition';
 import { haptic, HAPTIC } from '../utils/haptics';
+import { UserAvatar } from './ui/SafeImage';
 
 const inr = (n) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
 const when = (d) => (d ? new Date(d).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '—');
@@ -135,7 +136,7 @@ const MoveDetail = ({ move, onBack }) => {
       {move.captain && ['assigned', 'in_transit', 'delivered'].includes(st) && (
         <Section title="Your Move Captain" icon={Truck}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <img src={move.captain.avatar} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
+            <UserAvatar src={move.captain.avatar} name={move.captain.name} size={44} />
             <div style={{ flex: 1, minWidth: 140 }}>
               <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{move.captain.name}</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>⭐ {move.captain.rating} • {move.captain.vehicleType} {move.captain.vehicleNumber}</div>

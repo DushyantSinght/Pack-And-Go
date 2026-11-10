@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PageIcon } from './ui/PageIcon';
+import { SafeImage } from './ui/SafeImage';
 
 export const PostMoveConcierge = () => {
   const { showToast, setActiveTab } = useMove();
@@ -140,7 +141,7 @@ export const PostMoveConcierge = () => {
             >
               <div>
                 <div style={{ position: 'relative', aspectRatio: '16/10', overflow: 'hidden' }}>
-                  <img
+                  <SafeImage
                     src={acc.imageUrl}
                     alt={acc.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}

@@ -25,6 +25,7 @@ import {
 import confetti from 'canvas-confetti';
 import { PageIcon } from './ui/PageIcon';
 import { AnimatedNumber, inr } from './ui/AnimatedNumber';
+import { SafeImage } from './ui/SafeImage';
 
 export const AIEstimator = () => {
   const {
@@ -297,7 +298,7 @@ export const AIEstimator = () => {
                 border: '1px solid var(--border-subtle)',
                 boxShadow: 'var(--shadow-md)'
               }}>
-                <img
+                <SafeImage
                   src={customPhotoUrl || activePreset.previewUrl}
                   alt="Room Scan Preview"
                   style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9 }}

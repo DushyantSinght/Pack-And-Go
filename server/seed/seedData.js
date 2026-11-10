@@ -238,7 +238,7 @@ export const seedDatabase = async (force = false) => {
       },
       {
         itemId: 'circ-2',
-        title: 'Green Soul Monster Ergonomic Chair (Black & Teal)',
+        title: 'Green Soul Ergonomic Office Chair (Grey)',
         society: 'Stanza Living Boston House, Koramangala',
         category: 'Furniture',
         seller: { name: 'Tanmay Jain (Graduating)', phone: '+91 98110 44219', userType: 'outgoing' },
@@ -248,7 +248,7 @@ export const seedDatabase = async (force = false) => {
         handoffType: 'Direct Campus P2P',
         zeroTransitFee: true,
         co2SavedKg: 28,
-        imageUrl: 'https://images.unsplash.com/photo-1580481077194-46327b876404?auto=format&fit=crop&w=600&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1688578735352-9a6f2ac3b70a?auto=format&fit=crop&w=600&q=80',
         description: 'Perfect for WFH or college study. Hand off right in the dorm common room.',
         status: 'available'
       },
@@ -264,7 +264,7 @@ export const seedDatabase = async (force = false) => {
         handoffType: 'Pack&Go Instant Buyback / Resale',
         zeroTransitFee: false,
         co2SavedKg: 55,
-        imageUrl: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=600&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1540961403310-79825242906e?auto=format&fit=crop&w=600&q=80',
         description: 'Tested and certified by Pack&Go technician. 6 months operational guarantee.',
         status: 'available'
       },

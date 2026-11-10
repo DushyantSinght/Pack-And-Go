@@ -229,3 +229,20 @@ html.lite-motion .page-enter, html.lite-motion .page-enter * { animation-duratio
 /* Dark map: filter the tile layer only (markers/routes keep their colours) */
 .map-dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.55) sepia(0.12); }
 .map-dark.leaflet-container, .map-dark .leaflet-container { background: #1b1d22; }
+
+/* Image fallbacks (no broken-image icons, ever) */
+.img-fallback {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; height: 100%; min-height: 90px; color: var(--primary);
+  background:
+    radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.16), transparent 55%),
+    linear-gradient(140deg, var(--bg-elevated), var(--bg-card-solid));
+  border-radius: inherit;
+}
+.img-fallback svg { opacity: 0.75; animation: floatY 5s ease-in-out infinite; }
+.img-fallback-label { font-size: 0.72rem; color: var(--text-dim); font-weight: 600; letter-spacing: 0.02em; }
+.avatar-initials {
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 800; letter-spacing: 0.02em;
+  color: #0B0C10; background: linear-gradient(140deg, #F3E7C4, #D4AF37 55%, #AA820A);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}

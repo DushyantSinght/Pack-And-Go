@@ -419,31 +419,36 @@ export const MoveProvider = ({ children }) => {
 
   // Add Circular Marketplace item (outgoing tenant) & persist to MongoDB
   const addMarketplaceItem = async (item) => {
-    const newItem = {
-      itemId: `circ-${Date.now()}`,
+    if (!requireSignIn('list an item')) return false;
+    const tempId = `pending-${Date.now()}`;
+    const draft = {
+      itemId: tempId,
       title: item.title,
       society: item.society || 'Stanza Living, Koramangala',
       category: item.category || 'Furniture',
-      seller: item.seller || { name: 'You (Outgoing Resident)', phone: user?.phone || '+91 98765 43210' },
+      seller: { name: user?.name || 'You', phone: user?.phone || '' },
       price: Number(item.price),
       originalPrice: Number(item.originalPrice) || Number(item.price) * 2.5,
       condition: item.condition || 'Very Good',
       handoffType: 'Direct In-Building P2P',
       zeroTransitFee: true,
       co2SavedKg: Math.round(Number(item.price) / 100) + 15,
-      imageUrl: item.imageUrl || 'https://images.unsplash.com/photo-1580481077194-46327b876404?auto=format&fit=crop&w=600&q=80',
+      imageUrl: item.imageUrl || '',
       description: item.description || 'Outgoing tenant handoff. Zero transit emissions.',
       status: 'available'
     };
-
-    setMarketplaceItems((prev) => [newItem, ...prev]);
-    setCarbonSavedTotalKg((prev) => prev + newItem.co2SavedKg);
-    showToast(`"${newItem.title}" listed in MongoDB Circular Marketplace!`, 'success');
-
+    // Show it straight away, then swap in the saved listing (with its real ID).
+    setMarketplaceItems((prev) => [draft, ...prev]);
     try {
-      await api.createMarketplaceItem(newItem);
+      const res = await api.createMarketplaceItem(draft);
+      setMarketplaceItems((prev) => prev.map((m) => (m.itemId === tempId ? res.item : m)));
+      setCarbonSavedTotalKg((prev) => prev + (res.item?.co2SavedKg || 0));
+      showToast(`"${draft.title}" is listed — neighbours can see it now.`, 'success');
+      return true;
     } catch (e) {
-      console.warn('MongoDB marketplace item save notice:', e.message);
+      setMarketplaceItems((prev) => prev.filter((m) => m.itemId !== tempId));
+      showToast(`Couldn't publish your listing: ${e.message}`, 'error');
+      return false;
     }
   };
 

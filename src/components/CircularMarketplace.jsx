@@ -21,10 +21,12 @@ import {
   Calculator,
   MessageSquare,
   Phone,
+  Camera,
   CheckCircle2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PageIcon } from './ui/PageIcon';
+import { SafeImage } from './ui/SafeImage';
 
 export const CircularMarketplace = () => {
   const {
@@ -53,8 +55,36 @@ export const CircularMarketplace = () => {
     price: '',
     originalPrice: '',
     condition: 'Like New (6 months old)',
-    description: ''
+    description: '',
+    imageUrl: ''
   });
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  /** Resize the seller's photo in the browser (max 1280px JPEG) before upload. */
+  const onListingPhoto = (file) => {
+    if (!file) return;
+    if (!/^image\//.test(file.type)) {
+      showToast('Please choose a photo.', 'error');
+      return;
+    }
+    setPhotoBusy(true);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1280 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k);
+      c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      setListingForm((f) => ({ ...f, imageUrl: c.toDataURL('image/jpeg', 0.82) }));
+      setPhotoBusy(false);
+    };
+    img.onerror = () => {
+      setPhotoBusy(false);
+      showToast('That photo could not be read. Try a JPEG or PNG.', 'error');
+    };
+    img.src = URL.createObjectURL(file);
+  };
 
   // Calculate buyback quote dynamically
   const calculateBuyback = (devId, cond) => {
@@ -89,10 +119,11 @@ export const CircularMarketplace = () => {
     claimMarketplaceItem(item.itemId || item.id);
   };
 
-  const handleCreateListing = (e) => {
+  const handleCreateListing = async (e) => {
     e.preventDefault();
     if (!listingForm.title || !listingForm.price) return;
-    addMarketplaceItem(listingForm);
+    const ok = await addMarketplaceItem(listingForm);
+    if (!ok) return;
     setShowListingModal(false);
     setListingForm({
       title: '',
@@ -101,7 +132,8 @@ export const CircularMarketplace = () => {
       price: '',
       originalPrice: '',
       condition: 'Like New (6 months old)',
-      description: ''
+      description: '',
+      imageUrl: ''
     });
   };
 
@@ -326,10 +358,10 @@ export const CircularMarketplace = () => {
                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), openSheet(item))}
                 style={{ position: 'relative', aspectRatio: '16/10', overflow: 'hidden' }}
               >
-                <img
+                <SafeImage
                   src={item.imageUrl}
                   alt={item.title}
-                  loading="lazy"
+                  kind={item.category}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', viewTransitionName: sheetItem && (sheetItem.itemId || sheetItem.id) === (item.itemId || item.id) ? 'none' : itemViewTransitionName(item) }}
                 />
                 <span style={{
@@ -517,6 +549,27 @@ export const CircularMarketplace = () => {
                 </div>
               </div>
 
+              {/* Photo of the item */}
+              <div>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: 6 }}>
+                  Photo <span style={{ fontWeight: 400, color: 'var(--text-dim)' }}>(listings with photos get claimed much faster)</span>
+                </label>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ width: 96, height: 72, borderRadius: 10, overflow: 'hidden', border: '1px dashed var(--border-gold)', flexShrink: 0 }}>
+                    <SafeImage src={listingForm.imageUrl} alt="Listing photo" kind={listingForm.category} label=" " style={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: 0 }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', gap: 6 }}>
+                      <Camera size={14} /> {photoBusy ? 'Processing…' : listingForm.imageUrl ? 'Change photo' : 'Add photo'}
+                      <input type="file" accept="image/*" capture="environment" hidden onChange={(e) => { onListingPhoto(e.target.files?.[0]); e.target.value = ''; }} />
+                    </label>
+                    {listingForm.imageUrl && (
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setListingForm({ ...listingForm, imageUrl: '' })}>Remove</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button
                   type="button"
@@ -525,7 +578,7 @@ export const CircularMarketplace = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary btn-sm">
+                <button type="submit" disabled={photoBusy} className="btn btn-primary btn-sm">
                   Publish P2P Listing
                 </button>
               </div>
