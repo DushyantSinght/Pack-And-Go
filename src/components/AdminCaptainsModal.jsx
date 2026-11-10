@@ -4,6 +4,8 @@ import { BadgeCheck, Ban, CheckCircle2, Clock, Phone, ShieldCheck, Truck, X, XCi
 import { api } from '../services/api';
 import { useMove } from '../context/MoveContext';
 import { AdminBookings, AdminClaims, AdminRequests } from './AdminOpsPanels';
+import { SkeletonList } from './ui/Skeleton';
+import { EmptyState } from './ui/EmptyState';
 
 const TABS = [
   { id: 'pending', label: 'Pending', icon: Clock },
@@ -116,12 +118,8 @@ export const AdminCaptainsModal = ({ isOpen, onClose }) => {
         </div>
 
         <div style={{ overflowY: 'auto', padding: '12px 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {loading && <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading…</div>}
-          {!loading && data.captains.length === 0 && (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: 30 }}>
-              No {tab} captains.
-            </div>
-          )}
+          {loading && !data.captains.length && <SkeletonList rows={3} avatar />}
+          {!loading && data.captains.length === 0 && <EmptyState art="box" compact title={`No ${tab} captains`} />}
           {data.captains.map((c) => (
             <div key={c._id} style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 14, background: 'var(--bg-elevated)' }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>

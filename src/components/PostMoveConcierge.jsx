@@ -19,6 +19,7 @@ import {
   Warehouse
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { PageIcon } from './ui/PageIcon';
 
 export const PostMoveConcierge = () => {
   const { showToast, setActiveTab } = useMove();
@@ -64,7 +65,10 @@ export const PostMoveConcierge = () => {
                 <Users size={12} /> Roommate & Lifestyle Roadmap
               </span>
             </div>
-            <h2 style={{ fontSize: '1.6rem' }}>Post-Move Concierge & Meal-Preference Living</h2>
+            <div className="page-title-row">
+              <PageIcon tab="postmove" />
+              <h2 style={{ fontSize: '1.6rem' }}>Post-Move Concierge & Meal-Preference Living</h2>
+            </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               Pack&Go doesn't abandon you once the boxes are unloaded. Find meal-compatible housing, book verified cooks, and bridge lease gaps with QR storage.
             </p>

@@ -2,6 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { DriverJobPanel } from './DriverJobPanel';
+import { SuccessCheck } from './ui/SuccessCheck';
+import { AnimatedNumber, inr } from './ui/AnimatedNumber';
+import { haptic, HAPTIC } from '../utils/haptics';
 import confetti from 'canvas-confetti';
 import { useMove } from '../context/MoveContext';
 import { useComms } from '../context/CommsContext';
@@ -27,6 +30,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
 
   const [inputOtp, setInputOtp] = useState('');
   const [jobs, setJobs] = useState([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const isCaptain = user?.userType === 'captain' && user?.captainStatus === 'approved';
@@ -35,12 +39,14 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
   // Load real jobs from the server. Captains never receive customer OTPs.
   useEffect(() => {
     if (!isOpen || !isCaptain) return;
+    setJobsLoading(true);
     api.getCaptainJobs()
       .then((res) => {
         setJobs(res.jobs || []);
         setSelectedJobId((prev) => prev || res.jobs?.[0]?.bookingId || '');
       })
-      .catch((err) => showToast(err.message, 'error'));
+      .catch((err) => showToast(err.message, 'error'))
+      .finally(() => setJobsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, isCaptain]);
 
@@ -61,6 +67,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
       const res = await api.verifyOtp({ bookingId: selectedJob.bookingId, otp: inputOtp, stage: otpStage });
       setJobs((prev) => prev.map((j) => (j.bookingId === res.job.bookingId ? res.job : j)));
       setInputOtp('');
+      haptic(HAPTIC.success);
       if (res.job.stage === 'completed') {
         confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
         showToast('✓ Delivery verified! Your payout is in your wallet.', 'success');
@@ -69,6 +76,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
         showToast('✓ Pickup verified! Transit has started.', 'success');
       }
     } catch (err) {
+      haptic(HAPTIC.warn);
       showToast(err.message, 'error');
     } finally {
       setIsVerifying(false);
@@ -151,7 +159,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
               {user?.userType === 'captain' && user?.name ? `Captain ${user.name}` : 'Move Captain Console'}
             </h3>
             <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
-              Vehicle: <strong>{user?.captainApplication?.vehicleNumber || '—'}{user?.captainApplication?.vehicleType ? ` (${user.captainApplication.vehicleType})` : ''}</strong> • ⭐ {user?.rating ?? '—'} ({user?.tripsCompleted ?? 0} moves) • Wallet ₹{(user?.escrowWalletBalance || 0).toLocaleString('en-IN')}
+              Vehicle: <strong>{user?.captainApplication?.vehicleNumber || '—'}{user?.captainApplication?.vehicleType ? ` (${user.captainApplication.vehicleType})` : ''}</strong> • ⭐ {user?.rating ?? '—'} ({user?.tripsCompleted ?? 0} moves) • Wallet <AnimatedNumber value={user?.escrowWalletBalance || 0} format={inr} />
             </div>
           </div>
         </div>
@@ -176,7 +184,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
         </button>
 
         {isCaptain && (
-          <DriverJobPanel jobs={jobs} setJobs={setJobs} selectedJobId={selectedJobId} setSelectedJobId={setSelectedJobId} />
+          <DriverJobPanel jobs={jobs} setJobs={setJobs} loading={jobsLoading} selectedJobId={selectedJobId} setSelectedJobId={setSelectedJobId} />
         )}
 
         {/* Step 3: Dual-End OTP Handover & Escrow Release */}
@@ -261,7 +269,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
               padding: '12px',
               textAlign: 'center'
             }}>
-              <CheckCircle2 size={24} color="#10B981" style={{ margin: '0 auto 6px auto' }} />
+              <div style={{ marginBottom: 6 }}><SuccessCheck size={56} /></div>
               <div style={{ fontWeight: 800, color: '#10B981', fontSize: '0.95rem' }}>
                 Shift Completed & Escrow Paid!
               </div>

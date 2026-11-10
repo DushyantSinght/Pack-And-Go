@@ -23,6 +23,8 @@ import {
   CreditCard
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { PageIcon } from './ui/PageIcon';
+import { AnimatedNumber, inr } from './ui/AnimatedNumber';
 
 export const AIEstimator = () => {
   const {
@@ -194,7 +196,10 @@ export const AIEstimator = () => {
               <span className="badge badge-emerald">Zero-Touch Estimation</span>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>AI photo & voice estimate</span>
             </div>
-            <h2 style={{ fontSize: '1.6rem' }}>AI Volumetric Scan & Price-Lock Engine</h2>
+            <div className="page-title-row">
+              <PageIcon tab="estimator" />
+              <h2 style={{ fontSize: '1.6rem' }}>AI Volumetric Scan & Price-Lock Engine</h2>
+            </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               Scan your belongings via room photo sweep or voice walkthrough. Locks in transparent pricing before a truck is dispatched.
             </p>
@@ -485,14 +490,14 @@ export const AIEstimator = () => {
             <div style={{ background: 'var(--bg-elevated)', padding: '12px', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Estimated Volume</div>
               <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary)' }}>
-                {currentEstimate.totalCuFt} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>cu.ft</span>
+                <AnimatedNumber value={currentEstimate.totalCuFt} /> <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>cu.ft</span>
               </div>
             </div>
 
             <div style={{ background: 'var(--bg-elevated)', padding: '12px', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Total Weight</div>
               <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--cyan)' }}>
-                {currentEstimate.estimatedWeightKg} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>kg</span>
+                <AnimatedNumber value={currentEstimate.estimatedWeightKg} /> <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>kg</span>
               </div>
             </div>
 
@@ -556,15 +561,15 @@ export const AIEstimator = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
-                  Dedicated truck: ₹{preview.solo.toLocaleString('en-IN')}
+                  Dedicated truck: <AnimatedNumber value={preview.solo} format={inr} />
                 </div>
                 <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                  ₹{preview.pooled.toLocaleString('en-IN')}
+                  <AnimatedNumber value={preview.pooled} format={inr} />
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <span className="badge badge-emerald" style={{ fontSize: '0.85rem', padding: '6px 12px' }}>
-                  SAVE {preview.save}%
+                  SAVE <AnimatedNumber value={preview.save} />%
                 </span>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                   with a pooled truck

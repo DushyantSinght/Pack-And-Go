@@ -23,12 +23,39 @@ export const useGlobalMotion = () => {
     );
     const observeAll = (root = document) => root.querySelectorAll?.('.reveal:not(.is-visible)').forEach((el) => io.observe(el));
     observeAll();
-    const mo = new MutationObserver((muts) => muts.forEach((m) => m.addedNodes.forEach((n) => {
-      if (n.nodeType !== 1) return;
-      if (n.classList?.contains('reveal')) io.observe(n);
-      observeAll(n);
-    })));
-    mo.observe(document.body, { childList: true, subtree: true });
+    // Dialog exit animation: when a dialog leaves the DOM, a detached snapshot of it
+    // is shown briefly and faded/scaled out, so closing feels as smooth as opening.
+    const ghostFor = (n) => {
+      if (reduced() || document.documentElement.classList.contains('vt-active')) return;
+      if (n.isConnected) return; // moved elsewhere, not closed
+      const isDialog = n.matches?.('[role="dialog"]');
+      const hasDialog = !isDialog && n.querySelector?.('[role="dialog"]');
+      if (!isDialog && !hasDialog) return;
+      const fixed = n.style?.position === 'fixed' || n.classList?.contains('palette-overlay');
+      if (!fixed || n.classList.contains('print-root') || n.classList.contains('exit-ghost')) return;
+      const ghost = n.cloneNode(true);
+      ghost.classList.add('exit-ghost');
+      if (isDialog) ghost.classList.add('exit-self');
+      ghost.setAttribute('aria-hidden', 'true');
+      ghost.querySelectorAll('[style*="view-transition-name"]').forEach((el) => { el.style.viewTransitionName = 'none'; });
+      ghost.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+      document.body.appendChild(ghost);
+      setTimeout(() => ghost.remove(), 260);
+    };
+
+    const mo = new MutationObserver((muts) => muts.forEach((m) => {
+      m.addedNodes.forEach((n) => {
+        if (n.nodeType !== 1) return;
+        if (n.classList?.contains('reveal')) io.observe(n);
+        observeAll(n);
+      });
+      m.removedNodes.forEach((n) => { if (n.nodeType === 1) ghostFor(n); });
+    }));
+    mo.observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
+
+    // Low-power devices: fewer heavy effects (blur, big animated blobs).
+    const lowPower = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4) || navigator.connection?.saveData;
+    if (lowPower) document.documentElement.classList.add('lite-motion');
 
     let raf = 0;
     const onMove = (e) => {

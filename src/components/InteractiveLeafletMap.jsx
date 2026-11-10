@@ -1,6 +1,7 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
+import { MAP_TILE_URL, MAP_ATTRIBUTION, CUSTOM_TILES } from '../utils/mapTiles';
 import {
   Navigation,
   Crosshair,
@@ -96,23 +97,16 @@ export const InteractiveLeafletMap = ({ corridorId = 'blr-koramangala-whitefield
       center: activeData.center,
       zoom: activeData.zoom,
       zoomControl: false,
-      attributionControl: false
+      attributionControl: true
     });
 
     leafletMapRef.current = map;
 
     // Tile Layer based on mapStyle
-    let tileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-    if (mapStyle === 'carto-dark') {
-      tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-    } else if (mapStyle === 'osm-standard') {
-      tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-    }
-
-    L.tileLayer(tileUrl, {
-      maxZoom: 19,
-      subdomains: 'abcd'
-    }).addTo(map);
+    // OpenStreetMap tiles (CARTO's free basemaps now need an API key). "Dark" mode is a
+    // CSS filter on the tile layer only, so markers and routes keep their colours.
+    L.tileLayer(MAP_TILE_URL, { maxZoom: 19, attribution: MAP_ATTRIBUTION }).addTo(map);
+    mapContainerRef.current?.classList.toggle('map-dark', mapStyle === 'carto-dark' && !CUSTOM_TILES);
 
     // Add Route Polyline
     const fullRoute = L.polyline(activeData.routeCoords, {

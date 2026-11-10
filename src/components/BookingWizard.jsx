@@ -4,6 +4,8 @@ import { ArrowLeft, ArrowRight, CalendarDays, Check, Loader2, Truck, Users, X } 
 import { useMove } from '../context/MoveContext';
 import { api } from '../services/api';
 import { AddressInput } from './AddressInput';
+import { AnimatedNumber } from './ui/AnimatedNumber';
+import { haptic, HAPTIC } from '../utils/haptics';
 
 const SLOTS = [
   { id: 'morning', label: '8 – 11 AM' },
@@ -43,6 +45,7 @@ const FloorPicker = ({ floors, lift, onFloors, onLift }) => (
 export const BookingWizard = () => {
   const { isBookingOpen, setIsBookingOpen, currentEstimate, user, showToast, upsertMove, openPayment, refreshMyMoves } = useMove();
   const [step, setStep] = useState(0);
+  const [dir, setDir] = useState(1);
   const [from, setFrom] = useState(null);
   const [to, setTo] = useState(null);
   const [floorsFrom, setFloorsFrom] = useState(0);
@@ -131,6 +134,7 @@ export const BookingWizard = () => {
         notes
       });
       upsertMove(res.move);
+      haptic(HAPTIC.tap);
       refreshMyMoves();
       showToast(`Booking ${res.move.bookingId} created — complete payment to confirm.`, 'success');
       close();
@@ -166,19 +170,22 @@ export const BookingWizard = () => {
           <button onClick={close} className="btn btn-secondary btn-sm" style={{ width: 32, height: 32, padding: 0, borderRadius: '50%' }} title="Close"><X size={16} /></button>
         </div>
 
-        <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
-          {steps.map((s, i) => (
-            <div key={s} style={{ flex: 1 }}>
-              <div style={{ height: 4, borderRadius: 4, background: i <= step ? 'var(--primary)' : 'var(--bg-elevated)' }} />
-              <div style={{ fontSize: '0.7rem', marginTop: 4, color: i === step ? 'var(--primary)' : 'var(--text-dim)', fontWeight: i === step ? 700 : 500 }}>{i + 1}. {s}</div>
-            </div>
-          ))}
+        <div style={{ marginBottom: 18 }}>
+          <div className="wizard-track"><div className="wizard-fill" style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+            {steps.map((s, i) => (
+              <span key={s} style={{ fontSize: '0.7rem', color: i === step ? 'var(--primary)' : i < step ? 'var(--text-muted)' : 'var(--text-dim)', fontWeight: i === step ? 700 : 500, transition: 'color .3s' }}>
+                {i < step ? '✓' : `${i + 1}.`} {s}
+              </span>
+            ))}
+          </div>
         </div>
 
         {cuFt < 10 && (
           <div style={{ fontSize: '0.82rem', color: 'var(--amber)', marginBottom: 12 }}>Add the items you're moving in the estimator first.</div>
         )}
 
+        <div key={step} className={dir > 0 ? 'step-in-right' : 'step-in-left'}>
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
@@ -239,7 +246,7 @@ export const BookingWizard = () => {
             </div>
 
             <div style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', padding: 14, fontSize: '0.84rem' }}>
-              {quoting || !quote ? (
+              {!quote ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}><Loader2 size={14} className="spin" /> Calculating your price…</div>
               ) : (
                 <>
@@ -252,11 +259,12 @@ export const BookingWizard = () => {
                     ['GST', quote.quote.gst]
                   ].map(([k, v]) => (
                     <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', color: v < 0 ? 'var(--emerald-light)' : 'var(--text-muted)' }}>
-                      <span>{k}</span><span>{v < 0 ? `− ${inr(-v)}` : inr(v)}</span>
+                      <span>{k}</span><span>{v < 0 ? '− ' : ''}<AnimatedNumber value={Math.abs(v)} format={inr} /></span>
                     </div>
                   ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', marginTop: 6, paddingTop: 8, fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-main)' }}>
-                    <span>Total</span><span>{inr(quote.quote.total)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Total {quoting && <Loader2 size={13} className="spin" style={{ color: 'var(--text-dim)' }} />}</span>
+                    <AnimatedNumber value={quote.quote.total} format={inr} />
                   </div>
                   {pooled && <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: 4 }}>A dedicated truck would be {inr(quote.quote.soloTotal)}.</div>}
                 </>
@@ -276,6 +284,7 @@ export const BookingWizard = () => {
             </div>
           </div>
         )}
+        </div>
 
         {error && (
           <div style={{ marginTop: 12, fontSize: '0.82rem', color: '#EF4444' }}>
@@ -295,11 +304,11 @@ export const BookingWizard = () => {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, gap: 10 }}>
-          <button type="button" onClick={() => (step ? setStep(step - 1) : close())} className="btn btn-secondary btn-sm" style={{ gap: 6 }}>
+          <button type="button" onClick={() => { setDir(-1); if (step) setStep(step - 1); else close(); }} className="btn btn-secondary btn-sm" style={{ gap: 6 }}>
             <ArrowLeft size={14} /> {step ? 'Back' : 'Cancel'}
           </button>
           {step < 2 ? (
-            <button type="button" disabled={!canNext || cuFt < 10} onClick={() => { setError(''); setStep(step + 1); }} className="btn btn-primary btn-sm" style={{ gap: 6, opacity: canNext && cuFt >= 10 ? 1 : 0.5 }}>
+            <button type="button" disabled={!canNext || cuFt < 10} onClick={() => { setError(''); setDir(1); setStep(step + 1); }} className="btn btn-primary btn-sm" style={{ gap: 6, opacity: canNext && cuFt >= 10 ? 1 : 0.5 }}>
               Next <ArrowRight size={14} />
             </button>
           ) : (

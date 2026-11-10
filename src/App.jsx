@@ -27,6 +27,8 @@ import { VerifyEmailBanner } from './components/VerifyEmailBanner';
 import { AmbientBackground, ScrollProgress, BackToTop, Splash } from './components/Ambient';
 import { HowItWorks, FeatureGrid, FAQ, CtaBand, SiteFooter } from './components/LandingSections';
 import { useGlobalMotion } from './hooks/useMotion';
+import { CommandPalette } from './components/CommandPalette';
+import { Toaster } from './components/Toaster';
 import {
   ShieldAlert,
   Smartphone,
@@ -43,7 +45,6 @@ export function App() {
     activeTab,
     activeRole,
     setActiveRole,
-    toast,
     currentEstimate,
     isAuthModalOpen,
     setIsAuthModalOpen,
@@ -73,6 +74,7 @@ export function App() {
 
   return (
     <>
+    <a className="skip-link" href="#main">Skip to content</a>
     <Splash />
     <AmbientBackground />
     <ScrollProgress />
@@ -159,7 +161,7 @@ export function App() {
       <Navbar />
 
       {/* Main Page Content */}
-      <main className="main-content">
+      <main className="main-content" id="main" tabIndex={-1}>
         <HeroBanner />
 
         {/* Dynamic View Tab Rendering */}
@@ -184,38 +186,12 @@ export function App() {
         )}
       </main>
 
-      {/* Modern Floating Toast Notification */}
-      {toast && (
-        <div key={toast.id} className="toast" role="status" aria-live="polite" style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 400,
-          background: toast.type === 'error' ? '#EF4444' : '#111827',
-          color: '#FFFFFF',
-          border: toast.type === 'error' ? '1px solid #F87171' : '1px solid var(--border-glow)',
-          padding: '14px 20px',
-          borderRadius: 'var(--radius-md)',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          maxWidth: 'min(420px, calc(100vw - 32px))',
-          backdropFilter: 'blur(14px)'
-        }}>
-          {toast.type === 'error' ? (
-            <AlertCircle size={20} color="#FFFFFF" />
-          ) : (
-            <CheckCircle size={20} color="var(--primary)" />
-          )}
-          <div style={{ fontSize: '0.88rem', fontWeight: 500, lineHeight: 1.4 }}>
-            {toast.message}
-          </div>
-        </div>
-      )}
+      {/* Stacked, swipeable notifications */}
+      <Toaster />
 
       <SiteFooter />
       <BackToTop />
+      <CommandPalette />
 
       {/* Auth Modal (Login / Sign Up) */}
       <AuthModal

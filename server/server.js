@@ -47,7 +47,7 @@ app.use(
       directives: {
         'script-src': ["'self'", 'https://checkout.razorpay.com'],
         'connect-src': ["'self'", 'wss:', 'ws:', 'https://nominatim.openstreetmap.org', 'https://*.razorpay.com', 'https://lumberjack.razorpay.com'],
-        'img-src': ["'self'", 'data:', 'blob:', 'https://*.tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com', 'https://images.unsplash.com', 'https://unpkg.com', 'https://*.razorpay.com'],
+        'img-src': ["'self'", 'data:', 'blob:', 'https://tile.openstreetmap.org', 'https://*.tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com', 'https://images.unsplash.com', 'https://unpkg.com', 'https://*.razorpay.com'],
         'style-src': ["'self'", "'unsafe-inline'", 'https://unpkg.com', 'https://fonts.googleapis.com'],
         'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
         'frame-src': ['https://api.razorpay.com', 'https://checkout.razorpay.com'],

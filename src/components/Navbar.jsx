@@ -3,6 +3,8 @@ import React from 'react';
 import { useMove } from '../context/MoveContext';
 import { useComms } from '../context/CommsContext';
 import { NotificationBell } from './NotificationBell';
+import { CountBadge, useBump } from './ui/AnimatedNumber';
+import { withViewTransition } from '../utils/viewTransition';
 import {
   Truck,
   Box,
@@ -19,10 +21,10 @@ import {
   User,
   FileText,
   Lock,
-  Database,
   MessageSquare,
   PackageCheck,
-  CalendarPlus
+  CalendarPlus,
+  Search
 } from 'lucide-react';
 
 export const Navbar = () => {
@@ -30,7 +32,7 @@ export const Navbar = () => {
     activeRole,
     setActiveRole,
     themeMode,
-    toggleTheme,
+    setThemeMode,
     carbonSavedTotalKg,
     currentEstimate,
     setActiveTab,
@@ -40,15 +42,45 @@ export const Navbar = () => {
     openInvoice,
     openPayment,
     openDriverConsole,
-    openDbModal,
     dbStatus,
     setIsAdminOpen,
     openBooking,
     openMyMoves,
     myMoves
   } = useMove();
+
+  const scrollToId = (id) => {
+    const el = document.getElementById(id);
+    if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 90, behavior: 'smooth' });
+  };
+  const goTab = (tab) => {
+    setActiveTab(tab);
+    setTimeout(() => document.querySelector('.nav-tabs-wrapper')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  };
   const activeMoves = (myMoves || []).filter((m) => ['pending_payment', 'confirmed', 'assigned', 'in_transit'].includes(m.status)).length;
   const { openInbox, unreadTotal } = useComms();
+  const msgBump = useBump(unreadTotal);
+
+  // Theme switch: the new theme spreads out in a circle from the toggle button.
+  const onToggleTheme = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+    // Read the live theme inside the update so rapid double-clicks can't desync.
+    const t = withViewTransition(() => {
+      const root = document.documentElement;
+      const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-theme', next);
+      setThemeMode(next);
+    }, { className: 'theme-vt' });
+    t?.ready.then(() => {
+      document.documentElement.animate(
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+        { duration: 650, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', pseudoElement: '::view-transition-new(root)' }
+      );
+    }).catch(() => {});
+  };
 
   return (
     <header className="glass-panel navbar-header">
@@ -83,19 +115,24 @@ export const Navbar = () => {
         </div>
       </div>
 
-      {/* Active Trip Telemetry Pill (Center) */}
-      <div
-        className="navbar-telemetry"
-        onClick={() => setActiveTab('tracking')}
-        title="Click to view live corridor tracking"
-      >
-        <span className="radar-dot"></span>
-        <div style={{ fontSize: '0.78rem' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Corridor: </span>
-          <strong style={{ color: 'var(--text-main)' }}>HSR ➔ Whitefield</strong>
-          <span style={{ color: 'var(--primary)', marginLeft: '6px' }}>• 34 km/h</span>
+      {/* Center: section links + search */}
+      <nav className="nav-center" aria-label="Main">
+        <div className="nav-links">
+          {[
+            ['How it works', () => scrollToId('how')],
+            ['Features', () => scrollToId('features')],
+            ['Resale', () => goTab('marketplace')],
+            ['FAQ', () => scrollToId('faq')]
+          ].map(([label, fn]) => (
+            <button key={label} className="nav-link" onClick={fn}>{label}</button>
+          ))}
         </div>
-      </div>
+        <button className="nav-search" onClick={() => window.dispatchEvent(new CustomEvent('packandgo:palette'))} aria-label="Search (Ctrl K)">
+          <Search size={14} />
+          <span className="nav-search-text">Search or jump to…</span>
+          <kbd>{navigator.platform?.toLowerCase().includes('mac') ? '⌘' : 'Ctrl'} K</kbd>
+        </button>
+      </nav>
 
       {/* Right Controls: Streamlined Action Cluster */}
       <div className="navbar-actions">
@@ -104,33 +141,6 @@ export const Navbar = () => {
           <Leaf size={12} />
           <span>{carbonSavedTotalKg} kg CO₂</span>
         </div>
-
-        {/* MongoDB explorer — developer tool, hidden in production builds */}
-        {import.meta.env.DEV && (
-        <button
-          onClick={openDbModal}
-          className="btn btn-secondary btn-sm nav-dev"
-          style={{
-            padding: '5px 10px',
-            fontSize: '0.76rem',
-            gap: '6px',
-            border: '1px solid rgba(16, 185, 129, 0.35)',
-            background: 'rgba(16, 185, 129, 0.08)'
-          }}
-          title="Inspect MongoDB Schema & Collections"
-        >
-          <Database size={13} color="#10B981" />
-          <span style={{ color: '#10B981', fontWeight: 700 }}>MongoDB</span>
-          <span style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            background: '#10B981',
-            boxShadow: '0 0 6px #10B981'
-          }} />
-        </button>
-        )}
-
         {/* Book / My Moves */}
         <button onClick={openBooking} className="btn btn-primary btn-sm" style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }} title="Book a move">
           <CalendarPlus size={13} />
@@ -140,7 +150,7 @@ export const Navbar = () => {
           <button onClick={() => openMyMoves()} className="btn btn-secondary btn-sm" style={{ position: 'relative', padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }} title="My Moves">
             <PackageCheck size={13} color="var(--primary)" />
             <span className="nav-label">My Moves</span>
-            {activeMoves > 0 && <span style={{ background: 'var(--primary)', color: '#111', borderRadius: 999, fontSize: '0.62rem', fontWeight: 800, padding: '0 5px' }}>{activeMoves}</span>}
+            <CountBadge count={activeMoves} style={{ background: 'var(--primary)', color: '#111', borderRadius: 999, fontSize: '0.62rem', fontWeight: 800, padding: '0 5px' }} />
           </button>
         )}
 
@@ -204,12 +214,8 @@ export const Navbar = () => {
             style={{ position: 'relative', width: '34px', height: '34px', padding: 0, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             title={unreadTotal ? `${unreadTotal} unread message${unreadTotal > 1 ? 's' : ''}` : 'Messages'}
           >
-            <MessageSquare size={15} />
-            {unreadTotal > 0 && (
-              <span style={{ position: 'absolute', top: -4, right: -4, background: '#EF4444', color: '#fff', fontSize: '0.62rem', fontWeight: 800, minWidth: 17, height: 17, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
-                {unreadTotal > 99 ? '99+' : unreadTotal}
-              </span>
-            )}
+            <MessageSquare size={15} className={msgBump ? 'wiggle' : ''} />
+            <CountBadge count={unreadTotal} style={{ position: 'absolute', top: -4, right: -4, background: '#EF4444', color: '#fff', fontSize: '0.62rem', fontWeight: 800, minWidth: 17, height: 17, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }} />
           </button>
         )}
 
@@ -280,12 +286,14 @@ export const Navbar = () => {
 
         {/* Theme Toggle */}
         <button
-          onClick={toggleTheme}
-          className="btn btn-secondary btn-sm"
+          onClick={onToggleTheme}
+          className="btn btn-secondary btn-sm theme-toggle"
           style={{ width: '34px', height: '34px', padding: 0, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          title="Toggle Light/Dark Theme"
+          title={themeMode === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          aria-label={themeMode === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
         >
-          {themeMode === 'dark' ? <Sun size={15} color="#FBBF24" /> : <Moon size={15} color="#6366F1" />}
+          <span className="ti ti-sun"><Sun size={15} color="#FBBF24" /></span>
+          <span className="ti ti-moon"><Moon size={15} color="#6366F1" /></span>
         </button>
       </div>
     </header>

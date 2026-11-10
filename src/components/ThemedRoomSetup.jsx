@@ -17,6 +17,7 @@ import {
   Utensils
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { PageIcon } from './ui/PageIcon';
 
 export const ThemedRoomSetup = () => {
   const {
@@ -60,7 +61,10 @@ export const ThemedRoomSetup = () => {
                 <Clock size={12} /> Arrival-Timed Essentials
               </span>
             </div>
-            <h2 style={{ fontSize: '1.6rem' }}>Move-In Ready Themed Setup & Arrival Essentials</h2>
+            <div className="page-title-row">
+              <PageIcon tab="themes" />
+              <h2 style={{ fontSize: '1.6rem' }}>Move-In Ready Themed Setup & Arrival Essentials</h2>
+            </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               Don't move into a bare room. Pack&Go fits curated themes (Italian, Japandi, Tech) and times bedding, water, and tiffin to your arrival.
             </p>

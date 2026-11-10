@@ -1,8 +1,10 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useState } from 'react';
-import { CalendarDays, CheckCircle2, Loader2, X } from 'lucide-react';
+import { CalendarDays, Loader2, X } from 'lucide-react';
 import { useMove } from '../context/MoveContext';
 import { api } from '../services/api';
+import { SuccessCheck } from './ui/SuccessCheck';
+import { haptic, HAPTIC } from '../utils/haptics';
 
 const tomorrow = () => new Date(Date.now() + 86400_000).toISOString().slice(0, 10);
 
@@ -53,6 +55,7 @@ export const ServiceRequestModal = ({ request, onClose }) => {
         bookingId: currentEstimate?.status && currentEstimate.status !== 'draft' ? currentEstimate.bookingId : undefined
       });
       setDone(r.request);
+      haptic(HAPTIC.success);
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -68,7 +71,7 @@ export const ServiceRequestModal = ({ request, onClose }) => {
         <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ position: 'absolute', top: 12, right: 12, width: 30, height: 30, padding: 0, borderRadius: '50%' }} title="Close"><X size={14} /></button>
         {done ? (
           <div style={{ textAlign: 'center' }}>
-            <CheckCircle2 size={44} color="#22C55E" style={{ margin: '0 auto 8px' }} />
+            <div style={{ marginBottom: 8 }}><SuccessCheck size={64} /></div>
             <div style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-main)' }}>Request sent</div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '6px 0 14px' }}>
               {done.requestId}: {done.title}. Our team will call {user.phone || phone} to confirm{done.preferredDate ? ` for ${new Date(done.preferredDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}.

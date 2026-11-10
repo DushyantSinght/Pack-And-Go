@@ -2,6 +2,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, CheckCheck, MessageSquare, Phone, PhoneCall, Send, Truck, ShoppingBag, X, WifiOff } from 'lucide-react';
 import { useComms } from '../context/CommsContext';
+import { SkeletonList, SkeletonBubbles } from './ui/Skeleton';
+import { EmptyState } from './ui/EmptyState';
 
 const ROLE_LABEL = { captain: 'Move Captain', outgoing: 'Seller', student: 'Customer', professional: 'Customer', parent: 'Parent', customer: 'Customer' };
 
@@ -33,13 +35,12 @@ export const Avatar = ({ person, size = 40 }) => (
 
 const ContextIcon = ({ type }) => (type === 'driver' ? <Truck size={11} /> : type === 'seller' ? <ShoppingBag size={11} /> : <MessageSquare size={11} />);
 
-const Inbox = ({ conversations, onSelect }) => {
+const Inbox = ({ conversations, onSelect, loaded }) => {
+  if (!loaded && !conversations.length) return <div style={{ padding: 16 }}><SkeletonList rows={4} avatar /></div>;
   if (!conversations.length) {
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>
-        <MessageSquare size={36} color="var(--text-dim)" />
-        <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>No conversations yet</div>
-        <div style={{ fontSize: '0.82rem' }}>Tap “Chat” on your Move Captain or a marketplace listing to start one.</div>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <EmptyState art="chat" title="No conversations yet">Tap “Chat” on your Move Captain or a marketplace listing to start one.</EmptyState>
       </div>
     );
   }
@@ -90,7 +91,8 @@ const Thread = ({ conversation, myId, onBack, onClose }) => {
   const [sending, setSending] = useState(false);
   const endRef = useRef(null);
   const typingTimer = useRef(null);
-  const list = messages[conversation._id] || [];
+  const loadedList = messages[conversation._id];
+  const list = loadedList || [];
   const other = conversation.otherUser;
   const iAm = conversation.participants.find((p) => p._id === myId);
   const quick = QUICK_REPLIES[iAm?.userType] || QUICK_REPLIES.default;
@@ -145,7 +147,8 @@ const Thread = ({ conversation, myId, onBack, onClose }) => {
       )}
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 6px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {list.length === 0 && (
+        {!loadedList && <SkeletonBubbles />}
+        {loadedList && list.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.8rem', margin: 'auto 0' }}>
             Messages go straight to {other?.name}. {other?.online ? 'They are online now.' : 'They will see it when they open Pack&Go.'}
           </div>
@@ -222,7 +225,7 @@ const Thread = ({ conversation, myId, onBack, onClose }) => {
 };
 
 export const ChatDrawer = () => {
-  const { isChatOpen, setIsChatOpen, conversations, activeConversationId, selectConversation, myId, connected } = useComms();
+  const { isChatOpen, setIsChatOpen, conversations, activeConversationId, selectConversation, myId, connected, inboxLoaded } = useComms();
   if (!isChatOpen) return null;
   const active = conversations.find((c) => c._id === activeConversationId);
 
@@ -252,7 +255,7 @@ export const ChatDrawer = () => {
       {active ? (
         <Thread conversation={active} myId={myId} onBack={() => selectConversation(null)} onClose={() => setIsChatOpen(false)} />
       ) : (
-        <Inbox conversations={conversations} onSelect={selectConversation} />
+        <Inbox conversations={conversations} onSelect={selectConversation} loaded={inboxLoaded} />
       )}
     </div>
   );

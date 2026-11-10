@@ -14,7 +14,7 @@ const STEPS = [
 ];
 
 export const HowItWorks = () => (
-  <section className="section">
+  <section className="section" id="how">
     <div className="reveal">
       <div className="section-eyebrow">How it works</div>
       <h2 className="section-title">From room photo to new home in four steps</h2>
@@ -43,7 +43,7 @@ const Feature = ({ icon: Icon, title, children, className = '', i, art }) => (
 );
 
 export const FeatureGrid = () => (
-  <section className="section">
+  <section className="section" id="features">
     <div className="reveal">
       <div className="section-eyebrow">Why Pack&Go</div>
       <h2 className="section-title">Built for the way India actually moves</h2>

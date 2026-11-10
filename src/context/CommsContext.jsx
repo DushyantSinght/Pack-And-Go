@@ -5,6 +5,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { io } from 'socket.io-client';
 import { useMove } from './MoveContext';
 import { api, tokenStorage } from '../services/api';
+import { haptic, HAPTIC } from '../utils/haptics';
 
 const CommsContext = createContext(null);
 
@@ -70,6 +71,8 @@ export const CommsProvider = ({ children }) => {
   const { user, showToast, openAuth, updateUser, setActiveRole, refreshMyMoves } = useMove();
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [notificationsLoaded, setNotificationsLoaded] = useState(false);
+  const [inboxLoaded, setInboxLoaded] = useState(false);
   const refreshMovesRef = useRef(refreshMyMoves);
   refreshMovesRef.current = refreshMyMoves;
   const myId = user?._id ? String(user._id) : null;
@@ -118,6 +121,7 @@ export const CommsProvider = ({ children }) => {
     try {
       const res = await api.getConversations();
       setConversations(res.conversations || []);
+      setInboxLoaded(true);
     } catch (e) {
       console.warn('Inbox load failed:', e.message);
     }
@@ -225,6 +229,7 @@ export const CommsProvider = ({ children }) => {
       refreshInbox();
       api.getNotifications()
         .then((r) => { setNotifications(r.notifications || []); setUnreadNotifications(r.unread || 0); })
+        .finally(() => setNotificationsLoaded(true))
         .catch(() => {});
     });
 
@@ -314,6 +319,7 @@ export const CommsProvider = ({ children }) => {
       pendingIceRef.current = [];
       updateCall({ id: callId, direction: 'incoming', status: 'incoming', peer: from, conversationId, muted: false });
       ringerRef.current.start('incoming');
+      haptic(HAPTIC.ring);
       if (document.hidden && window.Notification?.permission === 'granted') {
         new Notification(`Incoming call from ${from.name}`, { body: 'Pack&Go voice call', tag: callId });
       }
@@ -555,6 +561,8 @@ export const CommsProvider = ({ children }) => {
   const value = {
     notifications,
     unreadNotifications,
+    notificationsLoaded,
+    inboxLoaded,
     markNotificationsRead,
     sendDriverLocation,
     myId,

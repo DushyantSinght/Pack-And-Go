@@ -4,6 +4,9 @@ import { Camera, CheckCircle2, MapPin, MessageSquare, Navigation, Phone, Radio, 
 import { api } from '../services/api';
 import { useComms } from '../context/CommsContext';
 import { useMove } from '../context/MoveContext';
+import { SkeletonList } from './ui/Skeleton';
+import { haptic, HAPTIC } from '../utils/haptics';
+import { EmptyState } from './ui/EmptyState';
 
 const box = { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 16, marginBottom: 16 };
 const when = (d) => (d ? new Date(d).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '');
@@ -70,7 +73,7 @@ const boxIdFrom = (raw) => {
   }
 };
 
-export const DriverJobPanel = ({ jobs, setJobs, selectedJobId, setSelectedJobId }) => {
+export const DriverJobPanel = ({ jobs, setJobs, loading, selectedJobId, setSelectedJobId }) => {
   const { showToast } = useMove();
   const { sendDriverLocation, openChat, requestCall } = useComms();
   const [sharing, setSharing] = useState(false);
@@ -105,6 +108,7 @@ export const DriverJobPanel = ({ jobs, setJobs, selectedJobId, setSelectedJobId 
       const r = await api.acceptJob(id);
       setJobs((prev) => prev.map((j) => (j.bookingId === id ? r.job : j)));
       setSelectedJobId(id);
+      haptic(HAPTIC.success);
       showToast('Job accepted — the customer has been notified.', 'success');
     } catch (e) {
       showToast(e.message, 'error');
@@ -158,7 +162,11 @@ export const DriverJobPanel = ({ jobs, setJobs, selectedJobId, setSelectedJobId 
         <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Radio size={15} color="#10B981" /> 1. Available jobs ({openJobs.length})
         </div>
-        {!openJobs.length && <div style={{ fontSize: '0.8rem', color: '#94A3B8' }}>No open paid jobs right now. New bookings appear here instantly.</div>}
+        {loading && !jobs.length ? (
+          <SkeletonList rows={2} />
+        ) : !openJobs.length && (
+          <EmptyState art="truck" compact title="No open jobs right now">New paid bookings near you appear here instantly.</EmptyState>
+        )}
         {openJobs.map((j) => (
           <div key={j.bookingId} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '10px 0', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 200, fontSize: '0.8rem' }}>

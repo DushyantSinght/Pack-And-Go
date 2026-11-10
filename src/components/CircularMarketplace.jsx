@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { useMove } from '../context/MoveContext';
 import { useComms } from '../context/CommsContext';
 import { ServiceRequestModal } from './ServiceRequestModal';
+import { MarketplaceItemSheet, itemViewTransitionName } from './MarketplaceItemSheet';
+import { withViewTransition } from '../utils/viewTransition';
 import { BUYBACK_DEVICES } from '../data/mockData';
 import {
   Repeat,
@@ -22,6 +24,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { PageIcon } from './ui/PageIcon';
 
 export const CircularMarketplace = () => {
   const {
@@ -73,6 +76,9 @@ export const CircularMarketplace = () => {
 
   const { openChat, requestCall } = useComms();
   const [buybackRequest, setBuybackRequest] = useState(null);
+  const [sheetItem, setSheetItem] = useState(null);
+  const openSheet = (item) => withViewTransition(() => setSheetItem(item));
+  const closeSheet = () => withViewTransition(() => setSheetItem(null));
 
   const handleClaim = (item) => {
     confetti({
@@ -120,7 +126,10 @@ export const CircularMarketplace = () => {
                 <Building size={12} /> In-Building Outgoing ➔ Incoming Handoff
               </span>
             </div>
-            <h2 style={{ fontSize: '1.6rem' }}>Circular Marketplace & Direct Tenant Handoff</h2>
+            <div className="page-title-row">
+              <PageIcon tab="marketplace" />
+              <h2 style={{ fontSize: '1.6rem' }}>Circular Marketplace & Direct Tenant Handoff</h2>
+            </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               Why pay movers to transport heavy furniture across the city when someone in your building or campus is moving in tomorrow?
             </p>
@@ -308,11 +317,20 @@ export const CircularMarketplace = () => {
             }}
           >
             <div>
-              <div style={{ position: 'relative', aspectRatio: '16/10', overflow: 'hidden' }}>
+              <div
+                className="item-card-media"
+                role="button"
+                tabIndex={0}
+                aria-label={`View ${item.title}`}
+                onClick={() => openSheet(item)}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), openSheet(item))}
+                style={{ position: 'relative', aspectRatio: '16/10', overflow: 'hidden' }}
+              >
                 <img
                   src={item.imageUrl}
                   alt={item.title}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', viewTransitionName: sheetItem && (sheetItem.itemId || sheetItem.id) === (item.itemId || item.id) ? 'none' : itemViewTransitionName(item) }}
                 />
                 <span style={{
                   position: 'absolute',
@@ -381,9 +399,10 @@ export const CircularMarketplace = () => {
 
             <div style={{ padding: '12px 18px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
+                key={`claim-${item.status || 'available'}`}
                 onClick={() => handleClaim(item)}
                 disabled={item.status && item.status !== 'available'}
-                className="btn btn-primary btn-sm"
+                className={`btn btn-primary btn-sm ${item.status && item.status !== 'available' ? 'pop-in' : ''}`}
                 style={{ width: '100%', gap: '6px', opacity: item.status && item.status !== 'available' ? 0.55 : 1 }}
               >
                 <ShoppingBag size={14} />
@@ -515,6 +534,13 @@ export const CircularMarketplace = () => {
         </div>
       )}
       <ServiceRequestModal request={buybackRequest} onClose={() => setBuybackRequest(null)} />
+      <MarketplaceItemSheet
+        item={sheetItem}
+        onClose={closeSheet}
+        onClaim={(it) => { handleClaim(it); setSheetItem(null); }}
+        onChat={(it) => { setSheetItem(null); openChat({ contextType: 'seller', refId: it.itemId || it.id }); }}
+        onCall={(it) => { setSheetItem(null); requestCall({ contextType: 'seller', refId: it.itemId || it.id }); }}
+      />
     </div>
   );
 };

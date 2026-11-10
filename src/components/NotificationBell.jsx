@@ -3,6 +3,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { useComms } from '../context/CommsContext';
 import { useMove } from '../context/MoveContext';
+import { CountBadge, useBump } from './ui/AnimatedNumber';
+import { SkeletonList } from './ui/Skeleton';
+import { EmptyState } from './ui/EmptyState';
 
 const ago = (d) => {
   const s = Math.round((Date.now() - new Date(d).getTime()) / 1000);
@@ -13,7 +16,8 @@ const ago = (d) => {
 };
 
 export const NotificationBell = () => {
-  const { notifications, unreadNotifications, markNotificationsRead, openInbox } = useComms();
+  const { notifications, unreadNotifications, markNotificationsRead, openInbox, notificationsLoaded } = useComms();
+  const bump = useBump(unreadNotifications);
   const { openMyMoves } = useMove();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -34,17 +38,14 @@ export const NotificationBell = () => {
     <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
       <button onClick={toggle} className="btn btn-secondary btn-sm" title="Notifications" aria-label="Notifications"
         style={{ position: 'relative', width: 34, height: 34, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Bell size={15} />
-        {unreadNotifications > 0 && (
-          <span style={{ position: 'absolute', top: -4, right: -4, background: '#EF4444', color: '#fff', fontSize: '0.62rem', fontWeight: 800, minWidth: 17, height: 17, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
-            {unreadNotifications > 99 ? '99+' : unreadNotifications}
-          </span>
-        )}
+        <Bell size={15} className={bump ? 'wiggle' : ''} />
+        <CountBadge count={unreadNotifications} style={{ position: 'absolute', top: -4, right: -4, background: '#EF4444', color: '#fff', fontSize: '0.62rem', fontWeight: 800, minWidth: 17, height: 17, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }} />
       </button>
       {open && (
-        <div className="notif-panel" style={{ position: 'absolute', right: 0, top: 42, width: 340, maxWidth: 'calc(100vw - 24px)', maxHeight: 420, overflowY: 'auto', background: 'var(--bg-card-solid)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-md)', zIndex: 300 }}>
+        <div className="notif-panel" style={{ animation: 'scaleIn .28s var(--ease-out) both', transformOrigin: 'top right', position: 'absolute', right: 0, top: 42, width: 340, maxWidth: 'calc(100vw - 24px)', maxHeight: 420, overflowY: 'auto', background: 'var(--bg-card-solid)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-md)', zIndex: 300 }}>
           <div style={{ padding: '10px 14px', fontWeight: 800, borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-main)' }}>Notifications</div>
-          {!notifications.length && <div style={{ padding: 20, fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center' }}>You're all caught up.</div>}
+          {!notificationsLoaded && !notifications.length && <div style={{ padding: 12 }}><SkeletonList rows={3} /></div>}
+          {notificationsLoaded && !notifications.length && <EmptyState art="bell" compact title="You're all caught up">Booking, payment and captain updates will show up here.</EmptyState>}
           {notifications.map((n) => (
             <button
               key={n._id}

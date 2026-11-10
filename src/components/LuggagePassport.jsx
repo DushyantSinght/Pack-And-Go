@@ -18,6 +18,8 @@ import {
   ArrowRight,
   Sliders
 } from 'lucide-react';
+import { PageIcon } from './ui/PageIcon';
+import { FlipCode } from './ui/FlipCode';
 
 export const LuggagePassport = () => {
   const {
@@ -108,7 +110,10 @@ export const LuggagePassport = () => {
                 <ShieldCheck size={12} /> Deposit-Protection Audited
               </span>
             </div>
-            <h2 style={{ fontSize: '1.6rem' }}>Digital Luggage Passport & Custody Escrow</h2>
+            <div className="page-title-row">
+              <PageIcon tab="passport" />
+              <h2 style={{ fontSize: '1.6rem' }}>Digital Luggage Passport & Custody Escrow</h2>
+            </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               Every carton receives a QR-linked digital manifest with photographic condition proof, tamper-evident seals, and dual OTP handovers.
             </p>
@@ -416,13 +421,13 @@ export const LuggagePassport = () => {
                   <div style={{ background: 'var(--bg-card-solid)', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Pickup OTP {currentEstimate.pickupVerifiedAt ? '(Verified ✓)' : ''}</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.1em' }}>
-                      {currentEstimate.pickupOtp || '••••••'}
+                      <FlipCode code={currentEstimate.pickupOtp} used={!!currentEstimate.pickupVerifiedAt} tone="var(--primary)" />
                     </div>
                   </div>
                   <div style={{ background: 'var(--bg-card-solid)', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Delivery OTP {currentEstimate.deliveredAt ? '(Verified ✓)' : ''}</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent)', letterSpacing: '0.1em' }}>
-                      {currentEstimate.deliveryOtp || '••••••'}
+                      <FlipCode code={currentEstimate.deliveryOtp} used={!!currentEstimate.deliveredAt} tone="var(--accent)" />
                     </div>
                   </div>
                 </div>

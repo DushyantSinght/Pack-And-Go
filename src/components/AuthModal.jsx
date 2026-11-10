@@ -4,9 +4,10 @@ import { api } from '../services/api';
 import { useMove } from '../context/MoveContext';
 import {
   X, Mail, Lock, User, ShieldCheck, Sparkles, ArrowRight,
-  GraduationCap, Briefcase, Truck, Heart, Eye, EyeOff, CheckCircle2, Phone, ShoppingBag
+  GraduationCap, Briefcase, Truck, Heart, Eye, EyeOff, Phone, ShoppingBag
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { SuccessCheck } from './ui/SuccessCheck';
 
 const USER_TYPES = [
   { id: 'student', label: 'Student / PG Tenant', icon: GraduationCap },
@@ -220,7 +221,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
         {/* Success overlay */}
         {success && (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <CheckCircle2 size={56} color="#10B981" style={{ margin: '0 auto 12px' }} />
+            <div style={{ marginBottom: 12 }}><SuccessCheck size={68} /></div>
             <h3 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-main)' }}>
               {authMode === 'login' ? 'Signed In!' : 'Account Created!'}
             </h3>

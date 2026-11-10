@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
+import { PageIcon } from './ui/PageIcon';
 
 export const CampusMoveWeek = () => {
   const { showToast, setActiveRole, setActiveTab, user } = useMove();
@@ -77,7 +78,10 @@ export const CampusMoveWeek = () => {
                 <Percent size={12} /> Up to 50% Bulk Student Discount
               </span>
             </div>
-            <h2 style={{ fontSize: '1.6rem' }}>Campus Move Week Automation</h2>
+            <div className="page-title-row">
+              <PageIcon tab="campus" />
+              <h2 style={{ fontSize: '1.6rem' }}>Campus Move Week Automation</h2>
+            </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               Bulk student logistics: centralized campus collection hubs, shared departure fleets, and live tracking dashboards for parents.
             </p>

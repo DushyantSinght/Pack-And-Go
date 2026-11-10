@@ -72,6 +72,7 @@ Frontend build-time values (in a root `.env` file, or as Docker build args):
 | Variable | Used on |
 |---|---|
 | `VITE_COMPANY_NAME`, `VITE_COMPANY_ADDRESS`, `VITE_SUPPORT_EMAIL`, `VITE_GRIEVANCE_OFFICER` | receipts, legal pages, footer |
+| `VITE_MAP_TILE_URL`, `VITE_MAP_ATTRIBUTION` | map tiles. Defaults to OpenStreetMap (fine for light use); set a keyed provider such as MapTiler for production traffic, and add its host to the CSP `img-src` in `server/server.js` |
 | `VITE_COMPANY_GSTIN` | turns the payment receipt into a GST **tax invoice**. Leave empty until the business is GST-registered. |
 
 ### Razorpay webhook

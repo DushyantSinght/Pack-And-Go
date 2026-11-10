@@ -25,6 +25,7 @@ import {
 import { InteractiveLeafletMap } from './InteractiveLeafletMap';
 import { PackMyTruckVisualizer } from './PackMyTruckVisualizer';
 import { LiveMoveMap } from './LiveMoveMap';
+import { PageIcon } from './ui/PageIcon';
 
 export const PoolingLiveTracking = () => {
   const {
@@ -79,7 +80,10 @@ export const PoolingLiveTracking = () => {
                 <TrendingUp size={12} /> Cuts Cost by {activeCorridor.discountRate}%
               </span>
             </div>
-            <h2 style={{ fontSize: '1.6rem' }}>Dynamic Shared-Capacity Pooling Engine</h2>
+            <div className="page-title-row">
+              <PageIcon tab="tracking" />
+              <h2 style={{ fontSize: '1.6rem' }}>Dynamic Shared-Capacity Pooling Engine</h2>
+            </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               Why pay 100% for a truck running half-empty? Pack&Go pairs your move along shared corridors with dynamic multi-stop routing.
             </p>

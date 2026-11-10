@@ -8,6 +8,12 @@ import { useMove } from '../context/MoveContext';
 import { useComms } from '../context/CommsContext';
 import { api } from '../services/api';
 import { LiveMoveMap } from './LiveMoveMap';
+import { StatusTimeline } from './ui/StatusTimeline';
+import { FlipCode } from './ui/FlipCode';
+import { SkeletonList } from './ui/Skeleton';
+import { EmptyState } from './ui/EmptyState';
+import { withViewTransition } from '../utils/viewTransition';
+import { haptic, HAPTIC } from '../utils/haptics';
 
 const inr = (n) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
 const when = (d) => (d ? new Date(d).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '—');
@@ -20,7 +26,6 @@ const STATUS = {
   delivered: { label: 'Delivered', color: '#22C55E' },
   cancelled: { label: 'Cancelled', color: '#6B7280' }
 };
-const STEPS = ['pending_payment', 'confirmed', 'assigned', 'in_transit', 'delivered'];
 
 const SLOTS = [
   { id: 'morning', label: '8 – 11 AM' },
@@ -73,13 +78,13 @@ const MoveDetail = ({ move, onBack }) => {
   const [comment, setComment] = useState('');
   const [claim, setClaim] = useState({ description: '', amount: '', photos: [] });
   const st = move.status;
-  const stepIdx = STEPS.indexOf(st);
   const deliveredRecently = st === 'delivered' && move.deliveredAt && Date.now() - new Date(move.deliveredAt).getTime() < 48 * 3600_000;
 
   const run = async (fn, ok) => {
     setBusy(true);
     try {
       const r = await fn();
+      haptic(HAPTIC.success);
       if (r?.move) upsertMove(r.move);
       refreshMyMoves();
       showToast(ok, 'success');
@@ -105,7 +110,7 @@ const MoveDetail = ({ move, onBack }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, viewTransitionName: `move-${move.bookingId}`, borderRadius: 12 }}>
         <button onClick={onBack} className="btn btn-secondary btn-sm" style={{ width: 32, height: 32, padding: 0, borderRadius: '50%' }} title="All moves"><ArrowLeft size={15} /></button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>{move.bookingId}</div>
@@ -114,15 +119,7 @@ const MoveDetail = ({ move, onBack }) => {
         <Badge status={st} />
       </div>
 
-      {st !== 'cancelled' && (
-        <div style={{ display: 'flex', gap: 4 }}>
-          {STEPS.map((s, i) => (
-            <div key={s} style={{ flex: 1 }} title={STATUS[s].label}>
-              <div style={{ height: 4, borderRadius: 4, background: i <= stepIdx ? STATUS[st].color : 'var(--bg-elevated)' }} />
-            </div>
-          ))}
-        </div>
-      )}
+      <StatusTimeline move={move} />
 
       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
         <div><strong style={{ color: 'var(--text-main)' }}>From:</strong> {move.origin}</div>
@@ -160,7 +157,7 @@ const MoveDetail = ({ move, onBack }) => {
               {[['Pickup', move.pickupOtp, !!move.pickupVerifiedAt, 'Share once boxes are loaded'], ['Delivery', move.deliveryOtp, !!move.deliveredAt, 'Share after checking everything arrived']].map(([k, v, done, hint]) => (
                 <div key={k} style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', padding: 10 }}>
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{k} OTP {done && '✓ used'}</div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: 800, letterSpacing: '0.15em', color: done ? 'var(--text-dim)' : 'var(--primary)', textDecoration: done ? 'line-through' : 'none' }}>{v}</div>
+                  <div style={{ margin: '6px 0 4px' }}><FlipCode code={v} used={done} /></div>
                   <div style={{ fontSize: '0.66rem', color: 'var(--text-dim)' }}>{hint}</div>
                 </div>
               ))}
@@ -176,8 +173,14 @@ const MoveDetail = ({ move, onBack }) => {
         <Section title="How was your move?" icon={Star}>
           <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
             {[1, 2, 3, 4, 5].map((n) => (
-              <button key={n} onClick={() => setRating(n)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }} aria-label={`${n} stars`}>
-                <Star size={26} fill={n <= rating ? '#FBBF24' : 'none'} color="#FBBF24" />
+              <button
+                key={`${n}-${n <= rating}`}
+                onClick={() => { setRating(n); haptic(HAPTIC.tap); }}
+                className={`star-btn ${n <= rating ? 'filled' : ''}`}
+                aria-label={`${n} star${n > 1 ? 's' : ''}`}
+                aria-pressed={n <= rating}
+              >
+                <Star size={28} fill={n <= rating ? '#FBBF24' : 'none'} color="#FBBF24" style={{ animationDelay: `${(n - 1) * 60}ms` }} />
               </button>
             ))}
           </div>
@@ -285,20 +288,25 @@ export const MyMovesModal = () => {
         </div>
 
         {selected ? (
-          <MoveDetail move={selected} onBack={() => setSelectedMoveId(null)} />
+          <MoveDetail move={selected} onBack={() => withViewTransition(() => setSelectedMoveId(null))} />
         ) : loading && !myMoves.length ? (
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}><Loader2 size={14} className="spin" /> Loading…</div>
+          <SkeletonList rows={3} />
         ) : !myMoves.length ? (
-          <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-muted)' }}>
-            <Truck size={36} color="var(--text-dim)" style={{ margin: '0 auto 8px' }} />
-            <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>No moves yet</div>
-            <div style={{ fontSize: '0.84rem', margin: '4px 0 12px' }}>Estimate your items, then book a slot.</div>
-            <button className="btn btn-primary btn-sm" onClick={() => { close(); openBooking(); }}>Book a move</button>
-          </div>
+          <EmptyState
+            art="truck"
+            title="No moves yet"
+            action={<button className="btn btn-primary btn-sm" onClick={() => { close(); openBooking(); }}>Book your first move</button>}
+          >
+            Estimate your items, pick a slot and we'll find you a verified Move Captain.
+          </EmptyState>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {myMoves.map((m) => (
-              <button key={m.bookingId} onClick={() => setSelectedMoveId(m.bookingId)} style={{ textAlign: 'left', padding: 12, borderRadius: 'var(--radius-md)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', cursor: 'pointer', color: 'inherit' }}>
+              <button
+                key={m.bookingId}
+                className="lift"
+                onClick={() => withViewTransition(() => setSelectedMoveId(m.bookingId))}
+                style={{ viewTransitionName: `move-${m.bookingId}`, textAlign: 'left', padding: 12, borderRadius: 'var(--radius-md)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', cursor: 'pointer', color: 'inherit' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                   <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{m.origin?.split(',')[0]} → {m.destination?.split(',')[0]}</span>
                   <Badge status={m.status} />

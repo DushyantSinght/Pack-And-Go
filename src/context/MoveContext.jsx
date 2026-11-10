@@ -76,7 +76,8 @@ export const MoveProvider = ({ children }) => {
   const [authModalMode, setAuthModalMode] = useState('login');
 
   // Notification Toast State
-  const [toast, setToast] = useState(null);
+  // Stacked notifications (max 4). Timers live in <Toaster /> so they can pause on hover.
+  const [toasts, setToasts] = useState([]);
 
   // Modals
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -166,7 +167,9 @@ export const MoveProvider = ({ children }) => {
         }
 
         // Fetch Passports from MongoDB
-        const passRes = await api.getPassports().catch(() => null);
+        // Signed-in-only data: skip the calls entirely when logged out (no 401 noise).
+        const authed = !!tokenStorage.get();
+        const passRes = authed ? await api.getPassports().catch(() => null) : null;
         if (passRes?.passports && passRes.passports.length > 0) {
           setPassports(passRes.passports);
         }
@@ -181,13 +184,13 @@ export const MoveProvider = ({ children }) => {
         }
 
         // Fetch Corridors from MongoDB
-        const corrRes = await api.getCorridors().catch(() => null);
+        const corrRes = authed ? await api.getCorridors().catch(() => null) : null;
         if (corrRes?.corridors && corrRes.corridors.length > 0) {
           setCorridors(corrRes.corridors.map((c) => ({ ...c, id: c.id || c.corridorId })));
         }
 
         // Fetch Move Booking from MongoDB
-        const moveRes = await api.getCurrentMove().catch(() => null);
+        const moveRes = authed ? await api.getCurrentMove().catch(() => null) : null;
         if (moveRes?.move) {
           setCurrentEstimate((prev) => ({
             ...prev,
@@ -279,11 +282,11 @@ export const MoveProvider = ({ children }) => {
   };
 
   const showToast = (message, type = 'success') => {
-    setToast({ message, type, id: Date.now() });
-    setTimeout(() => {
-      setToast(null);
-    }, 4000);
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    // The same message again replaces the old one instead of stacking duplicates.
+    setToasts((prev) => [...prev.filter((t) => t.message !== message), { id, message, type }].slice(-4));
   };
+  const dismissToast = (id) => setToasts((prev) => prev.filter((t) => t.id !== id));
 
   // Sync theme attribute to document root
   useEffect(() => {
@@ -502,6 +505,7 @@ export const MoveProvider = ({ children }) => {
         activeRole,
         setActiveRole,
         themeMode,
+        setThemeMode,
         toggleTheme,
         currentEstimate,
         setCurrentEstimate,
@@ -529,7 +533,8 @@ export const MoveProvider = ({ children }) => {
         isAuthModalOpen,
         setIsAuthModalOpen,
         authModalMode,
-        toast,
+        toasts,
+        dismissToast,
         showToast,
         isInvoiceModalOpen,
         setIsInvoiceModalOpen,

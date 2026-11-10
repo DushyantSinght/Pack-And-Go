@@ -3,6 +3,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Phone } from 'lucide-react';
 import { api } from '../services/api';
 import { useMove } from '../context/MoveContext';
+import { SkeletonList } from './ui/Skeleton';
+import { EmptyState } from './ui/EmptyState';
 
 const fmt = (d) => (d ? new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '—');
 const inr = (n) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
@@ -50,7 +52,7 @@ export const AdminBookings = () => {
   return (
     <>
       <Filter value={status} onChange={setStatus} options={['all', 'pending_payment', 'confirmed', 'assigned', 'in_transit', 'delivered', 'cancelled']} />
-      {!data ? 'Loading…' : !data.bookings.length ? <div style={{ color: 'var(--text-muted)' }}>No bookings.</div> : (
+      {!data ? <SkeletonList rows={3} /> : !data.bookings.length ? <EmptyState art="truck" compact title="No bookings in this view." /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {data.bookings.map((b) => (
             <div key={b.bookingId} style={card}>
@@ -98,7 +100,7 @@ export const AdminClaims = () => {
   return (
     <>
       <Filter value={status} onChange={setStatus} options={['open', 'under_review', 'approved', 'rejected', 'paid', 'all']} />
-      {!data ? 'Loading…' : !data.claims.length ? <div style={{ color: 'var(--text-muted)' }}>No claims.</div> : (
+      {!data ? <SkeletonList rows={3} /> : !data.claims.length ? <EmptyState art="box" compact title="No claims here. Good news." /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {data.claims.map((c) => (
             <div key={c.claimId} style={card}>
@@ -148,7 +150,7 @@ export const AdminRequests = () => {
   return (
     <>
       <Filter value={status} onChange={setStatus} options={['requested', 'confirmed', 'completed', 'cancelled', 'all']} />
-      {!data ? 'Loading…' : !data.requests.length ? <div style={{ color: 'var(--text-muted)' }}>No requests.</div> : (
+      {!data ? <SkeletonList rows={3} /> : !data.requests.length ? <EmptyState art="box" compact title="No requests in this view." /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {data.requests.map((r) => (
             <div key={r.requestId} style={card}>

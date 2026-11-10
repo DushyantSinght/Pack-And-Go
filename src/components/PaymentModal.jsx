@@ -1,9 +1,12 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { CheckCircle2, CreditCard, FileText, Loader2, Lock, ShieldCheck, X, FlaskConical } from 'lucide-react';
+import { CreditCard, FileText, Loader2, Lock, ShieldCheck, X, FlaskConical } from 'lucide-react';
 import { useMove } from '../context/MoveContext';
 import { api } from '../services/api';
+import { SuccessCheck } from './ui/SuccessCheck';
+import { Skeleton } from './ui/Skeleton';
+import { haptic, HAPTIC } from '../utils/haptics';
 
 const loadRazorpayScript = () =>
   new Promise((resolve) => {
@@ -38,6 +41,7 @@ export const PaymentModal = ({ isOpen, onClose, onOpenInvoice }) => {
 
   const finish = async (booking, message) => {
     setPaid(booking);
+    haptic(HAPTIC.success);
     upsertMove(booking);
     refreshMyMoves();
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
@@ -103,7 +107,7 @@ export const PaymentModal = ({ isOpen, onClose, onOpenInvoice }) => {
 
         {paid ? (
           <div style={{ textAlign: 'center', padding: '10px 0' }}>
-            <CheckCircle2 size={52} color="#22C55E" style={{ margin: '0 auto 10px' }} />
+            <div style={{ marginBottom: 10 }}><SuccessCheck size={72} /></div>
             <div style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--text-main)' }}>Move confirmed</div>
             <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', margin: '6px 0 16px' }}>
               {inr(paid.paymentDetails?.amountPaid)} held in escrow for {paid.bookingId}. We'll notify you when a Move Captain accepts.
@@ -131,7 +135,7 @@ export const PaymentModal = ({ isOpen, onClose, onOpenInvoice }) => {
             </div>
 
             {!config ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}><Loader2 size={14} className="spin" /> Loading payment options…</div>
+              <Skeleton h={44} r={12} />
             ) : config.razorpay ? (
               <button disabled={busy} onClick={payOnline} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', gap: 8 }}>
                 {busy ? <Loader2 size={16} className="spin" /> : <CreditCard size={16} />} Pay {inr(total)} — UPI, card, netbanking
