@@ -7,13 +7,7 @@ import {
   Table,
   CheckCircle2,
   RefreshCw,
-  Key,
-  ShieldCheck,
-  Code2,
   X,
-  Sparkles,
-  ExternalLink,
-  ChevronRight,
   HardDrive
 } from 'lucide-react';
 import { api } from '../services/api';

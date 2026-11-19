@@ -153,7 +153,7 @@ router.post('/login', async (req, res) => {
     const token = signToken({ _id: user._id, email: user.email, userType: user.userType });
 
     return res.json({ success: true, token, user: profileOf(user) });
-  } catch (error) {
+  } catch {
     res.status(500).json({ success: false, message: 'Server error during login.' });
   }
 });
@@ -269,7 +269,7 @@ router.get('/me', requireAuth, async (req, res) => {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
     return res.json({ success: true, user: profileOf(user) });
-  } catch (error) {
+  } catch {
     res.status(500).json({ success: false, message: 'Server error fetching profile.' });
   }
 });
@@ -282,7 +282,7 @@ router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   try {
     const users = await User.find().sort({ createdAt: -1 }).limit(50);
     return res.json({ success: true, count: users.length, users });
-  } catch (error) {
+  } catch {
     res.status(500).json({ success: false, message: 'Server error fetching users.' });
   }
 });

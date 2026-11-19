@@ -1,8 +1,8 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useState } from 'react';
 import {
-  ArrowLeft, CalendarClock, Camera, CheckCircle2, FileText, KeyRound, Loader2, MessageSquare,
-  Phone, Plus, ShieldAlert, Star, Truck, X, XCircle
+  AlertTriangle, ArrowLeft, CalendarClock, Camera, CheckCircle2, Copy, FileText, KeyRound, Loader2, MessageSquare,
+  Phone, Plus, Share2, ShieldAlert, Star, Truck, X, XCircle
 } from 'lucide-react';
 import { useMove } from '../context/MoveContext';
 import { useComms } from '../context/CommsContext';
@@ -35,11 +35,23 @@ const SLOTS = [
   { id: 'evening', label: '5 – 8 PM' }
 ];
 
-const Badge = ({ status }) => (
-  <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: `${STATUS[status]?.color || '#6B7280'}22`, color: STATUS[status]?.color || '#9CA3AF', whiteSpace: 'nowrap' }}>
-    {STATUS[status]?.label || status}
-  </span>
-);
+/** Moves whose slot has ended without a pickup need the customer's attention. */
+const lateLabel = (m) => {
+  const slotOver = m.moveDate && new Date(m.moveDate).getTime() + 3 * 3600_000 < Date.now();
+  if (!slotOver) return null;
+  if (m.status === 'confirmed' && !m.assignedCaptainEmail) return { label: 'No captain — pick a new time', color: '#F59E0B' };
+  if (m.status === 'assigned') return { label: 'Pickup overdue', color: '#EF4444' };
+  return null;
+};
+
+const Badge = ({ status, move }) => {
+  const s = (move && lateLabel(move)) || STATUS[status] || { label: status, color: '#6B7280' };
+  return (
+    <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: `${s.color}22`, color: s.color, whiteSpace: 'nowrap', alignSelf: 'flex-start', flexShrink: 0, lineHeight: 1.6 }}>
+      {s.label}
+    </span>
+  );
+};
 
 /** Shrink a photo before upload so claims stay small. */
 const compress = (file, maxSide = 1280) =>
@@ -57,6 +69,8 @@ const compress = (file, maxSide = 1280) =>
     img.onerror = reject;
     img.src = URL.createObjectURL(file);
   });
+
+const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'support@packandgo.in';
 
 const Section = ({ title, icon: Icon, children }) => (
   <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 14 }}>
@@ -78,8 +92,15 @@ const MoveDetail = ({ move, onBack }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [claim, setClaim] = useState({ description: '', amount: '', photos: [] });
+  const [shareLink, setShareLink] = useState('');
   const st = move.status;
   const deliveredRecently = st === 'delivered' && move.deliveredAt && Date.now() - new Date(move.deliveredAt).getTime() < 48 * 3600_000;
+  // Paid, but the slot came and went without any captain accepting it.
+  const missedSlot = st === 'confirmed' && !move.assignedCaptainEmail && move.moveDate && new Date(move.moveDate).getTime() < Date.now();
+  // A captain accepted, but the slot is over and pickup was never confirmed.
+  const pickupOverdue = st === 'assigned' && move.moveDate && new Date(move.moveDate).getTime() + 3 * 3600_000 < Date.now();
+  // With a captain committed, the server closes rescheduling 4h before the slot.
+  const canReschedule = ['pending_payment', 'confirmed', 'assigned'].includes(st) && !(move.assignedCaptainEmail && move.moveDate && new Date(move.moveDate).getTime() - Date.now() < 4 * 3600_000);
 
   const run = async (fn, ok) => {
     setBusy(true);
@@ -96,6 +117,29 @@ const MoveDetail = ({ move, onBack }) => {
       setBusy(false);
     }
   };
+
+  const openShare = async () => {
+    if (panel === 'share') return setPanel(null);
+    setPanel('share');
+    if (shareLink) return;
+    try {
+      const { token } = await api.shareTracking(move.bookingId);
+      setShareLink(`${window.location.origin}/?track=${token}`);
+    } catch (e) {
+      showToast(e.message, 'error');
+      setPanel(null);
+    }
+  };
+  const copyShare = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      haptic(HAPTIC.success);
+      showToast('Link copied — send it to family on WhatsApp or SMS.', 'success');
+    } catch {
+      showToast('Select the link and copy it manually.', 'info');
+    }
+  };
+  const stopShare = () => run(async () => { await api.stopSharingTracking(move.bookingId); setShareLink(''); }, 'Family link turned off — the old link no longer works.');
 
   const addPhotos = async (files) => {
     const list = [...files].slice(0, 3 - claim.photos.length);
@@ -117,10 +161,31 @@ const MoveDetail = ({ move, onBack }) => {
           <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>{move.bookingId}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{when(move.moveDate)} • {move.timeSlot}</div>
         </div>
-        <Badge status={st} />
+        <Badge status={st} move={move} />
       </div>
 
       <StatusTimeline move={move} />
+
+      {pickupOverdue && (
+        <div role="status" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.35)', fontSize: '0.8rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
+          <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <strong>Your slot has ended and pickup wasn't confirmed.</strong> Call or chat with {move.captain?.name?.split(' ')[0] || 'your captain'} below. If they didn't turn up, email <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Missed pickup ${move.bookingId}`)}`} style={{ color: 'var(--primary)' }}>{SUPPORT_EMAIL}</a> and we'll refund you in full.
+          </div>
+        </div>
+      )}
+
+      {missedSlot && (
+        <div role="status" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.35)', fontSize: '0.8rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
+          <AlertTriangle size={16} color="#F59E0B" style={{ flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <strong>No Move Captain took this slot.</strong> Sorry about that — pick a new time for free, or cancel for a full refund.
+            <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+              <button className="btn btn-primary btn-sm" onClick={() => setPanel('reschedule')} style={{ gap: 5 }}><CalendarClock size={13} /> Pick a new time</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
         <div><strong style={{ color: 'var(--text-main)' }}>From:</strong> {move.origin}</div>
@@ -139,7 +204,7 @@ const MoveDetail = ({ move, onBack }) => {
             <UserAvatar src={move.captain.avatar} name={move.captain.name} size={44} />
             <div style={{ flex: 1, minWidth: 140 }}>
               <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{move.captain.name}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>⭐ {move.captain.rating} • {move.captain.vehicleType} {move.captain.vehicleNumber}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{move.captain.rating ? `⭐ ${move.captain.rating} (${move.captain.ratingCount})` : 'New Move Captain'} • {move.captain.vehicleType} {move.captain.vehicleNumber}</div>
             </div>
             {st !== 'delivered' && (
               <div style={{ display: 'flex', gap: 6 }}>
@@ -154,7 +219,7 @@ const MoveDetail = ({ move, onBack }) => {
       {['assigned', 'in_transit'].includes(st) && (
         <>
           <Section title="Handover codes — keep these private" icon={KeyRound}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 8 }}>
               {[['Pickup', move.pickupOtp, !!move.pickupVerifiedAt, 'Share once boxes are loaded'], ['Delivery', move.deliveryOtp, !!move.deliveredAt, 'Share after checking everything arrived']].map(([k, v, done, hint]) => (
                 <div key={k} style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', padding: 10 }}>
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{k} OTP {done && '✓ used'}</div>
@@ -198,7 +263,10 @@ const MoveDetail = ({ move, onBack }) => {
         {move.paymentDetails?.status && move.paymentDetails.status !== 'unpaid' && (
           <button className="btn btn-secondary btn-sm" onClick={() => openInvoice(move)} style={{ gap: 5 }}><FileText size={13} /> Receipt</button>
         )}
-        {['pending_payment', 'confirmed', 'assigned'].includes(st) && (
+        {['confirmed', 'assigned', 'in_transit'].includes(st) && (
+          <button className="btn btn-secondary btn-sm" onClick={openShare} style={{ gap: 5 }}><Share2 size={13} /> Share with family</button>
+        )}
+        {canReschedule && (
           <button className="btn btn-secondary btn-sm" onClick={() => setPanel(panel === 'reschedule' ? null : 'reschedule')} style={{ gap: 5 }}><CalendarClock size={13} /> Reschedule</button>
         )}
         {['pending_payment', 'confirmed', 'assigned'].includes(st) && (
@@ -223,6 +291,25 @@ const MoveDetail = ({ move, onBack }) => {
         </Section>
       )}
 
+      {panel === 'share' && (
+        <Section title="Family tracking link" icon={Share2}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 8 }}>
+            Anyone with this link can follow your truck live until delivery — no app or sign-in needed. They won't see your phone number, OTPs or price.
+          </div>
+          {shareLink ? (
+            <>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input readOnly value={shareLink} onFocus={(e) => e.target.select()} aria-label="Family tracking link" style={{ flex: 1, minWidth: 0, padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', fontSize: '0.78rem' }} />
+                <button className="btn btn-primary btn-sm" onClick={copyShare} style={{ gap: 5 }}><Copy size={13} /> Copy</button>
+              </div>
+              <button className="btn btn-secondary btn-sm" disabled={busy} onClick={stopShare} style={{ marginTop: 8, color: '#EF4444' }}>Turn off link</button>
+            </>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-muted)' }}><Loader2 size={13} className="spin" /> Creating your link…</div>
+          )}
+        </Section>
+      )}
+
       {panel === 'reschedule' && (
         <Section title="Pick a new time">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} style={{ padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)' }} />
@@ -231,7 +318,9 @@ const MoveDetail = ({ move, onBack }) => {
               <button key={s.id} onClick={() => setSlot(s.id)} className="btn btn-sm" style={{ background: slot === s.id ? 'var(--primary)' : 'var(--bg-elevated)', color: slot === s.id ? '#111' : 'var(--text-main)', border: '1px solid var(--border-subtle)' }}>{s.label}</button>
             ))}
           </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: 8 }}>Up to 2 reschedules, until 4 hours before your slot. Your captain may change.</div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: 8 }}>
+            {move.assignedCaptainEmail ? 'Up to 2 reschedules, until 4 hours before your slot. Your captain may change.' : `Up to 2 reschedules${move.rescheduledCount ? ` (${2 - move.rescheduledCount} left)` : ''}. Captains will see the new time straight away.`}
+          </div>
           <button disabled={!date || busy} onClick={() => run(() => api.rescheduleMove(move.bookingId, date, slot), 'Move rescheduled.')} className="btn btn-primary btn-sm">Confirm new time</button>
         </Section>
       )}
@@ -308,9 +397,9 @@ export const MyMovesModal = () => {
                 className="lift"
                 onClick={() => withViewTransition(() => setSelectedMoveId(m.bookingId))}
                 style={{ viewTransitionName: `move-${m.bookingId}`, textAlign: 'left', padding: 12, borderRadius: 'var(--radius-md)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', cursor: 'pointer', color: 'inherit' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                  <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{m.origin?.split(',')[0]} → {m.destination?.split(',')[0]}</span>
-                  <Badge status={m.status} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-main)', minWidth: 0, flex: '1 1 160px' }}>{m.origin?.split(',')[0]} → {m.destination?.split(',')[0]}</span>
+                  <Badge status={m.status} move={m} />
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
                   {m.bookingId} • {when(m.moveDate)} • {inr(m.priceBreakdown?.total)}

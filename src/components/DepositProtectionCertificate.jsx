@@ -1,22 +1,15 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
-import React, { useRef } from 'react';
+import React from 'react';
 import { useMove } from '../context/MoveContext';
 import {
   ShieldCheck,
   Printer,
-  X,
-  FileCheck,
-  CheckCircle2,
-  Calendar,
-  Building,
-  UserCheck,
-  AlertCircle
+  X
 } from 'lucide-react';
 import { SafeImage } from './ui/SafeImage';
 
 export const DepositProtectionCertificate = ({ isOpen, onClose }) => {
   const { currentEstimate, user } = useMove();
-  const certRef = useRef();
 
   if (!isOpen) return null;
 

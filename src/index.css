@@ -93,6 +93,11 @@
   box-sizing: border-box;
 }
 
+/* Form controls don't inherit the page font by default (they fall back to Arial). */
+button, input, select, textarea {
+  font-family: inherit;
+}
+
 body {
   font-family: var(--font-body);
   background-color: var(--bg-dark);
@@ -265,6 +270,18 @@ h2, h3 {
   background: rgba(184, 146, 40, 0.1);
   color: #8C6D1F;
   border: 1px solid rgba(184, 146, 40, 0.3);
+}
+
+.badge-gold {
+  background: rgba(212, 175, 55, 0.16);
+  color: #E9C46A;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+[data-theme="light"] .badge-gold {
+  background: rgba(184, 146, 40, 0.12);
+  color: #7A5C12;
+  border: 1px solid rgba(184, 146, 40, 0.35);
 }
 
 .badge-amber {
@@ -682,6 +699,7 @@ h2, h3 {
   .btn { min-height: 38px; }
   input, select, textarea { font-size: 16px !important; } /* stops iOS zoom on focus */
   [role="dialog"] { max-height: 100dvh !important; border-radius: 14px !important; }
+  .glass-panel.navbar-header { padding: 8px 12px !important; row-gap: 8px; }
 }
 
 /* ── Printing receipts & box labels ─────────────────────────────── */

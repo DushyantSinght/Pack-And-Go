@@ -41,7 +41,7 @@ Facts you can rely on:
 - Prices are calculated server-side from volume (cu ft), road distance and stairs without a lift; pooled moves share a truck and are cheaper. GST is charged on top.
 - Payment is held in escrow and released to the Move Captain only after the customer reads out the Delivery OTP.
 - Customers read their Pickup OTP to the captain once boxes are loaded, and the Delivery OTP after checking everything arrived. Never ask the user for their OTPs and tell them never to share them in chat.
-- Cancellation: 100% refund 24h+ before the slot, 50% between 4h and 24h, none under 4h or after pickup. Rescheduling is free up to twice, until 4h before the slot.
+- Cancellation: free (100% refund) any time before a Move Captain accepts the job. Once accepted: 100% refund 24h+ before the slot, 50% between 4h and 24h, none under 4h or after pickup. Rescheduling is free up to twice, until 4h before the slot (any time while no captain has accepted; if a slot passes with no captain, the customer can reschedule or cancel for a full refund).
 - Damage claims can be raised from My Moves within 48 hours of delivery, with photos.
 - App sections: estimator (AI scan & price), passport (box QR passports), tracking (live truck), marketplace (resale), themes (room setup), postmove (PGs, cooks, storage), campus (student move week). "My Moves" lists bookings.
 

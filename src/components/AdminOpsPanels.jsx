@@ -11,6 +11,15 @@ const inr = (n) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
 const card = { border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 12, background: 'var(--bg-elevated)', fontSize: '0.8rem', color: 'var(--text-muted)' };
 const input = { flex: 1, minWidth: 140, padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card-solid)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', fontSize: '0.8rem' };
 
+/** Bookings ops should chase: the slot has ended but nobody has picked the goods up. */
+const lateFlag = (b, now) => {
+  if (!b.moveDate || new Date(b.moveDate).getTime() + 3 * 3600_000 > now) return null;
+  if (b.status === 'confirmed') return 'Slot missed — no captain';
+  if (b.status === 'assigned') return 'Pickup overdue';
+  return null;
+};
+const flagStyle = { marginLeft: 8, padding: '1px 8px', borderRadius: 999, fontSize: '0.66rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', background: 'rgba(239,68,68,0.14)', color: '#F87171', border: '1px solid rgba(239,68,68,0.35)', verticalAlign: 'middle' };
+
 const Filter = ({ value, options, onChange }) => (
   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
     {options.map((o) => (
@@ -38,6 +47,7 @@ export const AdminBookings = () => {
   const [data, reload] = useList(api.adminBookings, status);
   const [cancelId, setCancelId] = useState(null);
   const [reason, setReason] = useState('');
+  const [now] = useState(() => Date.now());
   const doCancel = async (id) => {
     try {
       await api.adminCancelBooking(id, reason);
@@ -57,7 +67,10 @@ export const AdminBookings = () => {
           {data.bookings.map((b) => (
             <div key={b.bookingId} style={card}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                <strong style={{ color: 'var(--text-main)' }}>{b.bookingId} • {b.status}</strong>
+                <strong style={{ color: 'var(--text-main)' }}>
+                  {b.bookingId} • {b.status.replace('_', ' ')}
+                  {lateFlag(b, now) && <span style={flagStyle}>{lateFlag(b, now)}</span>}
+                </strong>
                 <span>{inr(b.total)} • {b.payment?.status}{b.payment?.testMode ? ' (test)' : ''}</span>
               </div>
               <div>{b.userName} • <a href={`tel:+91${b.userPhone}`} style={{ color: 'var(--primary)' }}>{b.userPhone}</a> • {b.userEmail}</div>

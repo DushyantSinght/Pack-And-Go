@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema(
     avatar: { type: String, default: '' }, // no photo → initials in the UI
     escrowWalletBalance: { type: Number, default: 0 },
     tripsCompleted: { type: Number, default: 0 },
-    rating: { type: Number, default: 4.9 },
+    rating: { type: Number }, // average of customer reviews; unset until the first one (see ratingCount)
     // Platform staff who can review Move Captain applications.
     isAdmin: { type: Boolean, default: false },
     emailVerified: { type: Boolean, default: false },

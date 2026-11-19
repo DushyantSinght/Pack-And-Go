@@ -88,7 +88,7 @@ export const FeatureGrid = () => (
 const FAQS = [
   ['How is my price calculated?', 'From the volume of your items, the road distance between your addresses, and any stairs without a lift. Pooled trucks take about 40% off the volume and distance charges. GST is shown separately. The price you see before paying is the price you pay.'],
   ['When does the Move Captain get paid?', 'Your payment is held by Pack&Go. The captain\'s share is released only after you read out your Delivery OTP, once you\'ve checked your boxes at the new place.'],
-  ['Can I cancel or reschedule?', 'Yes, from My Moves. Cancel 24+ hours before your slot for a full refund, or between 24 and 4 hours for 50%. You can reschedule up to twice, until 4 hours before your slot.'],
+  ['Can I cancel or reschedule?', 'Yes, from My Moves. Until a Move Captain accepts your move, cancelling is always free. After that: cancel 24+ hours before your slot for a full refund, or between 24 and 4 hours for 50%. You can reschedule up to twice, until 4 hours before your slot.'],
   ['Who are the Move Captains?', 'Independent drivers who apply with their driving licence and vehicle registration. Our team checks each application before they can accept jobs, and customers rate every move.'],
   ['What if something gets damaged?', 'Report it from My Moves within 48 hours of delivery with photos. Our team reviews claims within 2 working days.'],
   ['Do you move vehicles, cash or valuables?', 'No. We don\'t carry cash, jewellery, documents, gas cylinders or hazardous items. Please carry valuables yourself.']

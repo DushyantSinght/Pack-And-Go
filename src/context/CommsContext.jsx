@@ -7,7 +7,8 @@ import { useMove } from './MoveContext';
 import { api, tokenStorage } from '../services/api';
 import { haptic, HAPTIC } from '../utils/haptics';
 
-const CommsContext = createContext(null);
+// Same instance across dev hot-reloads (see MoveContext).
+const CommsContext = (globalThis.__packandgoCommsContext ??= createContext(null));
 
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
 const RING_TIMEOUT_MS = 30000;

@@ -16,7 +16,8 @@ import { initSocket } from './socket.js';
 import databaseRoutes from './routes/databaseRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import moveRoutes, { rotateLegacyOtps, migrateLegacyBookings } from './routes/moveRoutes.js';
-import passportRoutes from './routes/passportRoutes.js';
+import passportRoutes, { assignLegacyPassports } from './routes/passportRoutes.js';
+import trackRoutes from './routes/trackRoutes.js';
 import marketplaceRoutes, { repairListingPhotos } from './routes/marketplaceRoutes.js';
 import corridorRoutes from './routes/corridorRoutes.js';
 import campusRoutes from './routes/campusRoutes.js';
@@ -162,6 +163,7 @@ app.get('/api', (req, res) => {
 app.use('/api/database', databaseRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/moves', moveRoutes);
+app.use('/api/track', trackRoutes);
 app.use('/api/passports', passportRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/corridors', corridorRoutes);
@@ -188,7 +190,7 @@ app.use((req, res) => {
 });
 
 // ── Global Error Handler ─────────────────────────────────────────
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => { // four args: Express treats this as the error handler
   console.error('Server Error:', err);
   ErrorLog.create({ source: 'server', message: err.message, stack: err.stack, url: `${req.method} ${req.originalUrl}`, userId: req.user?._id }).catch(() => {});
   res.status(err.status || 500).json({
@@ -221,6 +223,7 @@ const startServer = async () => {
     try {
       const migrated = await migrateLegacyBookings();
       if (migrated) console.log(`🧾 Reset ${migrated} legacy booking(s) with placeholder payment data to drafts.`);
+      await assignLegacyPassports();
       const repaired = await repairListingPhotos();
       if (repaired) console.log(`🖼️  Repaired ${repaired} listing photo(s) that were missing or wrong.`);
       // Profile pictures: drop the old stock-photo default so the app shows initials.

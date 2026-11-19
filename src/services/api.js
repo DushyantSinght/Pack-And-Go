@@ -22,7 +22,10 @@ const authHeaders = () => {
 const handleResponse = async (res) => {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.message || data.error || `Request failed (HTTP ${res.status})`);
+    const err = new Error(data.message || data.error || `Request failed (HTTP ${res.status})`);
+    err.status = res.status;
+    err.code = data.code;
+    throw err;
   }
   return data;
 };
@@ -308,12 +311,16 @@ export const api = {
     handleResponse(await fetch(`${BASE_URL}${path}`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })),
   patch: async (path, body = {}) =>
     handleResponse(await fetch(`${BASE_URL}${path}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) })),
+  del: async (path) => handleResponse(await fetch(`${BASE_URL}${path}`, { method: 'DELETE', headers: authHeaders() })),
 
   // Bookings
   quoteMove: (data) => api.post('/moves/quote', data),
   bookMove: (data) => api.post('/moves/book', data),
   getMyMoves: () => api.get('/moves/mine'),
   getMove: (id) => api.get(`/moves/${encodeURIComponent(id)}`),
+  shareTracking: (id) => api.post(`/moves/${encodeURIComponent(id)}/share`),
+  stopSharingTracking: (id) => api.del(`/moves/${encodeURIComponent(id)}/share`),
+  getSharedTracking: (token) => api.get(`/track/${encodeURIComponent(token)}`),
   cancelMove: (id, reason) => api.post(`/moves/${encodeURIComponent(id)}/cancel`, { reason }),
   rescheduleMove: (id, date, timeSlot) => api.post(`/moves/${encodeURIComponent(id)}/reschedule`, { date, timeSlot }),
   reviewMove: (id, rating, comment) => api.post(`/moves/${encodeURIComponent(id)}/review`, { rating, comment }),

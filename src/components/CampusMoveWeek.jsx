@@ -4,36 +4,21 @@ import { useMove } from '../context/MoveContext';
 import { CAMPUS_HUBS } from '../data/mockData';
 import {
   GraduationCap,
-  Users,
   MapPin,
-  Calendar,
   Percent,
   ShieldCheck,
   Smartphone,
-  Copy,
-  ExternalLink,
-  CheckCircle,
-  Truck,
-  ArrowRight
+  Copy
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
 import { PageIcon } from './ui/PageIcon';
 
 export const CampusMoveWeek = () => {
-  const { showToast, setActiveRole, setActiveTab, user } = useMove();
+  const { showToast, setActiveRole, user, openMyMoves, openAuth } = useMove();
   const [selectedHub, setSelectedHub] = useState(CAMPUS_HUBS[0]);
-  const [parentShareLinkCopied, setParentShareLinkCopied] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState('Morning Slot (09:00 AM - 12:00 PM)');
 
-  const parentLiveTrackingUrl = `https://packandgo.in/track/parent?token=STU-${selectedHub.id.toUpperCase()}-8829`;
-
-  const handleCopyParentLink = () => {
-    navigator.clipboard?.writeText(parentLiveTrackingUrl);
-    setParentShareLinkCopied(true);
-    showToast('Parent Live Tracking Link copied to clipboard!', 'success');
-    setTimeout(() => setParentShareLinkCopied(false), 3000);
-  };
 
   const handleJoinCampusPool = async () => {
     if (!user) {
@@ -230,38 +215,26 @@ export const CampusMoveWeek = () => {
               Parent Live Tracking Dashboard
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Parents can monitor their child's entire move in real-time — vehicle telemetry, verified driver background check, and arrival check-in photos.
+              Parents can follow their child's move live — the truck on the map, the verified Move Captain's name and vehicle, and every step from pickup to delivery.
             </p>
           </div>
 
-          {/* Shareable Link Box */}
+          {/* Real family link: created per booking from My Moves */}
           <div style={{
             background: 'var(--bg-elevated)',
             padding: '16px',
             borderRadius: 'var(--radius-md)',
             border: '1px solid var(--border-subtle)'
           }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
-              SECURE PARENT ACCESS LINK (NO APP DOWNLOAD REQUIRED):
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.04em' }}>
+              SECURE FAMILY LINK • NO APP OR SIGN-IN NEEDED
             </div>
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                readOnly
-                value={parentLiveTrackingUrl}
-                className="form-input"
-                style={{ fontSize: '0.8rem', padding: '8px 12px', background: 'rgba(0, 0, 0, 0.3)' }}
-              />
-              <button
-                onClick={handleCopyParentLink}
-                className="btn btn-secondary btn-sm"
-                style={{ whiteSpace: 'nowrap' }}
-              >
-                {parentShareLinkCopied ? <CheckCircle size={15} color="#10B981" /> : <Copy size={15} />}
-                {parentShareLinkCopied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 12px', lineHeight: 1.55 }}>
+              Once your move is booked, open it in My Moves and tap <strong style={{ color: 'var(--text-main)' }}>Share with family</strong>. Parents see the live truck, the captain's name and vehicle, and each step as it happens — never your phone number, OTPs or price.
+            </p>
+            <button onClick={() => (user ? openMyMoves() : openAuth('login'))} className="btn btn-secondary btn-sm" style={{ gap: 6 }}>
+              <Copy size={15} /> {user ? 'Get my family link' : 'Sign in to get your link'}
+            </button>
           </div>
 
           {/* Parent Mode Live Preview Mockup */}
@@ -274,9 +247,9 @@ export const CampusMoveWeek = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span className="radar-dot" style={{ width: '8px', height: '8px' }}></span>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>Parent Live Telemetry Active</strong>
+                <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>Example: what parents see</strong>
               </div>
-              <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>Police-Verified Crew</span>
+              <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>Licence-verified captain</span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8rem' }}>
@@ -286,19 +259,19 @@ export const CampusMoveWeek = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Transit Vehicle:</span>
-                <strong>Tata Ace EV • KA-01-MJ-4921</strong>
+                <strong>Tata Ace EV • KA01MJ4921</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>GPS Route Speed:</span>
-                <strong style={{ color: 'var(--primary)' }}>34 km/h (Normal traffic)</strong>
+                <span style={{ color: 'var(--text-muted)' }}>Status:</span>
+                <strong style={{ color: 'var(--primary)' }}>Picked up • on the way</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Luggage Sealed:</span>
-                <strong style={{ color: 'var(--cyan)' }}>4 Cartons • Tamper RFID Intact</strong>
+                <span style={{ color: 'var(--text-muted)' }}>Boxes:</span>
+                <strong style={{ color: 'var(--cyan)' }}>4 cartons • QR-labelled</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Destination ETA:</span>
-                <strong style={{ color: 'var(--amber)' }}>Today, 03:15 PM</strong>
+                <span style={{ color: 'var(--text-muted)' }}>Truck on the map:</span>
+                <strong style={{ color: 'var(--amber)' }}>Live, updates every few seconds</strong>
               </div>
             </div>
 

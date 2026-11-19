@@ -526,7 +526,8 @@ kbd {
 }
 @media (max-width: 1640px) { .nav-links { display: none; } .navbar-brand .badge { display: none; } }
 @media (max-width: 1280px) { .nav-search { min-width: 0; } .nav-search-text, .nav-search kbd { display: none; } }
-@media (max-width: 860px) { .nav-center { order: 3; flex: 0 0 auto; } }
+/* Phones: logo + search on the first row, the action buttons on one scrollable row below. */
+@media (max-width: 860px) { .nav-center { order: 2; flex: 0 0 auto; margin-left: auto; } .navbar-actions { order: 3; } }
 
 /* ── Command palette ───────────────────────────────────────────── */
 .palette-overlay {

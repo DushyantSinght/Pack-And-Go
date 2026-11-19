@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { MoveBooking, User, generateOtp } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireApprovedCaptain } from '../middleware/roles.js';
-import { quote, roadDistanceKm, slotStart, TIME_SLOTS, refundPercentFor, PLATFORM_FEE_RATE } from '../services/pricing.js';
+import { quote, roadDistanceKm, slotStart, TIME_SLOTS, refundPercentFor, PLATFORM_FEE_RATE, OPEN_JOB_GRACE_MS } from '../services/pricing.js';
 import { refund } from '../services/payments.js';
 import { notify } from '../services/notify.js';
 
@@ -93,7 +93,7 @@ const withCaptains = async (views) => {
   const emails = [...new Set(views.map((v) => v.assignedCaptainEmail).filter(Boolean))];
   if (!emails.length) return views;
   const caps = await User.find({ email: { $in: emails } })
-    .select('email name phone avatar rating tripsCompleted captain.vehicleNumber captain.vehicleType')
+    .select('email name phone avatar rating ratingCount tripsCompleted captain.vehicleNumber captain.vehicleType')
     .lean();
   const byEmail = Object.fromEntries(caps.map((c) => [c.email, c]));
   return views.map((v) => {
@@ -102,8 +102,8 @@ const withCaptains = async (views) => {
     return {
       ...v,
       captain: {
-        _id: String(c._id), name: c.name, phone: c.phone, avatar: c.avatar, rating: c.rating,
-        tripsCompleted: c.tripsCompleted, vehicleNumber: c.captain?.vehicleNumber, vehicleType: c.captain?.vehicleType
+        _id: String(c._id), name: c.name, phone: c.phone, avatar: c.avatar, rating: c.ratingCount ? c.rating : null,
+        ratingCount: c.ratingCount || 0, tripsCompleted: c.tripsCompleted, vehicleNumber: c.captain?.vehicleNumber, vehicleType: c.captain?.vehicleType
       }
     };
   });
@@ -242,6 +242,27 @@ router.get('/:bookingId', async (req, res, next) => {
   res.json({ success: true, move: (await withCaptains([ownerView(move)]))[0] });
 });
 
+// POST /api/moves/:bookingId/share — a read-only live-tracking link the customer can send to family.
+router.post('/:bookingId/share', async (req, res) => {
+  const move = await MoveBooking.findOne({ bookingId: req.params.bookingId, userEmail: req.user.email }).select('+trackToken');
+  if (!move) return res.status(404).json({ success: false, message: 'Booking not found.' });
+  if (!ACTIVE.includes(statusOf(move))) {
+    return res.status(409).json({ success: false, message: 'Family tracking links are available once your move is paid and until it is delivered.' });
+  }
+  if (!move.trackToken) {
+    move.trackToken = crypto.randomBytes(18).toString('base64url');
+    await move.save();
+  }
+  res.json({ success: true, token: move.trackToken });
+});
+
+// DELETE /api/moves/:bookingId/share — turn the family link off (anyone holding it loses access).
+router.delete('/:bookingId/share', async (req, res) => {
+  const r = await MoveBooking.updateOne({ bookingId: req.params.bookingId, userEmail: req.user.email }, { $unset: { trackToken: 1 } });
+  if (!r.matchedCount) return res.status(404).json({ success: false, message: 'Booking not found.' });
+  res.json({ success: true });
+});
+
 // POST /api/moves/:bookingId/cancel { reason }
 router.post('/:bookingId/cancel', async (req, res) => {
   try {
@@ -285,7 +306,9 @@ router.post('/:bookingId/reschedule', async (req, res) => {
   if (!['pending_payment', 'confirmed', 'assigned'].includes(statusOf(move))) {
     return res.status(409).json({ success: false, message: 'This booking can no longer be rescheduled.' });
   }
-  if (move.moveDate && move.moveDate.getTime() - Date.now() < 4 * 3600_000) {
+  // Once a captain has committed, changes close 4h before the slot. With no captain yet (including a
+  // slot that passed without one) the customer can always move it.
+  if (move.assignedCaptainEmail && move.moveDate && move.moveDate.getTime() - Date.now() < 4 * 3600_000) {
     return res.status(409).json({ success: false, message: 'Rescheduling closes 4 hours before your slot.' });
   }
   if ((move.rescheduledCount || 0) >= 2) return res.status(409).json({ success: false, message: 'A booking can be rescheduled at most twice.' });
@@ -342,7 +365,8 @@ router.get('/captain/jobs', requireApprovedCaptain, async (req, res) => {
     const email = req.dbUser.email;
     const jobs = await MoveBooking.find({
       $or: [
-        { status: 'confirmed', $or: [{ assignedCaptainEmail: { $exists: false } }, { assignedCaptainEmail: null }] },
+        // Open jobs: paid, unclaimed, and the slot hasn't long passed.
+        { status: 'confirmed', moveDate: { $gte: new Date(Date.now() - OPEN_JOB_GRACE_MS) }, $or: [{ assignedCaptainEmail: { $exists: false } }, { assignedCaptainEmail: null }] },
         { status: { $in: ['assigned', 'in_transit'] }, assignedCaptainEmail: email }
       ]
     })
@@ -358,7 +382,7 @@ router.get('/captain/jobs', requireApprovedCaptain, async (req, res) => {
 router.post('/captain/jobs/:bookingId/accept', requireApprovedCaptain, async (req, res) => {
   const cap = req.dbUser;
   const move = await MoveBooking.findOneAndUpdate(
-    { bookingId: req.params.bookingId, status: 'confirmed', $or: [{ assignedCaptainEmail: { $exists: false } }, { assignedCaptainEmail: null }] },
+    { bookingId: req.params.bookingId, status: 'confirmed', moveDate: { $gte: new Date(Date.now() - OPEN_JOB_GRACE_MS) }, $or: [{ assignedCaptainEmail: { $exists: false } }, { assignedCaptainEmail: null }] },
     { $set: { assignedCaptainEmail: cap.email, assignedAt: new Date(), status: 'assigned', transitStatus: `Move Captain ${cap.name} assigned` } },
     { returnDocument: 'after' }
   );

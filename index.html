@@ -6,6 +6,14 @@
 <html lang="en" data-author="DST">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Apply the saved theme before first paint (no dark flash for light-theme users).
+      try {
+        var t = localStorage.getItem('pkg_theme');
+        if (t !== 'light' && t !== 'dark') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="author" content="Dushyant Singh Tanwar (DST)" />
     <meta name="copyright" content="© 2026 Dushyant Singh Tanwar (DST). All rights reserved." />

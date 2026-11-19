@@ -3,22 +3,15 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useMove } from '../context/MoveContext';
 import { api } from '../services/api';
 import {
-  MessageSquare,
   X,
   Send,
   Sparkles,
   Bot,
-  User,
-  ShieldCheck,
-  Truck,
-  ArrowRight,
-  FileText,
-  CreditCard,
-  Building
+  ArrowRight
 } from 'lucide-react';
 
 export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) => {
-  const { setActiveTab, showToast, openMyMoves } = useMove();
+  const { setActiveTab, openMyMoves } = useMove();
   const [aiOn, setAiOn] = useState(null); // null = unknown, true = Claude, false = basic keyword mode
   useEffect(() => {
     if (aiOn !== null) return;
@@ -84,7 +77,7 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
     },
     {
       keywords: ['cancel', 'refund', 'reschedule'],
-      reply: 'Cancel from My Moves: 100% refund 24h+ before your slot, 50% between 24h and 4h, none after that or after pickup. You can reschedule up to twice, until 4 hours before your slot.',
+      reply: 'Cancel from My Moves. Before a Move Captain accepts, it\'s always free. After that: 100% refund 24h+ before your slot, 50% between 24h and 4h, none after that or after pickup. You can reschedule up to twice, until 4 hours before your slot.',
       action: { label: 'Open My Moves', custom: 'mymoves' }
     },
     {

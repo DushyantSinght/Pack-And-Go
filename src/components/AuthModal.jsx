@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useMove } from '../context/MoveContext';
 import {
-  X, Mail, Lock, User, ShieldCheck, Sparkles, ArrowRight,
+  X, Mail, Lock, User, ShieldCheck, ArrowRight,
   GraduationCap, Briefcase, Truck, Heart, Eye, EyeOff, Phone, ShoppingBag
 } from 'lucide-react';
 import confetti from 'canvas-confetti';

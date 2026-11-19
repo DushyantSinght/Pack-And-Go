@@ -3,15 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { MAP_TILE_URL, MAP_ATTRIBUTION, CUSTOM_TILES } from '../utils/mapTiles';
 import {
-  Navigation,
   Crosshair,
-  Layers,
-  MapPin,
-  Truck,
-  Shield,
-  Clock,
-  Radio,
-  Maximize2
+  Layers
 } from 'lucide-react';
 
 export const InteractiveLeafletMap = ({ corridorId = 'blr-koramangala-whitefield' }) => {
@@ -19,8 +12,8 @@ export const InteractiveLeafletMap = ({ corridorId = 'blr-koramangala-whitefield
   const leafletMapRef = useRef(null);
   const truckMarkerRef = useRef(null);
   const [mapStyle, setMapStyle] = useState('carto-dark'); // carto-dark | osm-standard | carto-light
-  const [currentSpeed, setCurrentSpeed] = useState(34);
-  const [gpsStatus, setGpsStatus] = useState({ lat: 12.9400, lng: 77.6700, sats: 12, hdop: 0.9 });
+  const [currentSpeed] = useState(34);
+  const [gpsStatus] = useState({ lat: 12.9400, lng: 77.6700, sats: 12, hdop: 0.9 });
 
   // Corridor Waypoint Datasets
   const corridorData = {
@@ -97,7 +90,8 @@ export const InteractiveLeafletMap = ({ corridorId = 'blr-koramangala-whitefield
       center: activeData.center,
       zoom: activeData.zoom,
       zoomControl: false,
-      attributionControl: true
+      attributionControl: true,
+      scrollWheelZoom: false // page scrolling shouldn't get stuck on the map; zoom buttons are below
     });
 
     leafletMapRef.current = map;
@@ -109,7 +103,7 @@ export const InteractiveLeafletMap = ({ corridorId = 'blr-koramangala-whitefield
     mapContainerRef.current?.classList.toggle('map-dark', mapStyle === 'carto-dark' && !CUSTOM_TILES);
 
     // Add Route Polyline
-    const fullRoute = L.polyline(activeData.routeCoords, {
+    L.polyline(activeData.routeCoords, {
       color: '#D4AF37',
       weight: 4,
       opacity: 0.85,

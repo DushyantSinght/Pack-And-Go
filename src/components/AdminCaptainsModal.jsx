@@ -75,7 +75,7 @@ export const AdminCaptainsModal = ({ isOpen, onClose }) => {
         role="dialog"
         aria-label="Operations"
         onClick={(e) => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 760, maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-card-solid)', border: '1px solid var(--border-gold)', borderRadius: 'var(--radius-lg)', boxShadow: '0 25px 60px rgba(0,0,0,0.6)' }}
+        style={{ width: '100%', maxWidth: 760, height: 'min(86vh, 780px)', display: 'flex', flexDirection: 'column', background: 'var(--bg-card-solid)', border: '1px solid var(--border-gold)', borderRadius: 'var(--radius-lg)', boxShadow: '0 25px 60px rgba(0,0,0,0.6)' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
           <div>
@@ -92,7 +92,7 @@ export const AdminCaptainsModal = ({ isOpen, onClose }) => {
         </div>
 
         {section !== 'captains' ? (
-          <div style={{ overflowY: 'auto', padding: '12px 20px 20px' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 20px 20px' }}>
             {section === 'bookings' && <AdminBookings />}
             {section === 'claims' && <AdminClaims />}
             {section === 'requests' && <AdminRequests />}
@@ -118,7 +118,7 @@ export const AdminCaptainsModal = ({ isOpen, onClose }) => {
           ))}
         </div>
 
-        <div style={{ overflowY: 'auto', padding: '12px 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 20px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {loading && !data.captains.length && <SkeletonList rows={3} avatar />}
           {!loading && data.captains.length === 0 && <EmptyState art="box" compact title={`No ${tab} captains`} />}
           {data.captains.map((c) => (

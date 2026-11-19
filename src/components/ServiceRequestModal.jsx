@@ -30,13 +30,17 @@ export const ServiceRequestModal = ({ request, onClose }) => {
     }
   }, [request, user?.phone]);
 
-  if (!request) return null;
-  if (!user) {
-    onClose();
-    showToast('Please sign in to send a request.', 'info');
-    openAuth('login');
-    return null;
-  }
+  // Logged out: close and ask to sign in (as an effect, never during render).
+  useEffect(() => {
+    if (request && !user) {
+      onClose();
+      showToast('Please sign in to send a request.', 'info');
+      openAuth('login');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request, user]);
+
+  if (!request || !user) return null;
 
   const submit = async (e) => {
     e.preventDefault();

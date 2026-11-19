@@ -126,7 +126,7 @@ router.get('/conversations', async (req, res) => {
       .limit(50)
       .populate('participants', PUBLIC_USER_FIELDS);
     res.json({ success: true, conversations: convs.map((c) => serializeConversation(c, req.user._id)) });
-  } catch (error) {
+  } catch {
     res.status(500).json({ success: false, message: 'Could not load your inbox.' });
   }
 });
@@ -138,7 +138,7 @@ router.get('/conversations/:id/messages', async (req, res) => {
     if (!conv) return res.status(404).json({ success: false, message: 'Conversation not found.' });
     const msgs = await Message.find({ conversation: conv._id }).sort({ createdAt: -1 }).limit(200);
     res.json({ success: true, messages: msgs.reverse().map(serializeMessage) });
-  } catch (error) {
+  } catch {
     res.status(500).json({ success: false, message: 'Could not load messages.' });
   }
 });
@@ -209,7 +209,7 @@ router.post('/conversations/:id/read', async (req, res) => {
     const others = conv.participants.map((p) => String(p._id)).filter((id) => id !== me);
     emitToUsers(others, 'chat:read', { conversationId: String(conv._id), userId: me });
     res.json({ success: true });
-  } catch (error) {
+  } catch {
     res.status(500).json({ success: false, message: 'Could not mark as read.' });
   }
 });

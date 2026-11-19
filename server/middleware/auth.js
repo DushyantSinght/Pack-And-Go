@@ -22,7 +22,7 @@ export const requireAuth = (req, res, next) => {
     const decoded = verifyToken(token);
     req.user = decoded;
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ success: false, message: 'Session expired or invalid token. Please log in again.' });
   }
 };

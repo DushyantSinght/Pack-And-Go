@@ -28,13 +28,20 @@ export const MarketplaceItemSheet = ({ item, onClose, onClaim, onChat, onCall })
           </div>
           {item.description && <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>{item.description}</p>}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--emerald-light)', margin: '10px 0 16px' }}><Leaf size={14} /> Buying this instead of new saves about {item.co2SavedKg} kg CO₂</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8 }}>
-            <button disabled={!available} onClick={() => onClaim(item)} className="btn btn-primary" style={{ gap: 6, opacity: available ? 1 : 0.55 }}>
-              <ShoppingBag size={15} /> {available ? 'Claim & arrange handoff' : 'Already claimed'}
-            </button>
-            <button onClick={() => onChat(item)} className="btn btn-secondary" style={{ gap: 6 }}><MessageSquare size={15} /> Chat</button>
-            <button onClick={() => onCall(item)} className="btn btn-outline-emerald" style={{ gap: 6 }}><Phone size={15} /> Call</button>
-          </div>
+          {item.mine ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.86rem', color: 'var(--text-muted)', padding: '10px 12px', borderRadius: 12, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
+              <span className="badge badge-gold" style={{ flexShrink: 0 }}>Your listing</span>
+              {available ? 'Live — buyers can chat or call you through Pack&Go.' : `Claimed${item.claimedBy?.name ? ` by ${item.claimedBy.name}` : ''} — arrange the handoff in Messages.`}
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8 }}>
+              <button disabled={!available} onClick={() => onClaim(item)} className="btn btn-primary" style={{ gap: 6, opacity: available ? 1 : 0.55 }}>
+                <ShoppingBag size={15} /> {available ? 'Claim & arrange handoff' : item.claimedByMe ? 'Claimed by you' : 'Already claimed'}
+              </button>
+              <button onClick={() => onChat(item)} className="btn btn-secondary" style={{ gap: 6 }}><MessageSquare size={15} /> Chat</button>
+              <button onClick={() => onCall(item)} className="btn btn-outline-emerald" style={{ gap: 6 }}><Phone size={15} /> Call</button>
+            </div>
+          )}
         </div>
       </div>
     </div>

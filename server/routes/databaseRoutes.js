@@ -1,6 +1,5 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import express from 'express';
-import mongoose from 'mongoose';
 import { getDBStatus } from '../config/db.js';
 import {
   User,
@@ -60,7 +59,8 @@ router.get('/status', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Something went wrong — please try again.' });
   }
 });
 
@@ -86,7 +86,8 @@ router.post('/seed', requireAuth, async (req, res) => {
     const result = await seedDatabase(force);
     res.json({ success: true, result });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Something went wrong — please try again.' });
   }
 });
 

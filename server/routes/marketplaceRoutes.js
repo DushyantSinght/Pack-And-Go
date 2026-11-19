@@ -1,11 +1,29 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
+import crypto from 'node:crypto';
 import express from 'express';
 import { MarketplaceItem, User } from '../models/index.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { notify } from '../services/notify.js';
 
 const router = express.Router();
 
 const MAX_PHOTO_BYTES = 1.5 * 1024 * 1024;
+
+/**
+ * What a browser of the marketplace sees. Contact details never leave the server — buyers and
+ * sellers reach each other through Pack&Go chat and calls — and only the seller learns who claimed.
+ */
+const publicItem = (doc, myEmail) => {
+  const { claimedBy, seller, __v, ...rest } = doc.toObject ? doc.toObject() : doc;
+  const mine = !!myEmail && seller?.email === myEmail;
+  return {
+    ...rest,
+    seller: { name: seller?.name || 'Resident', userType: seller?.userType },
+    mine,
+    claimedByMe: !!myEmail && claimedBy?.email === myEmail,
+    ...(mine && claimedBy && { claimedBy: { name: claimedBy.name, claimedAt: claimedBy.claimedAt } })
+  };
+};
 /** Accept an https image link or an uploaded photo (data URL); anything else → no photo. */
 const cleanImage = (v) => {
   const s = String(v || '').trim();
@@ -26,6 +44,12 @@ export const repairListingPhotos = async () => {
   );
   const r2 = await MarketplaceItem.updateMany({ imageUrl: { $regex: DEAD } }, { $set: { imageUrl: '' } });
   const r3 = await MarketplaceItem.updateMany({ imageUrl: { $regex: YARN } }, { $set: { imageUrl: FRIDGE } });
+  // Older listings got a made-up "was" price (2.2× or 2.5× the asking price) — drop it.
+  await MarketplaceItem.updateMany(
+    { $expr: { $or: [2.2, 2.5].map((k) => ({ $lt: [{ $abs: { $subtract: ['$originalPrice', { $multiply: ['$price', k] }] } }, 0.01] })) } },
+    [{ $set: { originalPrice: '$price' } }],
+    { updatePipeline: true }
+  );
   return r1.modifiedCount + r2.modifiedCount + r3.modifiedCount;
 };
 
@@ -46,34 +70,39 @@ router.get('/', optionalAuth, async (req, res) => {
     ]);
     const totalCarbonSavedKg = carbonAgg[0]?.totalCO2 || 142;
 
-    res.json({ success: true, count: items.length, totalCarbonSavedKg, items });
+    res.json({ success: true, count: items.length, totalCarbonSavedKg, items: items.map((i) => publicItem(i, req.user?.email)) });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Something went wrong — please try again.' });
   }
 });
 
 // POST /api/marketplace — Create a new listing (protected)
 router.post('/', requireAuth, async (req, res) => {
   try {
-    const { title, society, category, price, originalPrice, condition, description, imageUrl } = req.body;
-    const parsedPrice = Number(price);
+    const { society, category, price, originalPrice, condition, description, imageUrl } = req.body;
+    const title = String(req.body.title || '').trim().slice(0, 120);
+    const parsedPrice = Math.round(Number(price));
+    if (!title) return res.status(400).json({ success: false, message: 'Give your listing a title.' });
+    if (!(parsedPrice > 0 && parsedPrice <= 1_000_000)) return res.status(400).json({ success: false, message: 'Enter a price between ₹1 and ₹10,00,000.' });
+    const mrp = Math.round(Number(originalPrice));
     const co2SavedKg = Math.round(parsedPrice / 100) + 15;
-    const itemId = `circ-${Date.now()}`;
+    const itemId = `circ-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
     const me = await User.findById(req.user._id).lean();
 
     const newItem = await MarketplaceItem.create({
       itemId,
       title,
-      society: society || 'Prestige Falcon City, Bengaluru',
-      category: category || 'Furniture',
+      society: String(society || 'Prestige Falcon City, Bengaluru').slice(0, 120),
+      category: String(category || 'Furniture').slice(0, 40),
       price: parsedPrice,
-      originalPrice: Number(originalPrice) || parsedPrice * 2.2,
-      condition: condition || 'Very Good',
+      originalPrice: mrp > parsedPrice ? mrp : parsedPrice, // no made-up "was" price
+      condition: String(condition || 'Very Good').slice(0, 80),
       handoffType: 'Direct In-Building P2P',
       zeroTransitFee: true,
       co2SavedKg,
       imageUrl: cleanImage(imageUrl),
-      description: description || 'Outgoing tenant zero-transit handoff.',
+      description: String(description || 'Outgoing tenant zero-transit handoff.').slice(0, 1000),
       seller: {
         name: me?.name || 'Outgoing Tenant',
         phone: me?.phone || '',
@@ -83,9 +112,10 @@ router.post('/', requireAuth, async (req, res) => {
       status: 'available'
     });
 
-    res.status(201).json({ success: true, item: newItem });
+    res.status(201).json({ success: true, item: publicItem(newItem, req.user.email) });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Something went wrong — please try again.' });
   }
 });
 
@@ -99,24 +129,35 @@ router.post('/:itemId/claim', requireAuth, async (req, res) => {
     if (item.status !== 'available') {
       return res.status(409).json({ success: false, message: 'This item has already been claimed.' });
     }
+    if (item.seller?.email && item.seller.email === req.user.email) {
+      return res.status(409).json({ success: false, message: "That's your own listing." });
+    }
 
-    item.status = 'claimed';
+    // Atomic: only one buyer can flip it from available → claimed.
     const me = await User.findById(req.user._id).lean();
-    item.claimedBy = {
-      name: me?.name || 'Incoming Resident',
-      phone: me?.phone || '',
-      email: req.user.email,
-      claimedAt: new Date()
-    };
-    await item.save();
+    const claimed = await MarketplaceItem.findOneAndUpdate(
+      { itemId, status: 'available' },
+      { $set: { status: 'claimed', claimedBy: { name: me?.name || 'Incoming Resident', phone: me?.phone || '', email: req.user.email, claimedAt: new Date() } } },
+      { returnDocument: 'after' }
+    );
+    if (!claimed) return res.status(409).json({ success: false, message: 'This item has already been claimed.' });
+    if (item.seller?.email) {
+      notify(item.seller.email, {
+        type: 'info',
+        title: `${me?.name || 'Someone'} claimed “${item.title}”`,
+        body: 'Chat with them from Messages to arrange the handoff.',
+        email: true
+      });
+    }
 
     res.json({
       success: true,
       message: `Claimed "${item.title}"! Saved ${item.co2SavedKg} kg CO2 emissions.`,
-      item
+      item: publicItem(claimed, req.user.email)
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Could not claim this item.' });
   }
 });
 

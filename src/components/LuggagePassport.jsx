@@ -1,5 +1,5 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMove } from '../context/MoveContext';
 import QRCode from 'qrcode';
 import {
@@ -7,33 +7,35 @@ import {
   Box,
   ShieldCheck,
   CheckCircle,
-  AlertTriangle,
   Camera,
-  Search,
   KeyRound,
   FileCheck2,
-  Maximize2,
-  Lock,
   Plus,
-  ArrowRight,
-  Sliders
+  ArrowRight
 } from 'lucide-react';
 import { PageIcon } from './ui/PageIcon';
 import { FlipCode } from './ui/FlipCode';
 import { SafeImage } from './ui/SafeImage';
+import { EmptyState } from './ui/EmptyState';
 
 export const LuggagePassport = () => {
   const {
     passports,
     addNewBoxPassport,
     currentEstimate,
-    activeRole,
     showToast,
     setActiveTab,
-    openDepositCert
+    openDepositCert,
+    user,
+    openAuth
   } = useMove();
 
   const [selectedBox, setSelectedBox] = useState(passports[0]);
+  // Keep the selection in step with the list (e.g. after your own boxes load).
+  useEffect(() => {
+    const key = (b) => b?.boxId || b?.id;
+    if (!passports.some((b) => key(b) === key(selectedBox))) setSelectedBox(passports[0]);
+  }, [passports, selectedBox]);
   const [sliderPosition, setSliderPosition] = useState(50); // Before / After comparison slider
   const [showAddBoxModal, setShowAddBoxModal] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState('');
@@ -79,15 +81,16 @@ export const LuggagePassport = () => {
     setTimeout(() => window.print(), 250);
   };
 
-  const handleCreateNewBox = (e) => {
+  const handleCreateNewBox = async (e) => {
     e.preventDefault();
-    const itemsArray = newBoxForm.items.split(',').map((s) => s.trim());
-    addNewBoxPassport({
+    const itemsArray = newBoxForm.items.split(',').map((s) => s.trim()).filter(Boolean);
+    const ok = await addNewBoxPassport({
       category: newBoxForm.category,
       label: newBoxForm.label,
       fragile: newBoxForm.fragile,
       items: itemsArray
     });
+    if (!ok) return;
     setShowAddBoxModal(false);
     setNewBoxForm({
       category: 'Electronics & Gadgets',
@@ -144,10 +147,23 @@ export const LuggagePassport = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 700, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Box size={18} color="var(--cyan)" />
-              Active Relocation Cartons ({passports.length})
+              {user ? 'Your boxes' : 'Example boxes'} ({passports.length})
             </span>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tap to inspect passport</span>
           </div>
+
+          {!user && (
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-elevated)', borderRadius: 10, padding: '10px 12px' }}>
+              These are example boxes.{' '}
+              <button onClick={() => openAuth('login')} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, font: 'inherit', fontWeight: 700 }}>Sign in</button>{' '}
+              to create passports for your own boxes.
+            </div>
+          )}
+          {user && !passports.length && (
+            <EmptyState art="box" compact title="No boxes yet">
+              Add a box for each carton you pack, then print the QR labels. Your Move Captain scans them while loading.
+            </EmptyState>
+          )}
 
           {/* Cartons Accordion / List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

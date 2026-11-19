@@ -8,7 +8,7 @@ import { SkeletonList } from './ui/Skeleton';
 import { haptic, HAPTIC } from '../utils/haptics';
 import { EmptyState } from './ui/EmptyState';
 
-const box = { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 16, marginBottom: 16 };
+const box = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 10, padding: 16, marginBottom: 16 };
 const when = (d) => (d ? new Date(d).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '');
 const mapsLink = (p, label) => (p?.lat ? `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(label || '')}`);
 
@@ -168,10 +168,10 @@ export const DriverJobPanel = ({ jobs, setJobs, loading, selectedJobId, setSelec
           <EmptyState art="truck" compact title="No open jobs right now">New paid bookings near you appear here instantly.</EmptyState>
         )}
         {openJobs.map((j) => (
-          <div key={j.bookingId} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '10px 0', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div key={j.bookingId} style={{ borderTop: '1px solid var(--border-subtle)', padding: '10px 0', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 200, fontSize: '0.8rem' }}>
               <div style={{ fontWeight: 700 }}>{j.origin?.split(',')[0]} → {j.destination?.split(',')[0]}</div>
-              <div style={{ color: '#94A3B8' }}>{when(j.moveDate)} ({j.timeSlot}) • {j.totalCuFt} cu ft • {j.distanceKm} km{j.floorsOrigin && !j.hasLiftOrigin ? ` • ${j.floorsOrigin}F stairs` : ''}</div>
+              <div style={{ color: 'var(--text-muted)' }}>{when(j.moveDate)} ({j.timeSlot}) • {j.totalCuFt} cu ft • {j.distanceKm} km{j.floorsOrigin && !j.hasLiftOrigin ? ` • ${j.floorsOrigin}F stairs` : ''}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
               {j.payout && <div style={{ fontWeight: 800, color: '#10B981' }}>₹{j.payout.toLocaleString('en-IN')}</div>}
@@ -187,18 +187,23 @@ export const DriverJobPanel = ({ jobs, setJobs, loading, selectedJobId, setSelec
           <Navigation size={15} color="#38BDF8" /> 2. Your job
         </div>
         {!job ? (
-          <div style={{ fontSize: '0.8rem', color: '#94A3B8' }}>Accept a job to start.</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Accept a job to start.</div>
         ) : (
           <>
             {myJobs.length > 1 && (
-              <select value={job.bookingId} onChange={(e) => setSelectedJobId(e.target.value)} style={{ width: '100%', marginBottom: 10, padding: '8px 10px', borderRadius: 6, background: '#0F172A', border: '1px solid #334155', color: '#fff', fontSize: '0.8rem' }}>
+              <select value={job.bookingId} onChange={(e) => setSelectedJobId(e.target.value)} style={{ width: '100%', marginBottom: 10, padding: '8px 10px', borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', fontSize: '0.8rem' }}>
                 {myJobs.map((j) => <option key={j.bookingId} value={j.bookingId}>{j.bookingId} · {j.userName} ({j.stage})</option>)}
               </select>
             )}
             <div style={{ fontSize: '0.8rem', lineHeight: 1.6 }}>
-              <div><strong>{job.userName}</strong> • {job.bookingId} • {when(job.moveDate)}</div>
-              <div style={{ color: '#94A3B8' }}><MapPin size={11} /> Pickup: <a href={mapsLink(job.originLocation, job.origin)} target="_blank" rel="noreferrer" style={{ color: '#38BDF8' }}>{job.origin}</a></div>
-              <div style={{ color: '#94A3B8' }}><MapPin size={11} /> Drop: <a href={mapsLink(job.destinationLocation, job.destination)} target="_blank" rel="noreferrer" style={{ color: '#38BDF8' }}>{job.destination}</a></div>
+              <div>
+                <strong>{job.userName}</strong> • {job.bookingId} • {when(job.moveDate)}
+                {job.stage === 'pickup' && job.moveDate && new Date(job.moveDate).getTime() + 3 * 3600_000 < Date.now() && (
+                  <span title="The slot has ended and pickup isn't verified yet" style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 999, fontSize: '0.66rem', fontWeight: 800, background: 'rgba(239,68,68,0.15)', color: '#F87171', border: '1px solid rgba(239,68,68,0.35)' }}>OVERDUE</span>
+                )}
+              </div>
+              <div style={{ color: 'var(--text-muted)' }}><MapPin size={11} /> Pickup: <a href={mapsLink(job.originLocation, job.origin)} target="_blank" rel="noreferrer" style={{ color: 'var(--cyan)' }}>{job.origin}</a></div>
+              <div style={{ color: 'var(--text-muted)' }}><MapPin size={11} /> Drop: <a href={mapsLink(job.destinationLocation, job.destination)} target="_blank" rel="noreferrer" style={{ color: 'var(--cyan)' }}>{job.destination}</a></div>
               {job.notes && <div style={{ color: '#FBBF24' }}>Note: {job.notes}</div>}
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
@@ -211,7 +216,7 @@ export const DriverJobPanel = ({ jobs, setJobs, loading, selectedJobId, setSelec
               )}
             </div>
             {sharing && (
-              <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: 8 }}>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 8 }}>
                 {lastFix
                   ? lastFix.ok
                     ? `📡 Customer can see you${lastFix.etaMin ? ` • ~${lastFix.etaMin} min to ${job.stage === 'pickup' ? 'pickup' : 'drop'}` : ''}. Keep this screen open.`
@@ -222,7 +227,7 @@ export const DriverJobPanel = ({ jobs, setJobs, loading, selectedJobId, setSelec
 
             {/* Box audit */}
             {job.stage === 'pickup' && (
-              <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
+              <div style={{ marginTop: 14, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <ScanLine size={14} color="#D4AF37" /> Box check while loading ({(loaded[job.bookingId] || []).length} scanned)
                 </div>
@@ -237,7 +242,7 @@ export const DriverJobPanel = ({ jobs, setJobs, loading, selectedJobId, setSelec
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                     <button className="btn btn-sm btn-secondary" onClick={() => setScanning(true)} style={{ gap: 5 }}><Camera size={13} /> Scan QR</button>
                     <form onSubmit={(e) => { e.preventDefault(); if (manualId.trim()) addBox(manualId); }} style={{ display: 'flex', gap: 6, flex: 1 }}>
-                      <input value={manualId} onChange={(e) => setManualId(e.target.value)} placeholder="or type box ID" style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: 6, background: '#0F172A', border: '1px solid #334155', color: '#fff', fontSize: '0.78rem' }} />
+                      <input value={manualId} onChange={(e) => setManualId(e.target.value)} placeholder="or type box ID" style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', fontSize: '0.78rem' }} />
                     </form>
                   </div>
                 )}

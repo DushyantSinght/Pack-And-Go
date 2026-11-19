@@ -177,6 +177,8 @@ const moveBookingSchema = new mongoose.Schema(
     assignedAt: Date,
     captainPayout: { amount: Number, creditedAt: Date },
     driverLocation: { lat: Number, lng: Number, speedKmh: Number, heading: Number, updatedAt: Date },
+    // Secret for the read-only family tracking link (/?track=…). Owner-only; never in normal views.
+    trackToken: { type: String, select: false, index: { unique: true, sparse: true } },
     nearbyNotifiedAt: Date,
     cancellation: { at: Date, reason: String, refundPercent: Number, by: String },
     rescheduledCount: { type: Number, default: 0 },

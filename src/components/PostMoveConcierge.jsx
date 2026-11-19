@@ -1,29 +1,20 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useState } from 'react';
-import { useMove } from '../context/MoveContext';
 import { ServiceRequestModal } from './ServiceRequestModal';
 import { POST_MOVE_ACCOMMODATIONS, UPKEEP_SERVICES } from '../data/mockData';
 import {
   UtensilsCrossed,
   Users,
-  ShieldCheck,
   Building,
   Heart,
-  Calendar,
-  Clock,
   Sparkles,
   MapPin,
-  Check,
-  Search,
-  Percent,
   Warehouse
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { PageIcon } from './ui/PageIcon';
 import { SafeImage } from './ui/SafeImage';
 
 export const PostMoveConcierge = () => {
-  const { showToast, setActiveTab } = useMove();
   const [dietFilter, setDietFilter] = useState('All'); // 'All' | 'PureVeg' | 'Jain'
   const [bookedServices, setBookedServices] = useState([]);
   const [activeStorageDays, setActiveStorageDays] = useState(3);

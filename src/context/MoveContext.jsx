@@ -5,18 +5,26 @@ import {
   ACTIVE_POOLED_CORRIDORS,
   DIGITAL_LUGGAGE_PASSPORTS,
   CIRCULAR_MARKETPLACE_ITEMS,
-  THEMED_ROOMS,
-  ARRIVAL_ESSENTIALS_KIT
+  THEMED_ROOMS
 } from '../data/mockData';
 import { api, tokenStorage } from '../services/api';
 
-const MoveContext = createContext();
+// Kept on globalThis so a dev hot-reload of this file reuses the same context
+// (otherwise components briefly lose their provider and the error screen flashes).
+const MoveContext = (globalThis.__packandgoMoveContext ??= createContext());
 
 export const MoveProvider = ({ children }) => {
   // Navigation & Role
   const [activeTab, setActiveTab] = useState('estimator');
   const [activeRole, setActiveRole] = useState('customer'); // customer | captain | outgoing | parent
-  const [themeMode, setThemeMode] = useState('dark');
+  // Remember the visitor's theme; first visit follows the device setting.
+  const [themeMode, setThemeMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pkg_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch { /* storage blocked */ }
+    return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  });
 
   // Active Move State
   const [currentEstimate, setCurrentEstimate] = useState({
@@ -170,9 +178,9 @@ export const MoveProvider = ({ children }) => {
         // Signed-in-only data: skip the calls entirely when logged out (no 401 noise).
         const authed = !!tokenStorage.get();
         const passRes = authed ? await api.getPassports().catch(() => null) : null;
-        if (passRes?.passports && passRes.passports.length > 0) {
-          setPassports(passRes.passports);
-        }
+        // Signed in: show your real boxes (even if none yet). Logged out: example boxes.
+        if (passRes?.passports) setPassports(passRes.passports);
+        else if (!authed) setPassports(DIGITAL_LUGGAGE_PASSPORTS);
 
         // Fetch Marketplace Items from MongoDB
         const marketRes = await api.getMarketplaceItems().catch(() => null);
@@ -272,6 +280,7 @@ export const MoveProvider = ({ children }) => {
     setCurrentEstimate((prev) => ({ ...prev, pickupOtp: null, deliveryOtp: null }));
     setMyMoves([]);
     setIsMyMovesOpen(false);
+    setPassports(DIGITAL_LUGGAGE_PASSPORTS);
     setActiveRole('customer');
     showToast('Logged out of Pack&Go.', 'info');
   };
@@ -291,6 +300,7 @@ export const MoveProvider = ({ children }) => {
   // Sync theme attribute to document root
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', themeMode);
+    try { localStorage.setItem('pkg_theme', themeMode); } catch { /* storage blocked */ }
   }, [themeMode]);
 
   const toggleTheme = () => {
@@ -387,33 +397,15 @@ export const MoveProvider = ({ children }) => {
 
   // Add box to passports & persist to MongoDB
   const addNewBoxPassport = async (boxData) => {
-    const newBox = {
-      boxId: `PKG-BOX-${Math.floor(1000 + Math.random() * 9000)}-CUSTOM`,
-      boxNumber: `Box 0${passports.length + 1} of 0${passports.length + 1}`,
-      category: boxData.category || 'General Household',
-      label: boxData.label || 'Custom Packed Goods',
-      fragile: !!boxData.fragile,
-      conditionAtOrigin: 'Pre-Move Photographed & Sealed in MongoDB',
-      conditionAtDropoff: 'Pending Delivery Audit',
-      boxSize: boxData.boxSize || 'Medium Sturdy (18" x 14" x 12")',
-      sealStatus: 'Tamper-Evident RFID Tape #TX-' + Math.floor(1000 + Math.random() * 9000),
-      preMovePhotoUrl: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80',
-      postMovePhotoUrl: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80',
-      itemsContained: boxData.items || ['Packed essentials', 'Accessories'],
-      depositProtectionNote: 'Protected under Pack&Go Deposit Escrow.',
-      qrDataString: `PACKANDGO://PASSPORT/BOX-NEW?t=${Date.now()}&db=mongo`
-    };
-
-    setPassports((prev) => [newBox, ...prev]);
-    showToast(`Box ${newBox.boxId} QR Passport saved to MongoDB!`, 'success');
-
+    if (!requireSignIn('add a box')) return false;
     try {
-      const res = await api.createPassport(boxData);
-      if (res?.box) {
-        setPassports((prev) => prev.map((b) => (b.boxId === newBox.boxId ? res.box : b)));
-      }
+      const res = await api.createPassport({ ...boxData, bookingId: currentEstimate?.bookingId });
+      setPassports((prev) => [res.box, ...prev]);
+      showToast(`${res.box.boxId} added — print its QR label from this page.`, 'success');
+      return true;
     } catch (e) {
-      console.warn('MongoDB passport save notice:', e.message);
+      showToast(`Couldn't save the box: ${e.message}`, 'error');
+      return false;
     }
   };
 
@@ -428,14 +420,15 @@ export const MoveProvider = ({ children }) => {
       category: item.category || 'Furniture',
       seller: { name: user?.name || 'You', phone: user?.phone || '' },
       price: Number(item.price),
-      originalPrice: Number(item.originalPrice) || Number(item.price) * 2.5,
+      originalPrice: Number(item.originalPrice) || Number(item.price),
       condition: item.condition || 'Very Good',
       handoffType: 'Direct In-Building P2P',
       zeroTransitFee: true,
       co2SavedKg: Math.round(Number(item.price) / 100) + 15,
       imageUrl: item.imageUrl || '',
       description: item.description || 'Outgoing tenant handoff. Zero transit emissions.',
-      status: 'available'
+      status: 'available',
+      mine: true
     };
     // Show it straight away, then swap in the saved listing (with its real ID).
     setMarketplaceItems((prev) => [draft, ...prev]);
@@ -453,17 +446,22 @@ export const MoveProvider = ({ children }) => {
   };
 
   // Claim or Buy item & update MongoDB
+  /** Claims a listing. Resolves true only once the server has confirmed it's yours. */
   const claimMarketplaceItem = async (itemId) => {
     const item = marketplaceItems.find((i) => (i.itemId === itemId || i.id === itemId));
-    if (!item) return;
-    setMarketplaceItems((prev) => prev.filter((i) => (i.itemId !== itemId && i.id !== itemId)));
-    setCarbonSavedTotalKg((prev) => prev + item.co2SavedKg);
-    showToast(`Claimed "${item.title}"! Saved ${item.co2SavedKg} kg CO2 with zero-transit handoff.`, 'success');
-
+    if (!item || !requireSignIn('claim this item')) return false;
+    const same = (i) => i.itemId === itemId || i.id === itemId;
     try {
-      await api.claimMarketplaceItem(itemId);
+      const res = await api.claimMarketplaceItem(itemId);
+      setMarketplaceItems((prev) => prev.map((i) => (same(i) ? { ...i, ...res.item } : i)));
+      setCarbonSavedTotalKg((prev) => prev + (item.co2SavedKg || 0));
+      showToast(`Claimed "${item.title}"! Chat with the seller to arrange the handoff.`, 'success');
+      return true;
     } catch (e) {
-      console.warn('MongoDB claim notice:', e.message);
+      showToast(e.message || "Couldn't claim that item.", 'error');
+      // Someone else got there first — show it as claimed.
+      if (e.status === 409 && !item.mine) setMarketplaceItems((prev) => prev.map((i) => (same(i) ? { ...i, status: 'claimed' } : i)));
+      return false;
     }
   };
 

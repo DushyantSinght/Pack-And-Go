@@ -7,22 +7,14 @@ import { MarketplaceItemSheet, itemViewTransitionName } from './MarketplaceItemS
 import { withViewTransition } from '../utils/viewTransition';
 import { BUYBACK_DEVICES } from '../data/mockData';
 import {
-  Repeat,
   Leaf,
   Plus,
   Building,
-  Tag,
-  DollarSign,
-  TrendingDown,
-  Sparkles,
   ShoppingBag,
-  Zap,
-  ArrowRight,
   Calculator,
   MessageSquare,
   Phone,
-  Camera,
-  CheckCircle2
+  Camera
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PageIcon } from './ui/PageIcon';
@@ -34,7 +26,6 @@ export const CircularMarketplace = () => {
     addMarketplaceItem,
     claimMarketplaceItem,
     carbonSavedTotalKg,
-    activeRole,
     showToast
   } = useMove();
 
@@ -110,13 +101,10 @@ export const CircularMarketplace = () => {
   const openSheet = (item) => withViewTransition(() => setSheetItem(item));
   const closeSheet = () => withViewTransition(() => setSheetItem(null));
 
-  const handleClaim = (item) => {
-    confetti({
-      particleCount: 50,
-      spread: 60,
-      origin: { y: 0.7 }
-    });
-    claimMarketplaceItem(item.itemId || item.id);
+  const handleClaim = async (item) => {
+    const ok = await claimMarketplaceItem(item.itemId || item.id);
+    if (ok) confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+    return ok;
   };
 
   const handleCreateListing = async (e) => {
@@ -218,12 +206,12 @@ export const CircularMarketplace = () => {
           </div>
         </div>
 
-        {/* Right: Cashify-Style Instant Electronics & Appliance Buyback */}
+        {/* Right: Instant Electronics & Appliance Buyback */}
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 700, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Calculator size={18} color="var(--amber)" />
-              Cashify-Style Instant Buyback Appraisal
+              Instant Buyback Appraisal
             </span>
             <span className="badge badge-amber">Instant Cash Credit</span>
           </div>
@@ -419,17 +407,29 @@ export const CircularMarketplace = () => {
                   <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>
                     ₹{item.price.toLocaleString('en-IN')}
                   </span>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)', textDecoration: 'line-through' }}>
-                    ₹{item.originalPrice.toLocaleString('en-IN')}
-                  </span>
-                  <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>
-                    {Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}% OFF
-                  </span>
+                  {item.originalPrice > item.price && (
+                    <>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)', textDecoration: 'line-through' }}>
+                        ₹{item.originalPrice.toLocaleString('en-IN')}
+                      </span>
+                      <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>
+                        {Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}% OFF
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
 
             <div style={{ padding: '12px 18px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {item.mine ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8rem', color: 'var(--text-muted)', padding: '6px 2px', lineHeight: 1.45 }}>
+                  <span className="badge badge-gold" style={{ fontSize: '0.65rem', flexShrink: 0 }}>Your listing</span>
+                  {item.status && item.status !== 'available'
+                    ? <span>Claimed{item.claimedBy?.name ? ` by ${item.claimedBy.name}` : ''} — arrange the handoff in Messages.</span>
+                    : <span>Live — buyers can chat or call you through Pack&Go.</span>}
+                </div>
+              ) : (<>
               <button
                 key={`claim-${item.status || 'available'}`}
                 onClick={() => handleClaim(item)}
@@ -438,7 +438,7 @@ export const CircularMarketplace = () => {
                 style={{ width: '100%', gap: '6px', opacity: item.status && item.status !== 'available' ? 0.55 : 1 }}
               >
                 <ShoppingBag size={14} />
-                {item.status && item.status !== 'available' ? 'Already Claimed' : 'Claim / Arrange Handoff'}
+                {item.claimedByMe ? 'Claimed by you' : item.status && item.status !== 'available' ? 'Already Claimed' : 'Claim / Arrange Handoff'}
               </button>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
@@ -458,6 +458,7 @@ export const CircularMarketplace = () => {
                   <Phone size={14} /> Call
                 </button>
               </div>
+              </>)}
             </div>
           </div>
         ))}

@@ -1,5 +1,5 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
-import React from 'react';
+import React, { useState } from 'react';
 import { useMove } from './context/MoveContext';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
@@ -20,6 +20,7 @@ import { DatabaseSchemaModal } from './components/DatabaseSchemaModal';
 import { ChatDrawer } from './components/ChatDrawer';
 import { CallModal } from './components/CallModal';
 import { AdminCaptainsModal } from './components/AdminCaptainsModal';
+import { FamilyTrackingView } from './components/FamilyTrackingView';
 import { BookingWizard } from './components/BookingWizard';
 import { MyMovesModal } from './components/MyMovesModal';
 import { LegalModal } from './components/LegalModal';
@@ -32,12 +33,7 @@ import { Toaster } from './components/Toaster';
 import {
   ShieldAlert,
   Smartphone,
-  Truck,
-  CheckCircle,
-  AlertCircle,
-  X,
-  ExternalLink,
-  Heart
+  Truck
 } from 'lucide-react';
 
 export function App() {
@@ -45,7 +41,6 @@ export function App() {
     activeTab,
     activeRole,
     setActiveRole,
-    currentEstimate,
     isAuthModalOpen,
     setIsAuthModalOpen,
     authModalMode,
@@ -63,12 +58,19 @@ export function App() {
     openPayment,
     openDepositCert,
     openDriverConsole,
-    openDbModal,
     user,
     isAdminOpen,
     setIsAdminOpen,
-    setLegalDoc
+    openBooking
   } = useMove();
+  // Family tracking links: /?track=<token>
+  const [trackToken, setTrackToken] = useState(() => new URLSearchParams(window.location.search).get('track'));
+  const closeTracking = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('track');
+    window.history.replaceState({}, '', url.pathname + url.search);
+    setTrackToken(null);
+  };
   useGlobalMotion();
   const captainPending = user?.userType === 'captain' && user?.captainStatus && user.captainStatus !== 'approved';
 
@@ -128,7 +130,7 @@ export function App() {
             {activeRole === 'parent' && (
               <>
                 <Smartphone size={16} />
-                <span>Parent Live View Active: Monitoring Student Move (KA-01-MJ-4921) • Telemetry Safe.</span>
+                <span>Parent view: open the family tracking link your student shares from My Moves to follow their truck live.</span>
               </>
             )}
             {activeRole === 'outgoing' && (
@@ -247,6 +249,7 @@ export function App() {
 
       {/* Staff: Move Captain application review */}
       <AdminCaptainsModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
+      {trackToken && <FamilyTrackingView token={trackToken} onClose={closeTracking} onBook={() => { closeTracking(); openBooking(); }} />}
 
       {/* Real bookings */}
       <BookingWizard />

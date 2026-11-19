@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { useCountUp } from '../hooks/useMotion';
 import {
   Sparkles, ShieldCheck, Truck, QrCode, Repeat, Home, GraduationCap, CheckCircle2, ArrowRight,
-  Camera, KeyRound, MapPin, Leaf, Star, Package, Users, Lock, Navigation, MessageSquare, Recycle, Clock
+  Camera, KeyRound, Leaf, Star, Package, Users, Lock, Navigation, MessageSquare, Recycle, Clock
 } from 'lucide-react';
 
 const NAV_ITEMS = [

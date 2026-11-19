@@ -7,16 +7,9 @@ import {
   Sparkles,
   Home,
   Clock,
-  Droplets,
-  Coffee,
   Check,
-  Plus,
-  ArrowRight,
-  ShieldCheck,
-  Calendar,
-  Utensils
+  ArrowRight
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { PageIcon } from './ui/PageIcon';
 import { SafeImage } from './ui/SafeImage';
 
@@ -24,12 +17,9 @@ export const ThemedRoomSetup = () => {
   const {
     currentEstimate,
     selectTheme,
-    toggleEssential,
-    showToast,
-    setActiveTab
+    toggleEssential
   } = useMove();
 
-  const selectedThemeObj = THEMED_ROOMS.find((t) => t.id === currentEstimate.selectedTheme) || THEMED_ROOMS[0];
 
   // Calculate essentials total
   const essentialsTotal = ARRIVAL_ESSENTIALS_KIT.filter((item) =>

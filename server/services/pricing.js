@@ -62,10 +62,15 @@ export const slotStart = (dateStr, slotId) => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
+/** How long after a slot starts an unaccepted job is still offered to captains. */
+export const OPEN_JOB_GRACE_MS = 2 * 3_600_000;
+
 /** Cancellation refund policy (also shown in the Refund Policy page). */
 export const refundPercentFor = (booking, now = Date.now()) => {
   if (!booking.moveDate) return 100;
   if (['in_transit', 'delivered', 'cancelled'].includes(booking.status)) return 0;
+  // No Move Captain has committed to it yet, so there's nothing to compensate — full refund.
+  if (!booking.assignedCaptainEmail) return 100;
   const hoursLeft = (new Date(booking.moveDate).getTime() - now) / 3_600_000;
   if (hoursLeft >= 24) return 100;
   if (hoursLeft >= 4) return 50;

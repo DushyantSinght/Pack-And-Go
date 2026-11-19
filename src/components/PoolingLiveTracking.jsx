@@ -2,25 +2,17 @@
 import React, { useState, useEffect } from 'react';
 import { useMove } from '../context/MoveContext';
 import { useComms } from '../context/CommsContext';
-import { ACTIVE_POOLED_CORRIDORS } from '../data/mockData';
 import {
   Truck,
   Navigation,
-  Percent,
   Gauge,
   Thermometer,
   ShieldCheck,
   Phone,
   MessageSquare,
-  MapPin,
-  Clock,
-  Radio,
   CheckCircle2,
   ArrowRight,
-  TrendingUp,
-  AlertCircle,
-  Layers,
-  Map
+  TrendingUp
 } from 'lucide-react';
 import { InteractiveLeafletMap } from './InteractiveLeafletMap';
 import { PackMyTruckVisualizer } from './PackMyTruckVisualizer';

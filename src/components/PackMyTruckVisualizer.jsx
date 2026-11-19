@@ -3,13 +3,7 @@ import React, { useState } from 'react';
 import {
   Truck,
   Box,
-  Layers,
   ShieldCheck,
-  Maximize2,
-  Info,
-  Scale,
-  Sparkles,
-  CheckCircle2,
   Eye
 } from 'lucide-react';
 

@@ -42,7 +42,8 @@ export const LiveMoveMap = ({ booking, height = 240 }) => {
   useEffect(() => {
     if (!el.current || map.current) return undefined;
     const o = booking.originLocation, d = booking.destinationLocation;
-    map.current = L.map(el.current, { zoomControl: true, attributionControl: true });
+    // Wheel scrolling scrolls the page/dialog; zoom with the buttons, pinch, or double-click.
+    map.current = L.map(el.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
     tiles.current = L.tileLayer(MAP_TILE_URL, { maxZoom: 19, attribution: MAP_ATTRIBUTION }).addTo(map.current);
     const pts = [];
     if (o?.lat) { L.marker([o.lat, o.lng], { icon: pin('#2563EB', 'Pickup') }).addTo(map.current); pts.push([o.lat, o.lng]); }
@@ -114,6 +115,9 @@ export const LiveMoveMap = ({ booking, height = 240 }) => {
   }, [live, booking.status, booking.originLocation, booking.destinationLocation]);
 
   const ageSec = live?.updatedAt ? Math.round((Date.now() - new Date(live.updatedAt).getTime()) / 1000) : null;
+  // Older than 10 minutes isn't "live" any more — say when it was last seen instead.
+  const stale = ageSec != null && ageSec > 600;
+  const ago = (s) => (s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} days`);
 
   return (
     <div>
@@ -121,10 +125,16 @@ export const LiveMoveMap = ({ booking, height = 240 }) => {
       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
         {live?.lat ? (
           <>
-            <span className="live-dot" style={{ width: 7, height: 7 }} />
-            Live location{live.etaMin ? ` • about ${live.etaMin} min away (${live.kmLeft?.toFixed(1)} km)` : ''}
-            {live.speedKmh ? ` • ${Math.round(live.speedKmh)} km/h` : ''}
-            {ageSec != null && ageSec > 120 ? ` • last update ${Math.round(ageSec / 60)} min ago` : ''}
+            {stale ? (
+              <>Last seen here {ago(ageSec)} ago — the captain isn't sharing live location right now.</>
+            ) : (
+              <>
+                <span className="live-dot" style={{ width: 7, height: 7 }} />
+                Live location{live.etaMin ? ` • about ${live.etaMin} min away (${live.kmLeft?.toFixed(1)} km)` : ''}
+                {live.speedKmh ? ` • ${Math.round(live.speedKmh)} km/h` : ''}
+                {ageSec != null && ageSec > 120 ? ` • last update ${Math.round(ageSec / 60)} min ago` : ''}
+              </>
+            )}
           </>
         ) : (
           "Your Move Captain's live location will appear here once they start sharing it."

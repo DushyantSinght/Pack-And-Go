@@ -7,20 +7,15 @@ import {
   Camera,
   Mic,
   MicOff,
-  Sparkles,
   Layers,
   Box,
   Truck,
   Users,
   Lock,
   ArrowRight,
-  CheckCircle,
   Eye,
-  RefreshCw,
-  Info,
   ShieldAlert,
-  FileText,
-  CreditCard
+  FileText
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PageIcon } from './ui/PageIcon';
@@ -31,7 +26,6 @@ export const AIEstimator = () => {
   const {
     currentEstimate,
     applyPreset,
-    setActiveTab,
     showToast,
     applyItems,
     openBooking,
@@ -305,7 +299,7 @@ export const AIEstimator = () => {
                 />
 
                 {/* Simulated Bounding Boxes */}
-                {showBoundingBoxes && !customPhotoUrl && activePreset.items.map((item, idx) => (
+                {showBoundingBoxes && !customPhotoUrl && activePreset.items.map((item) => (
                   <div
                     key={item.id}
                     style={{

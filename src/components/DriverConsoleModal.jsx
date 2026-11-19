@@ -10,17 +10,11 @@ import { useMove } from '../context/MoveContext';
 import { useComms } from '../context/CommsContext';
 import {
   Truck,
-  QrCode,
-  CheckCircle2,
-  Navigation,
-  ShieldCheck,
-  Smartphone,
   X,
-  Lock,
   KeyRound,
   Radio,
-  Camera,
   AlertCircle,
+  Clock,
   MessageSquare
 } from 'lucide-react';
 
@@ -103,13 +97,13 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
         maxWidth: '520px',
         maxHeight: '94vh',
         overflowY: 'auto',
-        background: '#0B1120',
+        background: 'var(--bg-card-solid)',
         border: '1px solid #10B981',
         borderRadius: 'var(--radius-lg)',
         padding: '24px',
         boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8)',
         position: 'relative',
-        color: '#FFFFFF'
+        color: 'var(--text-main)'
       }}>
         {/* Close Button */}
         <button
@@ -118,7 +112,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
             position: 'absolute',
             top: '18px',
             right: '18px',
-            background: 'rgba(255, 255, 255, 0.1)',
+            background: 'var(--bg-elevated)',
             border: 'none',
             borderRadius: '50%',
             width: '32px',
@@ -126,7 +120,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#FFFFFF',
+            color: 'var(--text-main)',
             cursor: 'pointer'
           }}
         >
@@ -150,16 +144,21 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>
-                <Radio size={10} /> Active Move Captain
-              </span>
-              
+              {isCaptain ? (
+                <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}><Radio size={10} /> Active Move Captain</span>
+              ) : captainStatus === 'pending' ? (
+                <span className="badge badge-gold" style={{ fontSize: '0.7rem' }}><Clock size={10} /> Application under review</span>
+              ) : captainStatus ? (
+                <span className="badge" style={{ fontSize: '0.7rem', background: 'rgba(239,68,68,0.15)', color: '#F87171', border: '1px solid rgba(239,68,68,0.35)' }}><AlertCircle size={10} /> Account {captainStatus}</span>
+              ) : (
+                <span className="badge badge-indigo" style={{ fontSize: '0.7rem' }}><Truck size={10} /> Move Captain console</span>
+              )}
             </div>
             <h3 style={{ fontSize: '1.2rem', margin: '2px 0 0 0', fontWeight: 700 }}>
               {user?.userType === 'captain' && user?.name ? `Captain ${user.name}` : 'Move Captain Console'}
             </h3>
-            <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
-              Vehicle: <strong>{user?.captainApplication?.vehicleNumber || '—'}{user?.captainApplication?.vehicleType ? ` (${user.captainApplication.vehicleType})` : ''}</strong> • ⭐ {user?.rating ?? '—'} ({user?.tripsCompleted ?? 0} moves) • Wallet <AnimatedNumber value={user?.escrowWalletBalance || 0} format={inr} />
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Vehicle: <strong>{user?.captainApplication?.vehicleNumber || '—'}{user?.captainApplication?.vehicleType ? ` (${user.captainApplication.vehicleType})` : ''}</strong> • {user?.ratingCount ? `⭐ ${user.rating} (${user.ratingCount} reviews)` : 'No reviews yet'} • {user?.tripsCompleted ?? 0} moves • Wallet <AnimatedNumber value={user?.escrowWalletBalance || 0} format={inr} />
             </div>
           </div>
         </div>
@@ -170,16 +169,16 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
           style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
             background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: 'var(--radius-md)',
-            padding: '12px 14px', color: '#FFFFFF', cursor: 'pointer', marginBottom: '16px', fontWeight: 600, fontSize: '0.88rem'
+            padding: '12px 14px', color: 'var(--text-main)', cursor: 'pointer', marginBottom: '16px', fontWeight: 600, fontSize: '0.88rem'
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <MessageSquare size={16} color="#10B981" /> Customer messages & calls
           </span>
           {unreadTotal > 0 ? (
-            <span style={{ background: '#EF4444', borderRadius: 999, padding: '1px 8px', fontSize: '0.72rem', fontWeight: 800 }}>{unreadTotal} new</span>
+            <span style={{ background: '#EF4444', color: '#fff', borderRadius: 999, padding: '1px 8px', fontSize: '0.72rem', fontWeight: 800 }}>{unreadTotal} new</span>
           ) : (
-            <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>Open inbox →</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Open inbox →</span>
           )}
         </button>
 
@@ -187,10 +186,36 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
           <DriverJobPanel jobs={jobs} setJobs={setJobs} loading={jobsLoading} selectedJobId={selectedJobId} setSelectedJobId={setSelectedJobId} />
         )}
 
+        {!isCaptain && (
+          <div role="status" style={{
+            background: captainStatus === 'pending' ? 'rgba(245, 158, 11, 0.08)' : captainStatus ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-elevated)',
+            border: `1px solid ${captainStatus === 'pending' ? 'rgba(245, 158, 11, 0.35)' : captainStatus ? 'rgba(239, 68, 68, 0.35)' : 'var(--border-subtle)'}`,
+            borderRadius: 'var(--radius-md)', padding: '16px', fontSize: '0.82rem', color: 'var(--text-main)', lineHeight: 1.55
+          }}>
+            {captainStatus === 'pending' ? (
+              <>
+                <div style={{ fontWeight: 700, color: '#FBBF24', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Clock size={15} /> We're checking your documents</div>
+                Pack&Go is verifying your licence and vehicle ({user.captainApplication?.vehicleNumber}). This usually takes under 24 hours — you'll get a notification and the job board unlocks here as soon as you're approved.
+              </>
+            ) : captainStatus ? (
+              <>
+                <div style={{ fontWeight: 700, color: '#F87171', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle size={15} /> Your driver account is {captainStatus}</div>
+                {user.captainApplication?.reviewNote || 'Contact Pack&Go support for details.'}
+              </>
+            ) : (
+              <>
+                Sign in with a Move Captain account to see jobs and verify customer handover codes.{' '}
+                <button type="button" onClick={() => { onClose(); openAuth('login'); }} className="btn btn-sm btn-outline-emerald" style={{ marginLeft: 6 }}>Sign in</button>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Step 3: Dual-End OTP Handover & Escrow Release */}
+        {isCaptain && (
         <div style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-md)',
           padding: '16px'
         }}>
@@ -203,23 +228,12 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
             </span>
           </div>
 
-          {captainStatus && captainStatus !== 'approved' ? (
-            <div style={{ fontSize: '0.8rem', color: '#94A3B8', lineHeight: 1.5 }}>
-              {captainStatus === 'pending'
-                ? <>⏳ <strong style={{ color: '#FBBF24' }}>Application under review.</strong> Pack&Go is checking your licence and vehicle ({user.captainApplication?.vehicleNumber}). You'll be notified here as soon as you're approved.</>
-                : <>⛔ <strong style={{ color: '#F87171' }}>Account {captainStatus}.</strong> {user.captainApplication?.reviewNote || 'Contact Pack&Go support.'}</>}
-            </div>
-          ) : !isCaptain ? (
-            <div style={{ fontSize: '0.8rem', color: '#94A3B8' }}>
-              Sign in with a Move Captain account to verify customer handover codes.{' '}
-              <button type="button" onClick={() => { onClose(); openAuth('login'); }} className="btn btn-sm btn-outline-emerald" style={{ marginLeft: 6 }}>Sign in</button>
-            </div>
-          ) : !selectedJob ? (
-            <div style={{ fontSize: '0.8rem', color: '#94A3B8' }}>Accept a job, then enter the customer's code at pickup and at delivery.</div>
+          {!selectedJob ? (
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Accept a job, then enter the customer's code at pickup and at delivery.</div>
           ) : otpStage !== 'completed' ? (
             <form onSubmit={handleVerifyOtp}>
 
-              <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '0 0 10px 0' }}>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
                 {otpStage === 'pickup'
                   ? 'Ask customer for their 6-digit Pickup OTP to authorize loading.'
                   : 'Ask customer for their 6-digit Delivery OTP after inspecting dropped-off boxes.'}
@@ -238,9 +252,9 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
                     flex: 1,
                     padding: '10px 12px',
                     borderRadius: '6px',
-                    background: '#0F172A',
-                    border: '1px solid #334155',
-                    color: '#FFFFFF',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-main)',
                     letterSpacing: '0.2em',
                     fontWeight: 700,
                     fontSize: '0.9rem',
@@ -257,7 +271,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
                 </button>
               </div>
 
-              <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '6px' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '6px' }}>
                 Codes are checked on the server. 5 wrong tries lock the booking for 15 minutes.
               </div>
             </form>
@@ -271,14 +285,15 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
             }}>
               <div style={{ marginBottom: 6 }}><SuccessCheck size={56} /></div>
               <div style={{ fontWeight: 800, color: '#10B981', fontSize: '0.95rem' }}>
-                Shift Completed & Escrow Paid!
+                Move delivered — payout released
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '2px' }}>
-                ₹1,890 has been transferred to Rajesh Sharma's Bank Account via IMPS.
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                {selectedJob.payout ? `${inr(selectedJob.payout)} for ${selectedJob.bookingId} is in your Pack&Go wallet.` : `Payout for ${selectedJob.bookingId} is in your Pack&Go wallet.`}
               </div>
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

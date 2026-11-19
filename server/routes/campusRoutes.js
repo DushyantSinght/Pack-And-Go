@@ -1,6 +1,6 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import express from 'express';
-import { CampusHub } from '../models/index.js';
+import { CampusHub, User } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -8,10 +8,16 @@ const router = express.Router();
 // GET /api/campus — Get all campus hubs (protected)
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const hubs = await CampusHub.find();
-    res.json({ success: true, count: hubs.length, hubs });
+    // Never send other students' names/emails/phones — just counts and whether I joined.
+    const hubs = await CampusHub.find().lean();
+    res.json({
+      success: true,
+      count: hubs.length,
+      hubs: hubs.map(({ members = [], ...h }) => ({ ...h, memberCount: members.length, joined: members.some((m) => m.email === req.user.email) }))
+    });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Something went wrong — please try again.' });
   }
 });
 
@@ -29,14 +35,15 @@ router.post('/:hubId/join', requireAuth, async (req, res) => {
     // Prevent duplicate joins for the same user
     const alreadyJoined = hub.members.some((m) => m.email === req.user.email);
     if (alreadyJoined) {
-      return res.json({ success: true, message: 'You have already joined this hub.', hub });
+      return res.json({ success: true, alreadyJoined: true, message: 'You have already joined this hub.', discountTier: hub.discountTier });
     }
+    const me = await User.findById(req.user._id).lean();
 
     hub.activeStudentsJoining += 1;
     hub.members.push({
-      name: req.user.name || 'Student Mover',
+      name: me?.name || 'Student',
       email: req.user.email,
-      phone: req.user.phone || '9876543210',
+      phone: me?.phone || '',
       college: college || hub.name
     });
 
@@ -50,10 +57,12 @@ router.post('/:hubId/join', requireAuth, async (req, res) => {
     res.json({
       success: true,
       message: `Joined ${hub.name} Move Pool! Current pool discount: ${hub.discountTier}%`,
-      hub
+      discountTier: hub.discountTier,
+      activeStudentsJoining: hub.activeStudentsJoining
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Something went wrong — please try again.' });
   }
 });
 
