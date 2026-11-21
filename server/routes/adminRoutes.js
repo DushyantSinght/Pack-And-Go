@@ -124,7 +124,15 @@ router.post('/bookings/:bookingId/cancel', async (req, res) => {
     if (!move) return res.status(404).json({ success: false, message: 'Booking not found.' });
     if (['delivered', 'cancelled'].includes(move.status)) return res.status(409).json({ success: false, message: `Booking is ${move.status}.` });
     const paid = move.paymentDetails?.status === 'paid' ? move.paymentDetails.amountPaid : 0;
-    if (paid) await refund(move, paid, req.body.reason);
+    const before = move.status;
+    const claimed = await MoveBooking.updateOne({ _id: move._id, status: before }, { $set: { status: 'cancelled', transitStatus: 'Cancelled by Pack&Go' } });
+    if (!claimed.modifiedCount) return res.status(409).json({ success: false, message: 'This booking was just updated — refresh and try again.' });
+    try {
+      if (paid) await refund(move, paid, req.body.reason);
+    } catch (e) {
+      await MoveBooking.updateOne({ _id: move._id }, { $set: { status: before } });
+      throw e;
+    }
     move.status = 'cancelled';
     move.transitStatus = 'Cancelled by Pack&Go';
     move.cancellation = { at: new Date(), reason: req.body.reason, refundPercent: 100, by: req.user.email };

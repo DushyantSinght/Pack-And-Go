@@ -111,7 +111,9 @@
 @keyframes wordIn { from { opacity: 0; transform: translateY(0.45em) rotate(2deg); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
 
 /* ── Page (tab) transitions ─────────────────────────────────────── */
-.page-enter { animation: pageIn 0.55s var(--ease-out) both; }
+/* fill-mode backwards (not both): once the entrance ends no transform/filter stays applied — a
+   lingering one would trap position:fixed dialogs inside the tab instead of the whole screen. */
+.page-enter { animation: pageIn 0.55s var(--ease-out) backwards; }
 @keyframes pageIn { from { opacity: 0; transform: translateY(16px) scale(0.995); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
 
 /* ── Dialogs & overlays ─────────────────────────────────────────── */
@@ -146,6 +148,9 @@
 
 /* ── Buttons: shine sweep, press, ripple ───────────────────────── */
 .btn { position: relative; overflow: hidden; transform: translateZ(0); }
+/* Icon buttons with a count badge: let the badge sit on the edge instead of being clipped. */
+.btn.has-badge { overflow: visible; }
+.btn.has-badge > .ripple { display: none; }
 .btn:active:not(:disabled) { transform: scale(0.97); }
 .btn:disabled { cursor: not-allowed; }
 .btn-primary::after {
@@ -406,11 +411,11 @@
 .faq-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 40px; }
 
 /* ── Existing pages: sequenced entrance + hover depth ──────────── */
-.page-enter .glass-panel { animation: fadeUp 0.7s var(--ease-out) both; }
+.page-enter .glass-panel { animation: fadeUp 0.7s var(--ease-out) backwards; }
 .page-enter .glass-panel:nth-of-type(2) { animation-delay: 0.08s; }
 .page-enter .glass-panel:nth-of-type(3) { animation-delay: 0.16s; }
 .page-enter .glass-panel:nth-of-type(4) { animation-delay: 0.24s; }
-.page-enter .grid-2 > *, .page-enter .grid-3 > *, .page-enter .grid-4 > * { animation: fadeUp 0.7s var(--ease-out) both; }
+.page-enter .grid-2 > *, .page-enter .grid-3 > *, .page-enter .grid-4 > * { animation: fadeUp 0.7s var(--ease-out) backwards; }
 .page-enter .grid-3 > *:nth-child(2), .page-enter .grid-2 > *:nth-child(2), .page-enter .grid-4 > *:nth-child(2) { animation-delay: 0.07s; }
 .page-enter .grid-3 > *:nth-child(3), .page-enter .grid-4 > *:nth-child(3) { animation-delay: 0.14s; }
 .page-enter .grid-3 > *:nth-child(4), .page-enter .grid-4 > *:nth-child(4) { animation-delay: 0.21s; }

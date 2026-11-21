@@ -36,7 +36,7 @@ export const NotificationBell = () => {
 
   return (
     <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
-      <button onClick={toggle} className="btn btn-secondary btn-sm" title="Notifications" aria-label="Notifications"
+      <button onClick={toggle} className="btn btn-secondary btn-sm has-badge" title="Notifications" aria-label="Notifications"
         style={{ position: 'relative', width: 34, height: 34, padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Bell size={15} className={bump ? 'wiggle' : ''} />
         <CountBadge count={unreadNotifications} style={{ position: 'absolute', top: -4, right: -4, background: '#EF4444', color: '#fff', fontSize: '0.62rem', fontWeight: 800, minWidth: 17, height: 17, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }} />

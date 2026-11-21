@@ -21,6 +21,11 @@ test('full booking lifecycle: quote → book → pay → accept → pickup → d
   assert.equal(q.status, 200);
   assert.ok(q.body.distanceKm > 5 && q.body.quote.total > q.body.quote.subtotal, 'quote has distance and GST');
 
+  for (const body of [{ totalCuFt: 50, originLocation: { lat: 'x', lng: 1 }, destinationLocation: WHITEFIELD }, { totalCuFt: 50, originLocation: HSR }]) {
+    assert.equal((await call('/moves/quote', { token: cust.token, method: 'POST', body })).status, 400, 'quote needs real map points');
+  }
+  const cheat = await call('/moves/quote', { token: cust.token, method: 'POST', body: { totalCuFt: 115, originLocation: HSR, destinationLocation: WHITEFIELD, distanceKm: 0 } });
+  assert.equal(cheat.body.distanceKm, q.body.distanceKm, 'client-sent distance is ignored');
   const bad = await call('/moves/book', { token: cust.token, method: 'POST', body: { origin: 'x', destination: 'y', date: tomorrow(), timeSlot: 'morning', totalCuFt: 115 } });
   assert.equal(bad.status, 400, 'addresses must be geocoded');
 
@@ -60,6 +65,29 @@ test('full booking lifecycle: quote → book → pay → accept → pickup → d
   const steal = await call(`/moves/captain/jobs/${m.bookingId}/accept`, { token: rival.token, method: 'POST' });
   assert.equal(steal.status, 409, 'second captain cannot take an accepted job');
 
+  // A captain can hand the job back before pickup; it returns to the pool and another takes it.
+  assert.equal((await call(`/moves/captain/jobs/${m.bookingId}/release`, { token: rival.token, method: 'POST' })).status, 409, "can't release someone else's job");
+  assert.equal((await call(`/moves/captain/jobs/${m.bookingId}/release`, { token: cap.token, method: 'POST', body: { reason: 'Truck breakdown' } })).status, 200);
+  const reopened = (await call('/moves/mine', { token: cust.token })).body.moves.find((x) => x.bookingId === m.bookingId);
+  assert.equal(reopened.status, 'confirmed');
+  assert.equal(reopened.refundPercentIfCancelled, 100, 'free to cancel once the captain backs out');
+  await new Promise((r) => setTimeout(r, 300));
+  const told = (await call('/notifications', { token: cust.token })).body.notifications;
+  assert.ok(told.some((n) => n.bookingId === m.bookingId && /can't make/.test(n.title)), 'customer told the captain backed out');
+  assert.ok(!(await call('/moves/captain/jobs', { token: cap.token })).body.jobs.some((j) => j.bookingId === m.bookingId && j.assignedToMe), 'no longer on the captain’s list as theirs');
+  assert.equal((await call(`/moves/captain/jobs/${m.bookingId}/accept`, { token: cap.token, method: 'POST' })).status, 200, 're-accepted');
+
+  // Box check while loading: saved on the booking, matched against the customer's passports.
+  const box = (await call('/passports', { token: cust.token, method: 'POST', body: { label: 'Kitchen box', category: 'Kitchen', bookingId: m.bookingId } })).body.box;
+  const scan = await call(`/moves/captain/jobs/${m.bookingId}/boxes`, { token: cap.token, method: 'POST', body: { boxId: box.boxId } });
+  assert.equal(scan.status, 200, scan.body.message);
+  assert.equal(scan.body.loadedBoxes[0].matched, true, 'box matches its passport');
+  await call(`/moves/captain/jobs/${m.bookingId}/boxes`, { token: cap.token, method: 'POST', body: { boxId: 'PKG-BOX-UNKNOWN1' } });
+  assert.equal((await call(`/moves/captain/jobs/${m.bookingId}/boxes`, { token: cap.token, method: 'POST', body: { boxId: box.boxId } })).body.duplicate, true);
+  assert.equal((await call(`/moves/captain/jobs/${m.bookingId}/boxes`, { token: rival.token, method: 'POST', body: { boxId: 'PKG-BOX-X1' } })).status, 404, 'other captains cannot add boxes');
+  const seen = (await call('/moves/mine', { token: cust.token })).body.moves.find((x) => x.bookingId === m.bookingId);
+  assert.deepEqual(seen.loadedBoxes.map((x) => [x.boxId, x.matched]), [[box.boxId, true], ['PKG-BOX-UNKNOWN1', false]], 'customer sees loaded boxes');
+
   assert.equal((await call('/moves/verify-otp', { token: cap.token, method: 'POST', body: { bookingId: m.bookingId, otp: m.pickupOtp, stage: 'pickup' } })).status, 200);
   const cancelLate = await call(`/moves/${m.bookingId}/cancel`, { token: cust.token, method: 'POST', body: {} });
   assert.equal(cancelLate.status, 409, 'cannot cancel after pickup');
@@ -89,8 +117,12 @@ test('cancellation refunds follow the policy', async () => {
     body: { origin: 'A', destination: 'B', originLocation: HSR, destinationLocation: WHITEFIELD, date: tomorrow(), timeSlot: 'evening', totalCuFt: 60, contactPhone: '9876500000' }
   });
   const id = booked.body.move.bookingId;
-  await call('/payments/test-pay', { token: cust.token, method: 'POST', body: { bookingId: id } });
-  const res = await call(`/moves/${id}/cancel`, { token: cust.token, method: 'POST', body: { reason: 'Plans changed' } });
+  // Double-clicks: two simultaneous payments or cancellations must not both go through.
+  const pays = await Promise.all([1, 2].map(() => call('/payments/test-pay', { token: cust.token, method: 'POST', body: { bookingId: id } })));
+  assert.deepEqual(pays.map((p) => p.status).sort(), [200, 409], 'paid exactly once');
+  const cancels = await Promise.all([1, 2].map(() => call(`/moves/${id}/cancel`, { token: cust.token, method: 'POST', body: { reason: 'Plans changed' } })));
+  assert.deepEqual(cancels.map((c) => c.status).sort(), [200, 409], 'refunded exactly once');
+  const res = cancels.find((c) => c.status === 200);
   assert.equal(res.status, 200);
   assert.equal(res.body.move.status, 'cancelled');
   assert.equal(res.body.move.cancellation.refundPercent, 100, '48h ahead → full refund');
@@ -112,7 +144,14 @@ test('a slot that passes without a captain: hidden from captains, free to resche
   // Move the slot into the past, as if nobody had accepted it in time.
   await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/packandgo');
   await mongoose.connection.db.collection('movebookings').updateOne({ bookingId: id }, { $set: { moveDate: new Date(Date.now() - 6 * 3600_000) } });
+  // The slot watcher tells the customer (once).
+  const { checkMissedSlots } = await import('../services/slotWatcher.js');
+  assert.equal(await checkMissedSlots({ only: [id] }), 1);
+  assert.equal(await checkMissedSlots({ only: [id] }), 0, 'alerted only once per slot');
+  await new Promise((r) => setTimeout(r, 300));
   await mongoose.disconnect();
+  const alerts = await call('/notifications', { token: cust.token });
+  assert.ok(alerts.body.notifications.some((n) => n.bookingId === id && /No Move Captain/.test(n.title)), 'customer told about the missed slot');
 
   const jobs = await call('/moves/captain/jobs', { token: cap.token });
   assert.ok(!jobs.body.jobs.some((j) => j.bookingId === id), 'stale job not offered');

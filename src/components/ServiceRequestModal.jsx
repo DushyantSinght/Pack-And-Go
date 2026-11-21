@@ -5,6 +5,7 @@ import { useMove } from '../context/MoveContext';
 import { api } from '../services/api';
 import { SuccessCheck } from './ui/SuccessCheck';
 import { haptic, HAPTIC } from '../utils/haptics';
+import { Portal } from './ui/Portal';
 
 const tomorrow = () => new Date(Date.now() + 86400_000).toISOString().slice(0, 10);
 
@@ -70,6 +71,7 @@ export const ServiceRequestModal = ({ request, onClose }) => {
   const field = { width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)', fontSize: '0.88rem' };
 
   return (
+    <Portal>
     <div style={{ position: 'fixed', inset: 0, zIndex: 260, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} role="dialog" aria-label={request.title} style={{ width: '100%', maxWidth: 440, background: 'var(--bg-card-solid)', border: '1px solid var(--border-gold)', borderRadius: 'var(--radius-lg)', padding: 22, position: 'relative' }}>
         <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ position: 'absolute', top: 12, right: 12, width: 30, height: 30, padding: 0, borderRadius: '50%' }} title="Close"><X size={14} /></button>
@@ -112,5 +114,6 @@ export const ServiceRequestModal = ({ request, onClose }) => {
         )}
       </div>
     </div>
+    </Portal>
   );
 };

@@ -50,12 +50,16 @@ const moveBookingSchema = new mongoose.Schema(
     },
     origin: {
       type: String,
-      required: [true, 'Origin address is required'],
+      // A draft estimate may not have addresses yet; a real booking must.
+      required: [function () { return this.status && this.status !== 'draft'; }, 'Origin address is required'],
+      maxlength: 300,
       default: 'HSR Layout Sector 1, Bengaluru'
     },
     destination: {
       type: String,
-      required: [true, 'Destination address is required'],
+      // A draft estimate may not have addresses yet; a real booking must.
+      required: [function () { return this.status && this.status !== 'draft'; }, 'Destination address is required'],
+      maxlength: 300,
       default: 'Hope Farm, Whitefield, Bengaluru'
     },
     presetId: {
@@ -179,6 +183,11 @@ const moveBookingSchema = new mongoose.Schema(
     driverLocation: { lat: Number, lng: Number, speedKmh: Number, heading: Number, updatedAt: Date },
     // Secret for the read-only family tracking link (/?track=…). Owner-only; never in normal views.
     trackToken: { type: String, select: false, index: { unique: true, sparse: true } },
+    // Boxes the captain scanned onto the truck at pickup (shown to the customer).
+    loadedBoxes: [{ _id: false, boxId: String, label: String, matched: Boolean, at: Date }],
+    // Set when the slot watcher has alerted people about this slot (cleared on reschedule).
+    missedSlotAlertAt: Date,
+    overduePickupAlertAt: Date,
     nearbyNotifiedAt: Date,
     cancellation: { at: Date, reason: String, refundPercent: Number, by: String },
     rescheduledCount: { type: Number, default: 0 },

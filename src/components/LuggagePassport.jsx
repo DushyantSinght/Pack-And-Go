@@ -17,6 +17,7 @@ import { PageIcon } from './ui/PageIcon';
 import { FlipCode } from './ui/FlipCode';
 import { SafeImage } from './ui/SafeImage';
 import { EmptyState } from './ui/EmptyState';
+import { Portal } from './ui/Portal';
 
 export const LuggagePassport = () => {
   const {
@@ -119,7 +120,7 @@ export const LuggagePassport = () => {
               <h2 style={{ fontSize: '1.6rem' }}>Digital Luggage Passport & Custody Escrow</h2>
             </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-              Every carton receives a QR-linked digital manifest with photographic condition proof, tamper-evident seals, and dual OTP handovers.
+              Every carton gets a QR label linked to its contents and a before-move photo. Your captain scans each box onto the truck, and OTP codes confirm pickup and delivery.
             </p>
           </div>
 
@@ -188,7 +189,7 @@ export const LuggagePassport = () => {
                     gap: '12px'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
                     <div style={{
                       width: '38px',
                       height: '38px',
@@ -266,7 +267,7 @@ export const LuggagePassport = () => {
                 <div style={{ flex: 1, fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div><strong>Category:</strong> {selectedBox.category}</div>
                   <div><strong>Box Spec:</strong> {selectedBox.boxSize}</div>
-                  <div><strong>Seal Tag:</strong> {selectedBox.sealStatus}</div>
+                  <div><strong>Packing:</strong> {selectedBox.sealStatus || (selectedBox.fragile ? 'Taped, QR-labelled, marked fragile' : 'Taped and QR-labelled')}</div>
                   <div style={{ color: selectedBox.fragile ? '#DC2626' : '#059669', fontWeight: 700 }}>
                     {selectedBox.fragile ? '⚠️ HANDLE WITH EXTREME CARE • FRAGILE' : '✔️ STANDARD SECURED TRANSIT'}
                   </div>
@@ -274,7 +275,7 @@ export const LuggagePassport = () => {
               </div>
 
               <div style={{ fontSize: '0.7rem', color: '#64748B', background: '#F8FAFC', padding: '6px 10px', borderRadius: '4px' }}>
-                Time-stamped audit recorded. Tampering with this sticker invalidates carrier deposit escrow.
+                Stick this on the box. Your Move Captain scans it while loading, so you can see every box on the truck.
               </div>
             </div>
           )}
@@ -484,7 +485,7 @@ export const LuggagePassport = () => {
       </div>
 
       {/* Modal: Add Custom Box */}
-      {showAddBoxModal && (
+      {showAddBoxModal && (<Portal>
         <div style={{
           position: 'fixed',
           top: 0,
@@ -499,7 +500,7 @@ export const LuggagePassport = () => {
           zIndex: 100,
           padding: '20px'
         }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '480px', padding: '24px' }}>
+          <div className="glass-panel" role="dialog" aria-modal="true" aria-label="Add a box" style={{ width: '100%', maxWidth: '480px', padding: '24px', maxHeight: '92vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: '1.25rem', marginBottom: '14px' }}>Create New Digital Box Passport</h3>
             <form onSubmit={handleCreateNewBox} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
@@ -569,8 +570,8 @@ export const LuggagePassport = () => {
             </form>
           </div>
         </div>
-      )}
-      {labelSheet && (
+      </Portal>)}
+      {labelSheet && (<Portal>
         <div className="print-root" style={{ position: 'fixed', inset: 0, background: '#fff', color: '#000', zIndex: 500, overflow: 'auto', padding: 16 }}>
           <div className="no-print" style={{ marginBottom: 10, display: 'flex', gap: 8 }}>
             <button onClick={() => window.print()} className="btn btn-sm" style={{ background: '#000', color: '#fff' }}>Print</button>
@@ -588,7 +589,7 @@ export const LuggagePassport = () => {
             ))}
           </div>
         </div>
-      )}
+      </Portal>)}
     </div>
   );
 };

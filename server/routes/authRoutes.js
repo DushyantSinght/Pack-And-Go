@@ -7,23 +7,33 @@ import { signToken, requireAuth } from '../middleware/auth.js';
 import { profileOf, requireAdmin } from '../middleware/roles.js';
 import { notifyAdminsOfApplication } from './adminRoutes.js';
 import { sendEmail, emailConfigured, appUrl, notify } from '../services/notify.js';
+import { verificationEmail, passwordResetEmail } from '../services/emails.js';
 
 const sha256 = (v) => crypto.createHash('sha256').update(v).digest('hex');
 const newToken = () => crypto.randomBytes(32).toString('base64url');
 const isDev = () => process.env.NODE_ENV !== 'production';
 
-/** Sends (or, without SMTP in dev, logs + returns) an email verification link. */
+/**
+ * Emails a fresh verification link.
+ * @returns {{ status: 'sent'|'not_configured'|'failed', devLink?: string }} — devLink only in
+ *   development when no email server is set up, so the flow can still be tested locally.
+ */
 const sendVerification = async (user) => {
   const token = newToken();
   await User.updateOne({ _id: user._id }, { $set: { emailVerifyTokenHash: sha256(token) } });
   const link = appUrl(`/?verify=${token}`);
-  await sendEmail({
-    to: user.email,
-    subject: 'Verify your Pack&Go email',
-    text: `Hi ${user.name?.split(' ')[0] || 'there'},\n\nConfirm your email to start booking moves:\n${link}\n\nIf you didn't create a Pack&Go account, ignore this email.`
-  });
-  return !emailConfigured() && isDev() ? link : undefined;
+  const status = await sendEmail({ to: user.email, ...verificationEmail({ name: user.name, link }) });
+  // Dev only: when nothing was sent (no SMTP, or a test address that can't receive mail), hand the link back.
+  return { status, ...(['not_configured', 'skipped'].includes(status) && isDev() && { devLink: link }) };
 };
+
+/** What to tell the user about an email we tried to send. */
+const deliveryMessage = (status, email) =>
+  status === 'sent'
+    ? `Verification email sent to ${email}.`
+    : status === 'not_configured'
+      ? 'Email delivery is not set up on this server yet, so no email was sent.'
+      : "We couldn't send the email right now. Please try again in a few minutes.";
 
 const router = express.Router();
 
@@ -56,6 +66,9 @@ router.post('/signup', async (req, res) => {
     // ── Validation ───────────────────────────────────────────────
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ success: false, message: 'Name is required.' });
+    }
+    if (name.trim().length > 80) {
+      return res.status(400).json({ success: false, message: 'Please keep your name under 80 characters.' });
     }
     if (!validateEmail(email)) {
       return res.status(400).json({ success: false, message: 'A valid email address is required.' });
@@ -111,10 +124,17 @@ router.post('/signup', async (req, res) => {
     const token = signToken({ _id: newUser._id, email: newUser.email, userType: newUser.userType });
 
     if (role === 'captain') notifyAdminsOfApplication(newUser).catch(() => {});
-    const devVerifyLink = await sendVerification(newUser).catch(() => undefined);
+    const verification = await sendVerification(newUser).catch(() => ({ status: 'failed' }));
     notify(newUser, { type: 'account', title: 'Welcome to Pack&Go!', body: 'Verify your email to start booking moves.' });
 
-    return res.status(201).json({ success: true, token, user: profileOf(newUser), ...(devVerifyLink && { devVerifyLink }) });
+    // The account exists either way; emailDelivery tells the app whether the verification email went out.
+    return res.status(201).json({
+      success: true,
+      token,
+      user: profileOf(newUser),
+      emailDelivery: verification.status,
+      ...(verification.devLink && { devVerifyLink: verification.devLink })
+    });
   } catch (error) {
     if (error.code === 11000) {
       return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
@@ -164,6 +184,11 @@ router.post('/login', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────
 router.post('/forgot-password', async (req, res) => {
   const generic = { success: true, message: 'If an account exists for that email, a reset link is on its way.' };
+  // Without an email server we can't send reset links. Say so honestly — and before looking the
+  // account up, so the answer is the same for every address (no account discovery).
+  if (!emailConfigured() && !isDev()) {
+    return res.status(503).json({ success: false, code: 'email_not_configured', message: 'Password reset emails are unavailable right now. Please contact support.' });
+  }
   try {
     const email = String(req.body.email || '').toLowerCase().trim();
     if (!validateEmail(email)) return res.json(generic);
@@ -176,13 +201,10 @@ router.post('/forgot-password', async (req, res) => {
       { $set: { passwordResetTokenHash: sha256(token), passwordResetExpires: new Date(Date.now() + 30 * 60 * 1000) } }
     );
     const link = appUrl(`/?reset=${token}`);
-    await sendEmail({
-      to: user.email,
-      subject: 'Reset your Pack&Go password',
-      text: `Someone asked to reset your Pack&Go password.\n\nReset it here (valid for 30 minutes):\n${link}\n\nIf this wasn't you, you can ignore this email.`
-    });
+    const status = await sendEmail({ to: user.email, ...passwordResetEmail({ name: user.name, link, minutes: 30 }) });
+    // A failed send is logged server-side; the reply stays generic so it can't reveal which emails have accounts.
     // Without SMTP in development, hand the link back so the flow is testable.
-    res.json({ ...generic, ...(!emailConfigured() && isDev() && { devResetLink: link }) });
+    res.json({ ...generic, ...(['not_configured', 'skipped'].includes(status) && isDev() && { devResetLink: link }) });
   } catch {
     res.json(generic);
   }
@@ -235,8 +257,12 @@ router.post('/resend-verification', requireAuth, async (req, res) => {
   const user = await User.findById(req.user._id);
   if (!user) return res.status(404).json({ success: false });
   if (user.emailVerified) return res.json({ success: true, message: 'Your email is already verified.' });
-  const devVerifyLink = await sendVerification(user);
-  res.json({ success: true, message: `Verification email sent to ${user.email}.`, ...(devVerifyLink && { devVerifyLink }) });
+  const { status, devLink } = await sendVerification(user);
+  if (status === 'sent') return res.json({ success: true, emailDelivery: status, message: deliveryMessage(status, user.email) });
+  if (devLink) {
+    return res.json({ success: true, emailDelivery: status, message: 'Email is not set up on this development server — use the verify link in the banner instead.', devVerifyLink: devLink });
+  }
+  res.status(status === 'not_configured' ? 503 : 502).json({ success: false, code: `email_${status}`, emailDelivery: status, message: deliveryMessage(status, user.email) });
 });
 
 // PATCH /api/auth/me  { name, phone }  — keep your contact details current

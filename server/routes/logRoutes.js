@@ -18,7 +18,8 @@ router.post('/client-error', limiter, optionalAuth, async (req, res) => {
     url: String(url || '').slice(0, 500),
     userAgent: String(req.get('user-agent') || '').slice(0, 300),
     userId: req.user?._id,
-    meta: meta && typeof meta === 'object' ? JSON.parse(JSON.stringify(meta).slice(0, 2000)) : undefined
+    // Cutting a JSON string mid-way makes it unparseable — store small metadata whole, else just note its size.
+    meta: meta && typeof meta === 'object' ? (() => { const j = JSON.stringify(meta); return j.length <= 2000 ? JSON.parse(j) : { truncated: true, bytes: j.length }; })() : undefined
   }).catch(() => {});
   res.status(204).end();
 });

@@ -47,15 +47,6 @@ export const api = {
     return handleResponse(res);
   },
 
-  reseedDatabase: async (force = true) => {
-    const res = await fetch(`${BASE_URL}/database/seed`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ force })
-    });
-    return handleResponse(res);
-  },
-
   // ── Authentication ────────────────────────────────────────────────
 
   /**
@@ -325,6 +316,10 @@ export const api = {
   rescheduleMove: (id, date, timeSlot) => api.post(`/moves/${encodeURIComponent(id)}/reschedule`, { date, timeSlot }),
   reviewMove: (id, rating, comment) => api.post(`/moves/${encodeURIComponent(id)}/review`, { rating, comment }),
   acceptJob: (id) => api.post(`/moves/captain/jobs/${encodeURIComponent(id)}/accept`),
+  releaseJob: (id, reason) => api.post(`/moves/captain/jobs/${encodeURIComponent(id)}/release`, { reason }),
+  updateMarketplaceListing: (id, data) => api.patch(`/marketplace/${encodeURIComponent(id)}`, data),
+  deleteMarketplaceListing: (id) => api.del(`/marketplace/${encodeURIComponent(id)}`),
+  recordLoadedBox: (id, boxId) => api.post(`/moves/captain/jobs/${encodeURIComponent(id)}/boxes`, { boxId }),
 
   // Payments
   getPaymentConfig: () => api.get('/payments/config'),

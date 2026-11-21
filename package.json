@@ -15,7 +15,8 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --test server/tests/"
+    "test": "node --test server/tests/",
+    "email:test": "node server/scripts/send-test-email.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

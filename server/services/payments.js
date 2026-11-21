@@ -1,6 +1,7 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import Razorpay from 'razorpay';
 import { notify } from './notify.js';
+import { MoveBooking } from '../models/index.js';
 
 export const razorpayConfigured = () => !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
 export const getRazorpay = () =>
@@ -10,22 +11,25 @@ export const getRazorpay = () =>
 export const testPaymentsAllowed = () => process.env.NODE_ENV !== 'production' && !razorpayConfigured();
 
 /** Mark a booking paid (idempotent) and tell the customer. */
+// Returns the updated booking, or null if it was already paid (e.g. a double click, or the webhook won).
 export const markPaid = async (booking, { method, paymentId, orderId, amount, testMode = false }) => {
-  if (booking.paymentDetails?.status === 'paid') return booking;
-  booking.paymentDetails = {
-    ...(booking.paymentDetails?.toObject?.() || {}),
-    status: 'paid',
-    method,
-    transactionId: paymentId,
-    razorpayOrderId: orderId || booking.paymentDetails?.razorpayOrderId,
-    amountPaid: amount,
-    paidAt: new Date(),
-    testMode
+  if (booking.paymentDetails?.status === 'paid') return null;
+  const set = {
+    'paymentDetails.status': 'paid',
+    'paymentDetails.method': method,
+    'paymentDetails.transactionId': paymentId,
+    'paymentDetails.razorpayOrderId': orderId || booking.paymentDetails?.razorpayOrderId,
+    'paymentDetails.amountPaid': amount,
+    'paymentDetails.paidAt': new Date(),
+    'paymentDetails.testMode': testMode,
+    escrowStatus: 'escrow_locked',
+    transitStatus: 'Booking confirmed • Finding your Move Captain',
+    ...(['draft', 'pending_payment'].includes(booking.status) && { status: 'confirmed' })
   };
-  booking.escrowStatus = 'escrow_locked';
-  if (['draft', 'pending_payment'].includes(booking.status)) booking.status = 'confirmed';
-  booking.transitStatus = 'Booking confirmed • Finding your Move Captain';
-  await booking.save();
+  // Atomic: of two simultaneous confirmations only one flips the booking to paid (no double charge record).
+  const updated = await MoveBooking.findOneAndUpdate({ _id: booking._id, 'paymentDetails.status': { $ne: 'paid' } }, { $set: set }, { returnDocument: 'after' });
+  if (!updated) return null;
+  booking.set(updated.toObject());
   const when = booking.moveDate ? new Date(booking.moveDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' }) : '';
   notify(booking.userEmail, {
     type: 'payment',

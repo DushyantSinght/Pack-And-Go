@@ -1,0 +1,45 @@
+# © 2026 Dushyant Singh Tanwar (DST). Lint, build and run the API test suite on every push and PR.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mongo:
+        image: mongo:7
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      MONGODB_URI: mongodb://127.0.0.1:27017/packandgo
+      JWT_SECRET: ci-only-secret-not-used-anywhere-else
+      PORT: 5001
+      NODE_ENV: development
+      CLIENT_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Start API (seeds demo data)
+        run: |
+          node server/server.js > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:5001/api/stats > /dev/null && exit 0; sleep 1; done
+          cat api.log; exit 1
+      - name: API tests
+        run: npm test
+      - name: API log
+        if: failure()
+        run: cat api.log

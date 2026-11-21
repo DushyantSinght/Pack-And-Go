@@ -119,6 +119,52 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+// PATCH /api/marketplace/:itemId — the seller edits their own listing (while it's still available)
+router.patch('/:itemId', requireAuth, async (req, res) => {
+  try {
+    const item = await MarketplaceItem.findOne({ itemId: String(req.params.itemId), 'seller.email': req.user.email });
+    if (!item) return res.status(404).json({ success: false, message: 'Listing not found.' });
+    if (item.status !== 'available') return res.status(409).json({ success: false, message: 'This item has been claimed — chat with the buyer instead of editing it.' });
+    const b = req.body || {};
+    if ('title' in b) {
+      const title = String(b.title || '').trim().slice(0, 120);
+      if (!title) return res.status(400).json({ success: false, message: 'Give your listing a title.' });
+      item.title = title;
+    }
+    if ('price' in b) {
+      const price = Math.round(Number(b.price));
+      if (!(price > 0 && price <= 1_000_000)) return res.status(400).json({ success: false, message: 'Enter a price between ₹1 and ₹10,00,000.' });
+      item.price = price;
+      item.co2SavedKg = Math.round(price / 100) + 15;
+    }
+    if ('originalPrice' in b) item.originalPrice = Math.round(Number(b.originalPrice)) || item.price;
+    if (item.originalPrice < item.price) item.originalPrice = item.price; // no fake discounts
+    for (const [k, max] of [['condition', 80], ['description', 1000], ['category', 40], ['society', 120]]) {
+      if (typeof b[k] === 'string' && b[k].trim()) item[k] = b[k].trim().slice(0, max);
+    }
+    if ('imageUrl' in b) item.imageUrl = cleanImage(b.imageUrl);
+    await item.save();
+    res.json({ success: true, item: publicItem(item, req.user.email) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Could not update the listing.' });
+  }
+});
+
+// DELETE /api/marketplace/:itemId — the seller takes their listing down
+router.delete('/:itemId', requireAuth, async (req, res) => {
+  try {
+    const item = await MarketplaceItem.findOne({ itemId: String(req.params.itemId), 'seller.email': req.user.email });
+    if (!item) return res.status(404).json({ success: false, message: 'Listing not found.' });
+    if (item.status !== 'available') return res.status(409).json({ success: false, message: 'Someone has claimed this item — arrange the handoff with them in Messages first.' });
+    await item.deleteOne();
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Could not remove the listing.' });
+  }
+});
+
 // POST /api/marketplace/:itemId/claim — Claim an item (protected)
 router.post('/:itemId/claim', requireAuth, async (req, res) => {
   try {

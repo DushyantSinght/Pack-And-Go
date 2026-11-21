@@ -82,7 +82,7 @@ export const PostMoveConcierge = () => {
           </div>
 
           {/* Diet Preference Filters */}
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
               onClick={() => setDietFilter('All')}
               className="btn btn-sm"
@@ -234,7 +234,7 @@ export const PostMoveConcierge = () => {
               On-Demand Post-Move Upkeep
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Police-verified cooks, deep cleaners, and laundry subscriptions billed monthly or on-demand.
+              Home cooks, deep cleaners and laundry subscriptions, billed monthly or on demand.
             </p>
           </div>
 

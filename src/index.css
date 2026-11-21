@@ -553,34 +553,36 @@ h2, h3 {
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.18);
 }
 
-/* Grid System */
+/* Grid System — minmax(0, 1fr) lets columns shrink below their content's min width
+   (plain 1fr can't, so one long line could push a card wider than a phone screen). */
+.grid-2 > *, .grid-3 > *, .grid-4 > * { min-width: 0; }
 .grid-2 {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
 }
 
 .grid-3 {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
 }
 
 .grid-4 {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
 @media (max-width: 1024px) {
   .grid-3, .grid-4 {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 768px) {
   .grid-2, .grid-3, .grid-4 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .main-content {
     padding: 16px 12px 100px;
@@ -682,6 +684,7 @@ h2, h3 {
   .navbar-actions {
     width: 100%;
     overflow-x: auto;
+    padding-top: 5px; /* room for count badges on the icon buttons */
     -webkit-overflow-scrolling: touch;
     padding-bottom: 2px;
     scrollbar-width: none;

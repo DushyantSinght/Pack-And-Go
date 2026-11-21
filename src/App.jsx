@@ -1,35 +1,64 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useMove } from './context/MoveContext';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
 import { AIEstimator } from './components/AIEstimator';
-import { LuggagePassport } from './components/LuggagePassport';
-import { PoolingLiveTracking } from './components/PoolingLiveTracking';
-import { CircularMarketplace } from './components/CircularMarketplace';
-import { ThemedRoomSetup } from './components/ThemedRoomSetup';
-import { PostMoveConcierge } from './components/PostMoveConcierge';
-import { CampusMoveWeek } from './components/CampusMoveWeek';
 import { AuthModal } from './components/AuthModal';
-import { InvoiceModal } from './components/InvoiceModal';
-import { PaymentModal } from './components/PaymentModal';
-import { DepositProtectionCertificate } from './components/DepositProtectionCertificate';
-import { DriverConsoleModal } from './components/DriverConsoleModal';
 import { ChatbotConcierge } from './components/ChatbotConcierge';
-import { DatabaseSchemaModal } from './components/DatabaseSchemaModal';
 import { ChatDrawer } from './components/ChatDrawer';
 import { CallModal } from './components/CallModal';
-import { AdminCaptainsModal } from './components/AdminCaptainsModal';
-import { FamilyTrackingView } from './components/FamilyTrackingView';
-import { BookingWizard } from './components/BookingWizard';
-import { MyMovesModal } from './components/MyMovesModal';
-import { LegalModal } from './components/LegalModal';
 import { VerifyEmailBanner } from './components/VerifyEmailBanner';
 import { AmbientBackground, ScrollProgress, BackToTop, Splash } from './components/Ambient';
 import { HowItWorks, FeatureGrid, FAQ, CtaBand, SiteFooter } from './components/LandingSections';
 import { useGlobalMotion } from './hooks/useMotion';
 import { CommandPalette } from './components/CommandPalette';
 import { Toaster } from './components/Toaster';
+import { SkeletonList } from './components/ui/Skeleton';
+
+// Tabs and dialogs load on demand so the first page load stays small.
+const loaders = {
+  LuggagePassport: () => import('./components/LuggagePassport'),
+  PoolingLiveTracking: () => import('./components/PoolingLiveTracking'),
+  CircularMarketplace: () => import('./components/CircularMarketplace'),
+  ThemedRoomSetup: () => import('./components/ThemedRoomSetup'),
+  PostMoveConcierge: () => import('./components/PostMoveConcierge'),
+  CampusMoveWeek: () => import('./components/CampusMoveWeek'),
+  InvoiceModal: () => import('./components/InvoiceModal'),
+  PaymentModal: () => import('./components/PaymentModal'),
+  DepositProtectionCertificate: () => import('./components/DepositProtectionCertificate'),
+  DriverConsoleModal: () => import('./components/DriverConsoleModal'),
+  DatabaseSchemaModal: () => import('./components/DatabaseSchemaModal'),
+  AdminCaptainsModal: () => import('./components/AdminCaptainsModal'),
+  FamilyTrackingView: () => import('./components/FamilyTrackingView'),
+  BookingWizard: () => import('./components/BookingWizard'),
+  MyMovesModal: () => import('./components/MyMovesModal'),
+  LegalModal: () => import('./components/LegalModal'),
+};
+const lazyNamed = (name) => lazy(() => loaders[name]().then((m) => ({ default: m[name] })));
+const LuggagePassport = lazyNamed('LuggagePassport');
+const PoolingLiveTracking = lazyNamed('PoolingLiveTracking');
+const CircularMarketplace = lazyNamed('CircularMarketplace');
+const ThemedRoomSetup = lazyNamed('ThemedRoomSetup');
+const PostMoveConcierge = lazyNamed('PostMoveConcierge');
+const CampusMoveWeek = lazyNamed('CampusMoveWeek');
+const InvoiceModal = lazyNamed('InvoiceModal');
+const PaymentModal = lazyNamed('PaymentModal');
+const DepositProtectionCertificate = lazyNamed('DepositProtectionCertificate');
+const DriverConsoleModal = lazyNamed('DriverConsoleModal');
+const DatabaseSchemaModal = lazyNamed('DatabaseSchemaModal');
+const AdminCaptainsModal = lazyNamed('AdminCaptainsModal');
+const FamilyTrackingView = lazyNamed('FamilyTrackingView');
+const BookingWizard = lazyNamed('BookingWizard');
+const MyMovesModal = lazyNamed('MyMovesModal');
+const LegalModal = lazyNamed('LegalModal');
+
+/** Mounts a lazy dialog the first time it's needed, then keeps it mounted (so it keeps its state). */
+const OnDemand = ({ when, children }) => {
+  const [seen, setSeen] = useState(false);
+  if (when && !seen) setSeen(true);
+  return seen || when ? <Suspense fallback={null}>{children}</Suspense> : null;
+};
 import {
   ShieldAlert,
   Smartphone,
@@ -61,8 +90,17 @@ export function App() {
     user,
     isAdminOpen,
     setIsAdminOpen,
-    openBooking
+    openBooking,
+    isBookingOpen,
+    isMyMovesOpen,
+    legalDoc
   } = useMove();
+  // Once the page is idle, fetch the common dialogs in the background so they open instantly.
+  useEffect(() => {
+    const warm = () => ['MyMovesModal', 'BookingWizard', 'PaymentModal', 'CircularMarketplace', 'LuggagePassport'].forEach((n) => loaders[n]().catch(() => {}));
+    const id = window.requestIdleCallback ? window.requestIdleCallback(warm, { timeout: 4000 }) : setTimeout(warm, 2500);
+    return () => (window.cancelIdleCallback ? window.cancelIdleCallback(id) : clearTimeout(id));
+  }, []);
   // Family tracking links: /?track=<token>
   const [trackToken, setTrackToken] = useState(() => new URLSearchParams(window.location.search).get('track'));
   const closeTracking = () => {
@@ -107,7 +145,7 @@ export function App() {
                     ? user.captainStatus === 'pending'
                       ? 'Move Captain application under review — you can take jobs once Pack&Go approves your licence & vehicle.'
                       : `Move Captain account ${user.captainStatus}. Contact Pack&Go support.`
-                    : 'Move Captain Mode Active: Geofence Checkpoints & OTP Handover verification enabled.'}
+                    : user ? 'Move Captain Mode Active: Geofence Checkpoints & OTP Handover verification enabled.' : 'Preview of the Move Captain view — sign in with an approved driver account to take jobs.'}
                 </span>
                 <button
                   onClick={openDriverConsole}
@@ -140,6 +178,7 @@ export function App() {
               </>
             )}
           </div>
+          {!user && (
           <button
             onClick={() => setActiveRole('customer')}
             style={{
@@ -152,8 +191,9 @@ export function App() {
               cursor: 'pointer'
             }}
           >
-            Exit Role
+            Exit preview
           </button>
+          )}
         </div>
       )}
 
@@ -168,6 +208,7 @@ export function App() {
 
         {/* Dynamic View Tab Rendering */}
         <div key={activeTab} className="page-enter">
+          <Suspense fallback={<div className="glass-panel" style={{ padding: 24 }}><SkeletonList rows={4} /></div>}>
           {activeTab === 'estimator' && <AIEstimator />}
           {activeTab === 'passport' && <LuggagePassport />}
           {activeTab === 'tracking' && <PoolingLiveTracking />}
@@ -175,6 +216,7 @@ export function App() {
           {activeTab === 'themes' && <ThemedRoomSetup />}
           {activeTab === 'postmove' && <PostMoveConcierge />}
           {activeTab === 'campus' && <CampusMoveWeek />}
+          </Suspense>
         </div>
 
         {/* Landing sections — hidden for drivers, who use the app as a tool */}
@@ -203,38 +245,48 @@ export function App() {
       />
 
       {/* Corporate Relocation GST Tax Invoice Modal */}
-      <InvoiceModal
-        isOpen={isInvoiceModalOpen}
-        onClose={() => setIsInvoiceModalOpen(false)}
-      />
+      <OnDemand when={isInvoiceModalOpen}>
+        <InvoiceModal
+          isOpen={isInvoiceModalOpen}
+          onClose={() => setIsInvoiceModalOpen(false)}
+        />
+      </OnDemand>
 
       {/* UPI / Razorpay Escrow Payment Modal */}
-      <PaymentModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        onOpenInvoice={(booking) => {
-          setIsPaymentModalOpen(false);
-          openInvoice(booking);
-        }}
-      />
+      <OnDemand when={isPaymentModalOpen}>
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onOpenInvoice={(booking) => {
+            setIsPaymentModalOpen(false);
+            openInvoice(booking);
+          }}
+        />
+      </OnDemand>
 
       {/* Landlord Security Deposit-Protection Legal Certificate Modal */}
-      <DepositProtectionCertificate
-        isOpen={isDepositCertOpen}
-        onClose={() => setIsDepositCertOpen(false)}
-      />
+      <OnDemand when={isDepositCertOpen}>
+        <DepositProtectionCertificate
+          isOpen={isDepositCertOpen}
+          onClose={() => setIsDepositCertOpen(false)}
+        />
+      </OnDemand>
 
       {/* Move Captain Driver Mobile Console */}
-      <DriverConsoleModal
-        isOpen={isDriverConsoleOpen}
-        onClose={() => setIsDriverConsoleOpen(false)}
-      />
+      <OnDemand when={isDriverConsoleOpen}>
+        <DriverConsoleModal
+          isOpen={isDriverConsoleOpen}
+          onClose={() => setIsDriverConsoleOpen(false)}
+        />
+      </OnDemand>
 
       {/* MongoDB Database & Schema Explorer Modal */}
-      <DatabaseSchemaModal
-        isOpen={isDbModalOpen}
-        onClose={() => setIsDbModalOpen(false)}
-      />
+      <OnDemand when={isDbModalOpen}>
+        <DatabaseSchemaModal
+          isOpen={isDbModalOpen}
+          onClose={() => setIsDbModalOpen(false)}
+        />
+      </OnDemand>
 
       {/* 24/7 Floating AI Relocation Concierge (PackBot) */}
       <ChatbotConcierge
@@ -248,13 +300,21 @@ export function App() {
       <CallModal />
 
       {/* Staff: Move Captain application review */}
-      <AdminCaptainsModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
-      {trackToken && <FamilyTrackingView token={trackToken} onClose={closeTracking} onBook={() => { closeTracking(); openBooking(); }} />}
+      <OnDemand when={isAdminOpen}>
+        <AdminCaptainsModal isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
+      </OnDemand>
+      {trackToken && <Suspense fallback={null}><FamilyTrackingView token={trackToken} onClose={closeTracking} onBook={() => { closeTracking(); openBooking(); }} /></Suspense>}
 
       {/* Real bookings */}
-      <BookingWizard />
-      <MyMovesModal />
-      <LegalModal />
+      <OnDemand when={isBookingOpen}>
+        <BookingWizard />
+      </OnDemand>
+      <OnDemand when={isMyMovesOpen}>
+        <MyMovesModal />
+      </OnDemand>
+      <OnDemand when={!!legalDoc}>
+        <LegalModal />
+      </OnDemand>
     </div>
     </>
   );

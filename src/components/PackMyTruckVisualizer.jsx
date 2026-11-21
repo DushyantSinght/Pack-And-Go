@@ -38,10 +38,10 @@ export const PackMyTruckVisualizer = () => {
       category: 'Mid-Bay Luggage & Electronics',
       isYou: true,
       items: [
-        { name: 'Box 01: Workstation & Monitor', wt: '22 kg', dims: '24" x 18" x 18"', fragile: true, rfid: 'RFID-9812' },
-        { name: 'Box 02: Wardrobe Essentials', wt: '35 kg', dims: '20" x 20" x 16"', fragile: false, rfid: 'RFID-9813' },
-        { name: 'Box 03: Kitchen & Appliances', wt: '28 kg', dims: '18" x 14" x 14"', fragile: true, rfid: 'RFID-9814' },
-        { name: 'Box 04: Books & Study Gear', wt: '40 kg', dims: '16" x 12" x 12"', fragile: false, rfid: 'RFID-9815' }
+        { name: 'Box 01: Workstation & Monitor', wt: '22 kg', dims: '24" x 18" x 18"', fragile: true, rfid: 'PKG-BOX-9812' },
+        { name: 'Box 02: Wardrobe Essentials', wt: '35 kg', dims: '20" x 20" x 16"', fragile: false, rfid: 'PKG-BOX-9813' },
+        { name: 'Box 03: Kitchen & Appliances', wt: '28 kg', dims: '18" x 14" x 14"', fragile: true, rfid: 'PKG-BOX-9814' },
+        { name: 'Box 04: Books & Study Gear', wt: '40 kg', dims: '16" x 12" x 12"', fragile: false, rfid: 'PKG-BOX-9815' }
       ]
     },
     {
@@ -194,6 +194,8 @@ export const PackMyTruckVisualizer = () => {
                 onClick={() => setSelectedItem(comp)}
                 style={{
                   flex: comp.cuFt,
+                  minWidth: 0, // share the bay width even on a 320px phone; long labels clip instead of overflowing
+                  overflow: 'hidden',
                   background: viewMode === 'x-ray' ? 'transparent' : comp.bgGlow,
                   border: `2px ${comp.isYou ? 'solid' : 'dashed'} ${comp.borderColor}`,
                   borderRadius: '8px',
@@ -310,7 +312,7 @@ export const PackMyTruckVisualizer = () => {
         {/* Axle Load Distribution Telemetry Meters */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
           gap: '12px',
           marginTop: '16px',
           fontSize: '0.78rem'
@@ -383,7 +385,7 @@ export const PackMyTruckVisualizer = () => {
                 </div>
                 {it.rfid && (
                   <div style={{ marginTop: '4px', color: 'var(--primary)', fontSize: '0.72rem', fontWeight: 600 }}>
-                    🔒 RFID Seal: {it.rfid}
+                    🏷️ QR label: {it.rfid}
                   </div>
                 )}
               </div>

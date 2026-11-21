@@ -18,6 +18,7 @@ import authRoutes from './routes/authRoutes.js';
 import moveRoutes, { rotateLegacyOtps, migrateLegacyBookings } from './routes/moveRoutes.js';
 import passportRoutes, { assignLegacyPassports } from './routes/passportRoutes.js';
 import trackRoutes from './routes/trackRoutes.js';
+import { startSlotWatcher } from './services/slotWatcher.js';
 import marketplaceRoutes, { repairListingPhotos } from './routes/marketplaceRoutes.js';
 import corridorRoutes from './routes/corridorRoutes.js';
 import campusRoutes from './routes/campusRoutes.js';
@@ -30,6 +31,7 @@ import statsRoutes from './routes/statsRoutes.js';
 import { ErrorLog, User } from './models/index.js';
 import chatRoutes from './routes/chatRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import { emailConfig, maskEmail } from './services/notify.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,11 +62,11 @@ app.use(
 );
 
 // ── CORS ──────────────────────────────────────────────────────────
+// Production trusts only CLIENT_URL (comma-separate several); local dev ports are allowed in development only.
 const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174', // Vite sometimes picks 5174
-  process.env.CLIENT_URL
-].filter(Boolean);
+  ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://localhost:5174'] : []),
+  ...String(process.env.CLIENT_URL || '').split(',').map((o) => o.trim().replace(/\/$/, ''))
+].filter(Boolean).filter((o, i, all) => all.indexOf(o) === i);
 
 // In development Vite may land on any free port (5173, 5174, 5175…), so any
 // localhost / 127.0.0.1 origin is accepted. Production uses the list only.
@@ -77,8 +79,8 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g. curl, Postman)
     if (!origin) return callback(null, true);
-    if (isAllowedOrigin(origin)) return callback(null, true);
-    callback(new Error(`CORS: origin '${origin}' not allowed`));
+    // Unknown origins simply get no CORS headers, so the browser blocks them (no 500, no log noise).
+    callback(null, isAllowedOrigin(origin));
   },
   credentials: true
 }));
@@ -240,6 +242,8 @@ const startServer = async () => {
     }
   }
 
+  if (process.env.NODE_ENV !== 'test') startSlotWatcher();
+
   const httpServer = http.createServer(app);
   initSocket(httpServer, (origin, cb) => cb(null, !origin || isAllowedOrigin(origin)));
 
@@ -249,6 +253,10 @@ const startServer = async () => {
     console.log(`   CORS     : ${allowedOrigins.join(', ')}${process.env.NODE_ENV !== 'production' ? ' + any localhost port (dev)' : ''}`);
     console.log(`   DB       : ${process.env.MONGODB_URI}`);
     console.log(`   Realtime : Socket.IO chat + call signalling enabled`);
+    const mail = emailConfig();
+    if (mail.configured) console.log(`   Email    : SMTP ${mail.host}:${mail.port}${mail.secure ? ' (TLS)' : ' (STARTTLS)'} from ${maskEmail(mail.from.replace(/^.*<|>.*$/g, ''))}`);
+    else if (isProd) console.error(`❌ Email delivery is NOT configured: ${mail.errors.join('; ')}. Verification and password-reset emails cannot be sent. See server/.env.example.`);
+    else console.log(`   Email    : not configured (${mail.errors.join('; ')}) — dev links are shown in the app instead`);
   });
 };
 

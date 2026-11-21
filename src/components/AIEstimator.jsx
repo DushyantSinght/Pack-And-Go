@@ -61,7 +61,7 @@ export const AIEstimator = () => {
       img.src = URL.createObjectURL(file);
     });
 
-  // AI room scan: the photo goes to Claude, detected items land in the estimate.
+  // AI room scan: the photo goes to the configured AI provider, detected items land in the estimate.
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     e.target.value = '';

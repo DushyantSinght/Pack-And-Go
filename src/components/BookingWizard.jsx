@@ -102,8 +102,10 @@ export const BookingWizard = () => {
   if (!isBookingOpen) return null;
   const close = () => setIsBookingOpen(false);
 
+  // Same place = same label, or pins within ~100 m of each other.
+  const samePlace = !!from && !!to && (from.label === to.label || (from.lat && to.lat && Math.hypot(from.lat - to.lat, (from.lng - to.lng) * Math.cos((from.lat * Math.PI) / 180)) < 0.0009));
   const canNext = [
-    !!from && !!to && from.label !== to.label,
+    !!from && !!to && !samePlace,
     !!date && !!slot && slotOpen(date, slot),
     !!quote && /^[6-9]\d{9}$/.test(phone.replace(/\D/g, '').slice(-10))
   ][step];
@@ -302,6 +304,16 @@ export const BookingWizard = () => {
             )}
           </div>
         )}
+
+        {/* Say why Next is disabled instead of leaving a greyed-out button. */}
+        {(() => {
+          const why = step === 0
+            ? (!from || !to ? `Pick the ${!from ? 'pickup' : 'drop-off'} address from the suggestions list (or use your location).` : samePlace ? "Pickup and drop-off are the same place — change the drop-off to where you're moving." : cuFt < 10 ? 'Add the items you are moving in the estimator first.' : '')
+            : step === 1
+              ? (!date ? 'Choose a moving date.' : !slot || !slotOpen(date, slot) ? 'Choose a time slot that is still open.' : '')
+              : '';
+          return why ? <div role="status" style={{ marginTop: 14, fontSize: '0.8rem', color: '#D97706' }}>{why}</div> : null;
+        })()}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, gap: 10 }}>
           <button type="button" onClick={() => { setDir(-1); if (step) setStep(step - 1); else close(); }} className="btn btn-secondary btn-sm" style={{ gap: 6 }}>

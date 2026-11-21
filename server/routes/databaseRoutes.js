@@ -12,6 +12,7 @@ import {
 } from '../models/index.js';
 import { seedDatabase } from '../seed/seedData.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/roles.js';
 
 const router = express.Router();
 
@@ -75,14 +76,17 @@ router.get('/schema', (req, res) => {
 });
 
 // POST /api/database/seed - Seed or reseed database.
-// A forced reseed DELETES every collection, so it needs a signed-in user and is
-// disabled in production unless ALLOW_DB_RESEED=true is set explicitly.
-router.post('/seed', requireAuth, async (req, res) => {
+// A forced reseed DELETES every collection (all users, bookings, chats…), so it is staff-only,
+// needs ALLOW_DB_RESEED=true on the server, and the request must spell out the confirmation.
+router.post('/seed', requireAuth, requireAdmin, async (req, res) => {
   try {
-    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DB_RESEED !== 'true') {
-      return res.status(403).json({ success: false, message: 'Database reseeding is disabled in production.' });
-    }
     const force = req.body?.force === true;
+    if (force && process.env.ALLOW_DB_RESEED !== 'true') {
+      return res.status(403).json({ success: false, message: 'Wiping and reseeding the database is turned off. Set ALLOW_DB_RESEED=true on the server to allow it.' });
+    }
+    if (force && req.body?.confirm !== 'DELETE ALL DATA') {
+      return res.status(400).json({ success: false, message: 'A forced reseed deletes every user and booking. Send confirm: "DELETE ALL DATA" to proceed.' });
+    }
     const result = await seedDatabase(force);
     res.json({ success: true, result });
   } catch (error) {

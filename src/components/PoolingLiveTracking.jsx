@@ -227,9 +227,10 @@ export const PoolingLiveTracking = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '12px'
+            gap: '12px',
+            flexWrap: 'wrap'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: '1 1 180px' }}>
               <UserAvatar src={activeCorridor.driver.photo} name={activeCorridor.driver.name} size={48} style={{ border: '2px solid var(--primary)' }} />
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{activeCorridor.driver.name}</div>

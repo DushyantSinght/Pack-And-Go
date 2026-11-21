@@ -92,7 +92,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
       zIndex: 220,
       padding: '16px'
     }}>
-      <div className="glass-panel" style={{
+      <div className="glass-panel" role="dialog" aria-modal="true" aria-label="Driver Console" style={{
         width: '100%',
         maxWidth: '520px',
         maxHeight: '94vh',

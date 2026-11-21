@@ -1,7 +1,7 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import express from 'express';
 import crypto from 'crypto';
-import { MoveBooking, User, generateOtp } from '../models/index.js';
+import { MoveBooking, User, LuggagePassport, generateOtp } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireApprovedCaptain } from '../middleware/roles.js';
 import { quote, roadDistanceKm, slotStart, TIME_SLOTS, refundPercentFor, PLATFORM_FEE_RATE, OPEN_JOB_GRACE_MS } from '../services/pricing.js';
@@ -58,6 +58,7 @@ const captainView = (move, myEmail) => ({
   hasLiftOrigin: move.hasLiftOrigin,
   hasLiftDestination: move.hasLiftDestination,
   notes: move.notes,
+  loadedBoxes: move.loadedBoxes || [],
   payout: move.priceBreakdown?.subtotal ? Math.round(move.priceBreakdown.subtotal * (1 - PLATFORM_FEE_RATE)) : null,
   transitStatus: move.transitStatus,
   stage: move.deliveredAt ? 'completed' : move.pickupVerifiedAt ? 'delivery' : 'pickup',
@@ -84,6 +85,12 @@ const createDraftFor = async (reqUser, data = {}) => {
     userName: me?.name || 'Pack&Go customer',
     userPhone: me?.phone || ''
   });
+};
+
+/** A real map point: numeric, in range (rejects strings like "x" and NaN). */
+const validLoc = (p) => {
+  const lat = Number(p?.lat), lng = Number(p?.lng);
+  return p != null && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0);
 };
 
 const findOwn = (bookingId, email) => MoveBooking.findOne({ bookingId, userEmail: email });
@@ -116,7 +123,11 @@ router.get('/slots', (req, res) => res.json({ success: true, slots: TIME_SLOTS }
 router.post('/quote', async (req, res) => {
   try {
     const { originLocation, destinationLocation } = req.body;
-    const distanceKm = req.body.distanceKm ?? (await roadDistanceKm(originLocation, destinationLocation)) ?? 0;
+    if (!validLoc(originLocation) || !validLoc(destinationLocation)) {
+      return res.status(400).json({ success: false, message: 'Pick both addresses from the suggestions so we can price the distance.' });
+    }
+    // Always measure the distance ourselves — never trust one sent by the browser.
+    const distanceKm = (await roadDistanceKm(originLocation, destinationLocation)) ?? 0;
     res.json({ success: true, distanceKm, quote: quote({ ...req.body, distanceKm }) });
   } catch {
     res.status(500).json({ success: false, message: 'Could not calculate a quote.' });
@@ -172,7 +183,7 @@ router.post('/book', async (req, res) => {
     if (!String(b.origin || '').trim() || !String(b.destination || '').trim()) {
       return res.status(400).json({ success: false, message: 'Pickup and drop-off addresses are required.' });
     }
-    if (!b.originLocation?.lat || !b.destinationLocation?.lat) {
+    if (!validLoc(b.originLocation) || !validLoc(b.destinationLocation)) {
       return res.status(400).json({ success: false, message: 'Pick both addresses from the suggestions so we can find them on the map.' });
     }
     const moveDate = slotStart(b.date, b.timeSlot);
@@ -185,6 +196,7 @@ router.post('/book', async (req, res) => {
 
     const totalCuFt = Number(b.totalCuFt ?? draft?.totalCuFt) || 0;
     if (totalCuFt < 10) return res.status(400).json({ success: false, message: 'Add the items you are moving first.' });
+    if (totalCuFt > 2000) return res.status(400).json({ success: false, message: 'That is more than one truck can carry — contact us for a multi-truck move.' });
     const distanceKm = await roadDistanceKm(b.originLocation, b.destinationLocation);
     const pooled = b.pooled !== false;
     const q = quote({ ...b, totalCuFt, distanceKm, pooled });
@@ -275,8 +287,16 @@ router.post('/:bookingId/cancel', async (req, res) => {
     const pct = refundPercentFor(move);
     const paid = move.paymentDetails?.status === 'paid' ? move.paymentDetails.amountPaid || 0 : 0;
     const refundAmount = Math.round((paid * pct) / 100);
+    // Claim the cancellation atomically so two simultaneous requests can't both refund.
+    const claimed = await MoveBooking.updateOne({ _id: move._id, status: st }, { $set: { status: 'cancelled', transitStatus: 'Cancelled' } });
+    if (!claimed.modifiedCount) return res.status(409).json({ success: false, message: 'This booking was just updated — refresh and try again.' });
     let refundInfo = { refunded: 0 };
-    if (refundAmount > 0) refundInfo = await refund(move, refundAmount, req.body.reason);
+    try {
+      if (refundAmount > 0) refundInfo = await refund(move, refundAmount, req.body.reason);
+    } catch (e) {
+      await MoveBooking.updateOne({ _id: move._id }, { $set: { status: st, transitStatus: move.transitStatus } }); // undo, nothing was refunded
+      throw e;
+    }
 
     const captainEmail = move.assignedCaptainEmail;
     move.status = 'cancelled';
@@ -319,6 +339,8 @@ router.post('/:bookingId/reschedule', async (req, res) => {
   move.moveDate = d;
   move.timeSlot = TIME_SLOTS.find((s) => s.id === req.body.timeSlot).label;
   move.rescheduledCount = (move.rescheduledCount || 0) + 1;
+  move.missedSlotAlertAt = undefined; // new slot, new chance
+  move.overduePickupAlertAt = undefined;
   const captainEmail = move.assignedCaptainEmail;
   // A new time may not suit the assigned captain — release the job back to the pool.
   if (captainEmail) {
@@ -391,11 +413,47 @@ router.post('/captain/jobs/:bookingId/accept', requireApprovedCaptain, async (re
     type: 'driver',
     bookingId: move.bookingId,
     title: `${cap.name} is your Move Captain`,
-    body: `${cap.captain?.vehicleType || 'Truck'} ${cap.captain?.vehicleNumber || ''} • ⭐ ${cap.rating}. You can chat or call from My Moves.`,
+    body: `${cap.captain?.vehicleType || 'Truck'} ${cap.captain?.vehicleNumber || ''} • ${cap.ratingCount ? `⭐ ${cap.rating}` : 'new Move Captain'}. You can chat or call from My Moves.`,
     email: true,
     sms: true
   });
   res.json({ success: true, job: captainView(move, cap.email) });
+});
+
+// POST /api/moves/captain/jobs/:bookingId/release — a captain who can't make it hands the job back
+// (only before pickup). The customer is told, and the job goes back to the open pool.
+router.post('/captain/jobs/:bookingId/release', requireApprovedCaptain, async (req, res) => {
+  const reason = String(req.body?.reason || '').trim().slice(0, 300);
+  const move = await MoveBooking.findOneAndUpdate(
+    { bookingId: req.params.bookingId, assignedCaptainEmail: req.dbUser.email, status: 'assigned', pickupVerifiedAt: { $exists: false } },
+    { $set: { status: 'confirmed', transitStatus: 'Finding a new Move Captain' }, $unset: { assignedCaptainEmail: 1, assignedAt: 1, loadedBoxes: 1, driverLocation: 1 } },
+    { returnDocument: 'after' }
+  );
+  if (!move) return res.status(409).json({ success: false, message: 'You can only release a job you accepted, before pickup.' });
+  notify(move.userEmail, {
+    type: 'booking', bookingId: move.bookingId, email: true, sms: true,
+    title: `Your Move Captain can't make ${move.bookingId}`,
+    body: `We're finding you another verified captain for the same slot${reason ? ` (reason: ${reason})` : ''}. You can also reschedule or cancel for free from My Moves.`
+  });
+  res.json({ success: true });
+});
+
+// POST /api/moves/captain/jobs/:bookingId/boxes { boxId } — record a box scanned onto the truck.
+// The customer sees the list in My Moves; boxes with a passport on this booking are marked as matched.
+router.post('/captain/jobs/:bookingId/boxes', requireApprovedCaptain, async (req, res) => {
+  const boxId = String(req.body.boxId || '').trim().toUpperCase().slice(0, 60);
+  if (!/^[A-Z0-9][A-Z0-9-]{2,59}$/.test(boxId)) return res.status(400).json({ success: false, message: 'That doesn\'t look like a box ID.' });
+  const move = await MoveBooking.findOne({ bookingId: req.params.bookingId, assignedCaptainEmail: req.dbUser.email });
+  if (!move) return res.status(404).json({ success: false, message: 'This job isn\'t assigned to you.' });
+  if (statusOf(move) !== 'assigned') return res.status(409).json({ success: false, message: 'Boxes are checked while loading, before pickup is verified.' });
+  const list = move.loadedBoxes || [];
+  if (list.some((b) => b.boxId === boxId)) return res.json({ success: true, duplicate: true, loadedBoxes: list });
+  if (list.length >= 200) return res.status(409).json({ success: false, message: 'That\'s a lot of boxes — contact support.' });
+  const passport = await LuggagePassport.findOne({ boxId, userEmail: move.userEmail }).select('label').lean();
+  move.loadedBoxes = [...list, { boxId, at: new Date(), matched: !!passport, label: passport?.label }];
+  await move.save();
+  if (passport) await LuggagePassport.updateOne({ boxId }, { $set: { status: 'in_transit' } });
+  res.json({ success: true, loadedBoxes: move.loadedBoxes });
 });
 
 const otpMatches = (given, expected) => {
@@ -459,6 +517,8 @@ router.post('/verify-otp', requireApprovedCaptain, async (req, res) => {
       move.escrowStatus = 'released_to_captain';
       const payout = Math.round((move.priceBreakdown?.subtotal || move.paymentDetails?.amountPaid || 0) * (1 - PLATFORM_FEE_RATE));
       move.captainPayout = { amount: payout, creditedAt: new Date() };
+      const boxIds = (move.loadedBoxes || []).filter((x) => x.matched).map((x) => x.boxId);
+      if (boxIds.length) await LuggagePassport.updateMany({ boxId: { $in: boxIds }, userEmail: move.userEmail }, { $set: { status: 'delivered' } });
       await User.updateOne({ email: capEmail }, { $inc: { escrowWalletBalance: payout, tripsCompleted: 1 } });
       notify(capEmail, { type: 'payment', bookingId, title: `₹${payout.toLocaleString('en-IN')} credited to your wallet`, body: `Payout for ${bookingId}.` });
       notify(move.userEmail, { type: 'booking', bookingId, title: 'Delivered! Welcome home 🏡', body: 'Rate your Move Captain, or raise a damage claim within 48 hours if anything is wrong.', email: true, sms: true });

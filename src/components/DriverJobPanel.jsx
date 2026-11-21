@@ -80,7 +80,6 @@ export const DriverJobPanel = ({ jobs, setJobs, loading, selectedJobId, setSelec
   const [lastFix, setLastFix] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [manualId, setManualId] = useState('');
-  const [loaded, setLoaded] = useState({}); // bookingId -> [boxIds]
   const watchId = useRef(null);
 
   const myJobs = jobs.filter((j) => j.assignedToMe);
@@ -139,20 +138,39 @@ export const DriverJobPanel = ({ jobs, setJobs, loading, selectedJobId, setSelec
     setSharing(true);
   };
 
-  const addBox = (raw) => {
+  // Hand an accepted job back before pickup; the customer is told and it goes back to the open pool.
+  const release = async (j) => {
+    const reason = window.prompt(`Release ${j.bookingId}? The customer will be told and another captain can take it.\n\nReason (optional):`, '');
+    if (reason === null) return;
+    try {
+      await api.releaseJob(j.bookingId, reason);
+      if (sharing) toggleSharing();
+      const r = await api.getCaptainJobs();
+      setJobs(r.jobs || []);
+      showToast('Job released — the customer has been notified.', 'info');
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
+  // Saved on the booking, so the list survives a refresh and the customer sees it too.
+  const addBox = async (raw) => {
     const id = boxIdFrom(raw);
     if (!id) return;
-    setLoaded((prev) => {
-      const list = prev[job.bookingId] || [];
-      if (list.includes(id)) {
-        showToast(`${id} is already scanned.`, 'info');
-        return prev;
-      }
-      showToast(`Scanned ${id}`, 'success');
-      return { ...prev, [job.bookingId]: [...list, id] };
-    });
     setScanning(false);
-    setManualId('');
+    try {
+      const r = await api.recordLoadedBox(job.bookingId, id);
+      setJobs((prev) => prev.map((j) => (j.bookingId === job.bookingId ? { ...j, loadedBoxes: r.loadedBoxes } : j)));
+      setManualId('');
+      if (r.duplicate) showToast(`${id.toUpperCase()} is already scanned.`, 'info');
+      else {
+        haptic(HAPTIC.success);
+        const last = r.loadedBoxes[r.loadedBoxes.length - 1];
+        showToast(last?.matched ? `Loaded ${last.boxId}${last.label ? ` — ${last.label}` : ''}` : `Loaded ${last?.boxId} (no passport for this box)`, last?.matched ? 'success' : 'info');
+      }
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
   };
 
   return (
@@ -214,6 +232,9 @@ export const DriverJobPanel = ({ jobs, setJobs, loading, selectedJobId, setSelec
                   <Navigation size={13} /> {sharing ? 'Stop sharing location' : 'Share live location'}
                 </button>
               )}
+              {job.stage === 'pickup' && (
+                <button className="btn btn-sm btn-secondary" onClick={() => release(job)} style={{ gap: 5, color: '#EF4444' }}>Can't make it</button>
+              )}
             </div>
             {sharing && (
               <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: 8 }}>
@@ -229,11 +250,11 @@ export const DriverJobPanel = ({ jobs, setJobs, loading, selectedJobId, setSelec
             {job.stage === 'pickup' && (
               <div style={{ marginTop: 14, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <ScanLine size={14} color="#D4AF37" /> Box check while loading ({(loaded[job.bookingId] || []).length} scanned)
+                  <ScanLine size={14} color="#D4AF37" /> Box check while loading ({(job.loadedBoxes || []).length} scanned)
                 </div>
                 <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                  {(loaded[job.bookingId] || []).map((id) => (
-                    <span key={id} style={{ fontSize: '0.7rem', background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '2px 8px', borderRadius: 999 }}><CheckCircle2 size={10} /> {id}</span>
+                  {(job.loadedBoxes || []).map((b) => (
+                    <span key={b.boxId} title={b.matched ? b.label || 'Matches a box passport' : 'No passport for this box'} style={{ fontSize: '0.7rem', background: b.matched ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: b.matched ? '#10B981' : '#D97706', padding: '2px 8px', borderRadius: 999 }}><CheckCircle2 size={10} /> {b.boxId}</span>
                   ))}
                 </div>
                 {scanning ? (

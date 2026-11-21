@@ -39,7 +39,7 @@ export const DepositProtectionCertificate = ({ isOpen, onClose }) => {
       zIndex: 220,
       padding: '20px'
     }}>
-      <div className="glass-panel" style={{
+      <div className="glass-panel" role="dialog" aria-modal="true" aria-label="Deposit protection certificate" style={{
         width: '100%',
         maxWidth: '780px',
         maxHeight: '92vh',
@@ -141,7 +141,7 @@ export const DepositProtectionCertificate = ({ isOpen, onClose }) => {
             <div style={{ color: '#475569' }}>Auditor Name: Rajesh Sharma (ID: PKG-CPT-491)</div>
             <div style={{ color: '#475569' }}>Inspection Type: Before & After Move Visual Audit</div>
             <div style={{ color: '#64748B', fontSize: '0.75rem', marginTop: '4px' }}>
-              Digital Audit Protocol: <strong>v4.2 Tamper-Evident RFID</strong>
+              Evidence: <strong>QR box passports with photos</strong>
             </div>
           </div>
         </div>

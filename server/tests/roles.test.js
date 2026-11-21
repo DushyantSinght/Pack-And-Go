@@ -20,6 +20,7 @@ test('customer: box passports are private to their owner', async () => {
   const cust = await makeUser();
   const other = await makeUser();
   const cap = await login('captain.harpreet@packandgo.in');
+  assert.equal((await call('/moves/current', { token: cust.token })).status, 200, 'a new account gets a draft estimate');
 
   const made = await call('/passports', { token: cust.token, method: 'POST', body: { label: `${TAG} box`, category: 'Kitchen', items: ['Plates', 'Mugs'], fragile: true } });
   assert.equal(made.status, 201);
@@ -84,6 +85,18 @@ test('seller ↔ buyer: listing, no self-claim, claim notifies the seller, chat 
 
   assert.equal((await call(`/marketplace/${item.itemId}/claim`, { token: seller.token, method: 'POST' })).status, 409, "seller can't claim own listing");
 
+  // Only the seller can edit or remove it.
+  assert.equal((await call(`/marketplace/${item.itemId}`, { token: buyer.token, method: 'PATCH', body: { price: 1 } })).status, 404, "others can't edit");
+  assert.equal((await call(`/marketplace/${item.itemId}`, { token: buyer.token, method: 'DELETE' })).status, 404, "others can't delete");
+  const edited = await call(`/marketplace/${item.itemId}`, { token: seller.token, method: 'PATCH', body: { price: 400, title: `${TAG} lamp`, originalPrice: 100 } });
+  assert.equal(edited.status, 200, edited.body.message);
+  assert.equal(edited.body.item.price, 400);
+  assert.equal(edited.body.item.originalPrice, 400, 'no fake discount after edit');
+  assert.equal((await call(`/marketplace/${item.itemId}`, { token: seller.token, method: 'PATCH', body: { price: -3 } })).status, 400);
+  const spare = (await call('/marketplace', { token: seller.token, method: 'POST', body: { title: `${TAG} spare chair`, price: 200 } })).body.item;
+  track.item(spare.itemId);
+  assert.equal((await call(`/marketplace/${spare.itemId}`, { token: seller.token, method: 'DELETE' })).status, 200, 'seller removes own listing');
+
   const chat = await call('/chat/conversations', { token: buyer.token, method: 'POST', body: { contextType: 'seller', refId: item.itemId } });
   assert.equal(chat.status, 200);
   assert.equal(chat.body.conversation.otherUser.email, seller.email);
@@ -101,6 +114,8 @@ test('seller ↔ buyer: listing, no self-claim, claim notifies the seller, chat 
   const mineNow = asSeller.body.items.find((i) => i.itemId === item.itemId);
   assert.ok(mineNow.mine && mineNow.claimedBy?.name && !mineNow.claimedBy.email, 'seller sees who claimed (name only)');
   assert.equal((await call(`/marketplace/${item.itemId}/claim`, { token: buyer.token, method: 'POST' })).status, 409, 'cannot claim twice');
+  assert.equal((await call(`/marketplace/${item.itemId}`, { token: seller.token, method: 'PATCH', body: { price: 1 } })).status, 409, "claimed listing can't be edited");
+  assert.equal((await call(`/marketplace/${item.itemId}`, { token: seller.token, method: 'DELETE' })).status, 409, "claimed listing can't be deleted");
 
   await new Promise((r) => setTimeout(r, 300));
   const notes = await call('/notifications', { token: seller.token });
@@ -133,6 +148,11 @@ test('parent: account works, cannot use captain or admin tools', async () => {
 test('admin: every operations list loads; customers are refused', async () => {
   const admin = await login('admin@packandgo.in');
   const cust = await makeUser();
+  // Wiping the database is never available to ordinary users (and needs an explicit opt-in even for staff).
+  assert.equal((await call('/database/seed', { token: cust.token, method: 'POST', body: { force: true } })).status, 403, 'customer cannot reseed');
+  if (process.env.ALLOW_DB_RESEED !== 'true') {
+    assert.equal((await call('/database/seed', { token: admin.token, method: 'POST', body: { force: true } })).status, 403, 'reseed off unless enabled');
+  }
   for (const p of ['/admin/bookings', '/admin/claims', '/admin/requests', '/admin/captains?status=pending', '/auth/users']) {
     assert.equal((await call(p, { token: admin.token })).status, 200, `admin ${p}`);
     assert.equal((await call(p, { token: cust.token })).status, 403, `customer ${p}`);

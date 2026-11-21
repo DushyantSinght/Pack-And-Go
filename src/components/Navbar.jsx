@@ -32,7 +32,6 @@ export const Navbar = () => {
     user,
     openAuth,
     logout,
-    openDriverConsole,
     setIsAdminOpen,
     openBooking,
     openMyMoves,
@@ -144,8 +143,8 @@ export const Navbar = () => {
           </button>
         )}
 
-        {/* Role Switcher — development preview only; real roles come from the account */}
-        {import.meta.env.DEV && (
+        {/* Role preview — signed-out visitors only. Signed-in users always see their account's view. */}
+        {!user && (
         <div className="nav-dev" style={{
           display: 'flex',
           alignItems: 'center',
@@ -157,11 +156,12 @@ export const Navbar = () => {
         }}>
           <UserCheck size={13} color="var(--text-muted)" />
           <select
+            aria-label="Preview the app as"
+            title="Preview the app as another kind of user (sign in to use your own account)"
             value={activeRole}
             onChange={(e) => {
               const val = e.target.value;
               setActiveRole(val);
-              if (val === 'captain') openDriverConsole();
             }}
             style={{
               padding: '4px 4px',
@@ -174,10 +174,10 @@ export const Navbar = () => {
               outline: 'none'
             }}
           >
-            <option value="customer" style={{ background: '#111827', color: '#fff' }}>Tenant</option>
-            <option value="captain" style={{ background: '#111827', color: '#fff' }}>Captain</option>
-            <option value="outgoing" style={{ background: '#111827', color: '#fff' }}>Outgoing (P2P)</option>
-            <option value="parent" style={{ background: '#111827', color: '#fff' }}>Parent</option>
+            <option value="customer" style={{ background: '#111827', color: '#fff' }}>Preview: Customer</option>
+            <option value="captain" style={{ background: '#111827', color: '#fff' }}>Preview: Move Captain</option>
+            <option value="outgoing" style={{ background: '#111827', color: '#fff' }}>Preview: Seller</option>
+            <option value="parent" style={{ background: '#111827', color: '#fff' }}>Preview: Parent</option>
           </select>
         </div>
         )}
@@ -200,7 +200,7 @@ export const Navbar = () => {
         {user && (
           <button
             onClick={openInbox}
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary btn-sm has-badge"
             style={{ position: 'relative', width: '34px', height: '34px', padding: 0, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             title={unreadTotal ? `${unreadTotal} unread message${unreadTotal > 1 ? 's' : ''}` : 'Messages'}
           >

@@ -246,3 +246,13 @@ html.lite-motion .page-enter, html.lite-motion .page-enter * { animation-duratio
   color: #0B0C10; background: linear-gradient(140deg, #F3E7C4, #D4AF37 55%, #AA820A);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
+
+/* Page behind an open dialog doesn't scroll; keep the layout from jumping when the scrollbar hides. */
+html.scroll-locked, html.scroll-locked body { overflow: hidden; }
+html.scroll-locked body { padding-right: var(--scrollbar-w, 0px); }
+
+/* Phones & tablets (the navbar wraps to two rows at 860px): the bell sits near the left of the
+   action row, so a panel anchored to its right edge would hang off-screen. Pin it under the navbar. */
+@media (max-width: 860px) {
+  .notif-panel { position: fixed !important; left: 12px !important; right: 12px !important; width: auto !important; margin-left: auto; max-width: 420px !important; top: 112px !important; max-height: min(420px, calc(100dvh - 140px)) !important; }
+}

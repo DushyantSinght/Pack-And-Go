@@ -1,5 +1,6 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import { useEffect, useRef, useState } from 'react';
+import { portalRoot } from '../components/ui/Portal';
 
 const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -52,6 +53,22 @@ export const useGlobalMotion = () => {
       m.removedNodes.forEach((n) => { if (n.nodeType === 1) ghostFor(n); });
     }));
     mo.observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
+    const portal = portalRoot();
+    mo.observe(portal, { childList: true, subtree: true });
+
+    // While any dialog is open, the page behind it stays put (no scrolling the background).
+    const appRoot = document.getElementById('root') || document.body;
+    const html = document.documentElement;
+    const syncScrollLock = () => {
+      const open = !!(appRoot.querySelector('[role="dialog"]') || portal.querySelector('[role="dialog"]'));
+      if (open === html.classList.contains('scroll-locked')) return;
+      if (open) html.style.setProperty('--scrollbar-w', `${window.innerWidth - html.clientWidth}px`);
+      html.classList.toggle('scroll-locked', open);
+    };
+    const lockMo = new MutationObserver(syncScrollLock);
+    lockMo.observe(appRoot, { childList: true, subtree: true });
+    lockMo.observe(portal, { childList: true, subtree: true });
+    syncScrollLock();
 
     // Low-power devices: fewer heavy effects (blur, big animated blobs).
     const lowPower = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4) || navigator.connection?.saveData;
@@ -96,6 +113,8 @@ export const useGlobalMotion = () => {
     return () => {
       io.disconnect();
       mo.disconnect();
+      lockMo.disconnect();
+      html.classList.remove("scroll-locked");
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerdown', onDown);
       window.removeEventListener('scroll', onScroll);

@@ -45,7 +45,8 @@ export const quote = ({ totalCuFt = 0, distanceKm = 0, floorsOrigin = 0, floorsD
   const base = 799;
   const volume = Math.round(cuFt * 18);
   const distance = Math.round(Math.max(0, km - 5) * 28);
-  const stairFloors = (hasLiftOrigin ? 0 : Math.max(0, +floorsOrigin || 0)) + (hasLiftDestination ? 0 : Math.max(0, +floorsDestination || 0));
+  const fl = (n) => Math.max(0, Math.min(40, Math.round(+n || 0))); // walk-ups beyond 40 floors aren't a thing
+  const stairFloors = (hasLiftOrigin ? 0 : fl(floorsOrigin)) + (hasLiftDestination ? 0 : fl(floorsDestination));
   const floors = stairFloors * Math.round(120 + cuFt * 1.2);
   const gross = base + volume + distance + floors;
   const poolingDiscount = pooled ? Math.round((volume + distance) * 0.4) : 0;

@@ -229,6 +229,18 @@ const MoveDetail = ({ move, onBack }) => {
               ))}
             </div>
           </Section>
+          {move.loadedBoxes?.length > 0 && (
+            <Section title={`Boxes on the truck (${move.loadedBoxes.length})`} icon={CheckCircle2}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {move.loadedBoxes.map((b) => (
+                  <span key={b.boxId} title={b.matched ? 'Matches your box passport' : 'Scanned by your captain — not in your box passports'} style={{ fontSize: '0.72rem', padding: '3px 9px', borderRadius: 999, background: b.matched ? 'rgba(16,185,129,0.12)' : 'var(--bg-elevated)', color: b.matched ? 'var(--emerald-light)' : 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>
+                    {b.boxId}{b.label ? ` • ${b.label}` : ''}
+                  </span>
+                ))}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: 6 }}>Scanned by your captain while loading. Count them again before you share the delivery code.</div>
+            </Section>
+          )}
           <Section title="Live tracking" icon={Truck}>
             <LiveMoveMap booking={move} />
           </Section>

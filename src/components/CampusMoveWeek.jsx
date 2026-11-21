@@ -46,7 +46,7 @@ export const CampusMoveWeek = () => {
 
   const handleSwitchToParentView = () => {
     setActiveRole('parent');
-    showToast('Switched to Parent Live Monitoring View.', 'info');
+    showToast('Previewing the Parent view. Sign in with a parent account to use it for real.', 'info');
   };
 
   return (
@@ -72,14 +72,17 @@ export const CampusMoveWeek = () => {
             </p>
           </div>
 
+          {/* Previewing the parent view is for signed-out visitors; parents get it from their own account. */}
+          {!user && (
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
               onClick={handleSwitchToParentView}
               className="btn btn-outline-emerald btn-sm"
             >
-              <Smartphone size={16} /> Switch to Parent Live View
+              <Smartphone size={16} /> Preview the Parent view
             </button>
           </div>
+          )}
         </div>
       </div>
 

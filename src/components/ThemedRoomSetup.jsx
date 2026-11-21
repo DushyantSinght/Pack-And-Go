@@ -231,8 +231,8 @@ export const ThemedRoomSetup = () => {
                     {isChecked && <Check size={16} />}
                   </div>
 
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                       <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>{item.name}</strong>
                       <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>{item.tag}</span>
                     </div>

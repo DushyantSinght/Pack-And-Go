@@ -154,13 +154,17 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
           })
         });
         confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+        // Only say "check your inbox" when the server confirms the email actually went out.
+        const emailNote = res?.devVerifyLink
+          ? 'Development: the email-verification link is in the yellow banner.'
+          : res?.emailDelivery === 'sent'
+            ? 'Check your inbox to verify your email.'
+            : "We couldn't send the verification email just now — use \"Resend email\" in the banner to try again.";
         showToast(
           isCaptain
-            ? 'Application submitted! Verify your email — our team will check your licence and vehicle.'
-            : res?.devVerifyLink
-              ? 'Account created! Development: the email-verification link is in the yellow banner.'
-              : 'Account created! Check your inbox to verify your email.',
-          'success'
+            ? `Application submitted! Our team will check your licence and vehicle. ${emailNote}`
+            : `Account created! ${emailNote}`,
+          res?.emailDelivery === 'sent' || res?.devVerifyLink ? 'success' : 'info'
         );
       }
       setSuccess(true);

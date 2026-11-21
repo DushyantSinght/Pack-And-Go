@@ -19,12 +19,15 @@ import {
 import confetti from 'canvas-confetti';
 import { PageIcon } from './ui/PageIcon';
 import { SafeImage } from './ui/SafeImage';
+import { Portal } from './ui/Portal';
 
 export const CircularMarketplace = () => {
   const {
     marketplaceItems,
     addMarketplaceItem,
     claimMarketplaceItem,
+    updateMarketplaceItem,
+    removeMarketplaceItem,
     carbonSavedTotalKg,
     showToast
   } = useMove();
@@ -50,6 +53,18 @@ export const CircularMarketplace = () => {
     imageUrl: ''
   });
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [editingId, setEditingId] = useState(null); // itemId when editing one of my listings
+  const EMPTY_FORM = { title: '', society: 'Prestige Falcon City, Bengaluru', category: 'Furniture', price: '', originalPrice: '', condition: 'Like New (6 months old)', description: '', imageUrl: '' };
+  const startEdit = (item) => {
+    setEditingId(item.itemId);
+    setListingForm({ title: item.title, society: item.society, category: item.category, price: String(item.price), originalPrice: item.originalPrice > item.price ? String(item.originalPrice) : '', condition: item.condition, description: item.description || '', imageUrl: item.imageUrl || '' });
+    setShowListingModal(true);
+  };
+  const closeListingModal = () => { setShowListingModal(false); setEditingId(null); setListingForm(EMPTY_FORM); };
+  const removeListing = async (item) => {
+    if (!window.confirm(`Remove "${item.title}" from the marketplace?`)) return;
+    await removeMarketplaceItem(item.itemId);
+  };
 
   /** Resize the seller's photo in the browser (max 1280px JPEG) before upload. */
   const onListingPhoto = (file) => {
@@ -110,19 +125,8 @@ export const CircularMarketplace = () => {
   const handleCreateListing = async (e) => {
     e.preventDefault();
     if (!listingForm.title || !listingForm.price) return;
-    const ok = await addMarketplaceItem(listingForm);
-    if (!ok) return;
-    setShowListingModal(false);
-    setListingForm({
-      title: '',
-      society: 'Prestige Falcon City, Bengaluru',
-      category: 'Furniture',
-      price: '',
-      originalPrice: '',
-      condition: 'Like New (6 months old)',
-      description: '',
-      imageUrl: ''
-    });
+    const ok = editingId ? await updateMarketplaceItem(editingId, listingForm) : await addMarketplaceItem(listingForm);
+    if (ok) closeListingModal();
   };
 
   // Filter items
@@ -429,7 +433,14 @@ export const CircularMarketplace = () => {
                     ? <span>Claimed{item.claimedBy?.name ? ` by ${item.claimedBy.name}` : ''} — arrange the handoff in Messages.</span>
                     : <span>Live — buyers can chat or call you through Pack&Go.</span>}
                 </div>
-              ) : (<>
+              ) : null}
+              {item.mine && (!item.status || item.status === 'available') && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => startEdit(item)} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>Edit</button>
+                  <button onClick={() => removeListing(item)} className="btn btn-secondary btn-sm" style={{ flex: 1, color: '#EF4444' }}>Remove</button>
+                </div>
+              )}
+              {!item.mine && (<>
               <button
                 key={`claim-${item.status || 'available'}`}
                 onClick={() => handleClaim(item)}
@@ -465,7 +476,7 @@ export const CircularMarketplace = () => {
       </div>
 
       {/* Modal: List Item as Outgoing Tenant */}
-      {showListingModal && (
+      {showListingModal && (<Portal>
         <div style={{
           position: 'fixed',
           top: 0,
@@ -480,8 +491,8 @@ export const CircularMarketplace = () => {
           zIndex: 100,
           padding: '20px'
         }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '520px', padding: '24px' }}>
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>List Item for In-Building P2P Handoff</h3>
+          <div className="glass-panel" role="dialog" aria-modal="true" aria-label="Your listing" style={{ width: '100%', maxWidth: '520px', padding: '24px', maxHeight: '92vh', overflowY: 'auto' }}>
+            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>{editingId ? 'Edit your listing' : 'List Item for In-Building P2P Handoff'}</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
               Connect directly with incoming residents moving into your building. Zero truck transit fees!
             </p>
@@ -574,19 +585,19 @@ export const CircularMarketplace = () => {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button
                   type="button"
-                  onClick={() => setShowListingModal(false)}
+                  onClick={closeListingModal}
                   className="btn btn-secondary btn-sm"
                 >
                   Cancel
                 </button>
                 <button type="submit" disabled={photoBusy} className="btn btn-primary btn-sm">
-                  Publish P2P Listing
+                  {editingId ? 'Save changes' : 'Publish P2P Listing'}
                 </button>
               </div>
             </form>
           </div>
         </div>
-      )}
+      </Portal>)}
       <ServiceRequestModal request={buybackRequest} onClose={() => setBuybackRequest(null)} />
       <MarketplaceItemSheet
         item={sheetItem}

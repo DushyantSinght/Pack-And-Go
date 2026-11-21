@@ -7,6 +7,8 @@ import { api } from '../services/api';
 import { SuccessCheck } from './ui/SuccessCheck';
 import { Skeleton } from './ui/Skeleton';
 import { haptic, HAPTIC } from '../utils/haptics';
+import { TestPaymentDetails } from './TestPaymentDetails';
+import { isRazorpayTestMode } from '../utils/razorpayMode';
 
 const loadRazorpayScript = () =>
   new Promise((resolve) => {
@@ -137,9 +139,13 @@ export const PaymentModal = ({ isOpen, onClose, onOpenInvoice }) => {
             {!config ? (
               <Skeleton h={44} r={12} />
             ) : config.razorpay ? (
-              <button disabled={busy} onClick={payOnline} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', gap: 8 }}>
-                {busy ? <Loader2 size={16} className="spin" /> : <CreditCard size={16} />} Pay {inr(total)} — UPI, card, netbanking
-              </button>
+              <>
+                <button disabled={busy} onClick={payOnline} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', gap: 8 }}>
+                  {busy ? <Loader2 size={16} className="spin" /> : <CreditCard size={16} />} Pay {inr(total)} — UPI, card, netbanking
+                </button>
+                {/* Only with a rzp_test_ key — never shown with live keys. */}
+                {isRazorpayTestMode(config) && <TestPaymentDetails />}
+              </>
             ) : config.testPayments ? (
               <>
                 <button disabled={busy} onClick={payTest} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', gap: 8 }}>

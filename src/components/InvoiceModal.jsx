@@ -33,7 +33,7 @@ export const InvoiceModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="print-root" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 640, maxHeight: '94vh', overflowY: 'auto', background: '#fff', color: '#0F172A', borderRadius: 12, padding: 28, fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem' }}>
+      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Receipt" style={{ width: '100%', maxWidth: 640, maxHeight: '94vh', overflowY: 'auto', background: '#fff', color: '#0F172A', borderRadius: 12, padding: 28, fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem' }}>
         <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 10 }}>
           <button onClick={() => window.print()} className="btn btn-sm" style={{ background: '#0F172A', color: '#fff', gap: 6 }}><Printer size={14} /> Print / Save PDF</button>
           <button onClick={onClose} className="btn btn-sm" style={{ background: '#E2E8F0', color: '#0F172A' }}><X size={14} /></button>

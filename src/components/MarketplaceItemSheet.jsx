@@ -2,6 +2,7 @@
 import React from 'react';
 import { Building, Leaf, MessageSquare, Phone, ShoppingBag, X, Tag } from 'lucide-react';
 import { SafeImage } from './ui/SafeImage';
+import { Portal } from './ui/Portal';
 
 const vtName = (item) => `item-${String(item.itemId || item.id).replace(/[^a-zA-Z0-9-]/g, '')}`;
 export const itemViewTransitionName = vtName;
@@ -13,6 +14,7 @@ export const MarketplaceItemSheet = ({ item, onClose, onClaim, onChat, onCall })
   const off = item.originalPrice ? Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100) : 0;
   const available = !item.status || item.status === 'available';
   return (
+    <Portal>
     <div style={{ position: 'fixed', inset: 0, zIndex: 255, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }} onClick={onClose}>
       <div role="dialog" aria-label={item.title} onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 620, maxHeight: '94vh', overflowY: 'auto', background: 'var(--bg-card-solid)', border: '1px solid var(--border-gold)', borderRadius: 22, padding: 16, position: 'relative', boxShadow: '0 40px 90px -20px rgba(0,0,0,0.7)' }}>
         <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ position: 'absolute', top: 24, right: 24, width: 34, height: 34, padding: 0, borderRadius: '50%', zIndex: 2 }} aria-label="Close"><X size={16} /></button>
@@ -45,5 +47,6 @@ export const MarketplaceItemSheet = ({ item, onClose, onClaim, onChat, onCall })
         </div>
       </div>
     </div>
+    </Portal>
   );
 };

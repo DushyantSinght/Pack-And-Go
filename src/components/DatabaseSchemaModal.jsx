@@ -6,20 +6,17 @@ import {
   Layers,
   Table,
   CheckCircle2,
-  RefreshCw,
   X,
   HardDrive
 } from 'lucide-react';
 import { api } from '../services/api';
-import { useMove } from '../context/MoveContext';
 
 export const DatabaseSchemaModal = ({ isOpen, onClose }) => {
-  const { showToast } = useMove();
   const [dbStatus, setDbStatus] = useState(null);
   const [schemas, setSchemas] = useState([]);
   const [selectedCollection, setSelectedCollection] = useState('users');
   const [collectionDocs, setCollectionDocs] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('schema'); // 'schema' | 'live-data' | 'connection'
 
   const fetchStatusAndSchema = async () => {
@@ -78,21 +75,6 @@ export const DatabaseSchemaModal = ({ isOpen, onClose }) => {
     }
   }, [isOpen, activeTab, selectedCollection]);
 
-  const handleReseed = async () => {
-    setLoading(true);
-    try {
-      await api.reseedDatabase(true);
-      showToast('MongoDB database reseeded successfully with fresh documents!', 'success');
-      await fetchStatusAndSchema();
-      if (activeTab === 'live-data') {
-        fetchCollectionData(selectedCollection);
-      }
-    } catch (err) {
-      showToast(`Reseed error: ${err.message}`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -113,7 +95,7 @@ export const DatabaseSchemaModal = ({ isOpen, onClose }) => {
       zIndex: 250,
       padding: '20px'
     }}>
-      <div style={{
+      <div role="dialog" aria-modal="true" aria-label="Database schema" style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border-glow)',
         borderRadius: 'var(--radius-lg)',
@@ -162,16 +144,6 @@ export const DatabaseSchemaModal = ({ isOpen, onClose }) => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button
-              onClick={handleReseed}
-              disabled={loading}
-              className="btn btn-secondary btn-sm"
-              style={{ gap: '6px', fontSize: '0.8rem' }}
-              title="Reseed initial collection documents"
-            >
-              <RefreshCw size={14} className={loading ? 'spin' : ''} />
-              Reseed Database
-            </button>
             <button
               onClick={onClose}
               style={{

@@ -16,7 +16,9 @@ const MoveContext = (globalThis.__packandgoMoveContext ??= createContext());
 export const MoveProvider = ({ children }) => {
   // Navigation & Role
   const [activeTab, setActiveTab] = useState('estimator');
-  const [activeRole, setActiveRole] = useState('customer'); // customer | captain | outgoing | parent
+  // customer | captain | outgoing (seller) | parent. Signed-out visitors may preview any view;
+  // signed-in users always see the view for their account type (set via accountRole below).
+  const [previewRole, setPreviewRole] = useState('customer');
   // Remember the visitor's theme; first visit follows the device setting.
   const [themeMode, setThemeMode] = useState(() => {
     try {
@@ -80,6 +82,12 @@ export const MoveProvider = ({ children }) => {
       return null;
     }
   });
+  const accountRole = (u) => ({ captain: 'captain', outgoing: 'outgoing', parent: 'parent' })[u?.userType] || 'customer';
+  const activeRole = user ? accountRole(user) : previewRole;
+  /** Only changes the preview for signed-out visitors; an account's view is locked to its type. */
+  const setActiveRole = (role) => {
+    if (!tokenStorage.get()) setPreviewRole(role);
+  };
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
 
@@ -446,6 +454,32 @@ export const MoveProvider = ({ children }) => {
   };
 
   // Claim or Buy item & update MongoDB
+  /** Seller edits their own listing. Resolves true when saved. */
+  const updateMarketplaceItem = async (itemId, data) => {
+    try {
+      const res = await api.updateMarketplaceListing(itemId, data);
+      setMarketplaceItems((prev) => prev.map((i) => (i.itemId === itemId ? res.item : i)));
+      showToast('Listing updated.', 'success');
+      return true;
+    } catch (e) {
+      showToast(e.message, 'error');
+      return false;
+    }
+  };
+
+  /** Seller takes their listing down. */
+  const removeMarketplaceItem = async (itemId) => {
+    try {
+      await api.deleteMarketplaceListing(itemId);
+      setMarketplaceItems((prev) => prev.filter((i) => i.itemId !== itemId));
+      showToast('Listing removed.', 'success');
+      return true;
+    } catch (e) {
+      showToast(e.message, 'error');
+      return false;
+    }
+  };
+
   /** Claims a listing. Resolves true only once the server has confirmed it's yours. */
   const claimMarketplaceItem = async (itemId) => {
     const item = marketplaceItems.find((i) => (i.itemId === itemId || i.id === itemId));
@@ -522,6 +556,8 @@ export const MoveProvider = ({ children }) => {
         marketplaceItems,
         addMarketplaceItem,
         claimMarketplaceItem,
+        updateMarketplaceItem,
+        removeMarketplaceItem,
         carbonSavedTotalKg,
         corridors,
         selectedCorridorId,

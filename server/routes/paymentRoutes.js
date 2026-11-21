@@ -59,6 +59,8 @@ router.post('/create-order', requireAuth, async (req, res) => {
 router.post('/verify', requireAuth, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
+    // Never check signatures against an empty secret.
+    if (!process.env.RAZORPAY_KEY_SECRET) return res.status(503).json({ success: false, message: 'Online payments are not configured.' });
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({ success: false, message: 'Missing payment identifiers.' });
     }
@@ -87,7 +89,8 @@ router.post('/test-pay', requireAuth, async (req, res) => {
   if (!testPaymentsAllowed()) return res.status(403).json({ success: false, message: 'Test payments are disabled.' });
   const { booking, total, error } = await payableBooking(req.body.bookingId, req.user.email);
   if (error) return res.status(error[0]).json({ success: false, message: error[1] });
-  await markPaid(booking, { method: 'Test payment (dev)', paymentId: `TEST-${Date.now()}`, amount: total, testMode: true });
+  const paid = await markPaid(booking, { method: 'Test payment (dev)', paymentId: `TEST-${Date.now()}`, amount: total, testMode: true });
+  if (!paid) return res.status(409).json({ success: false, message: 'This booking is already paid.' });
   res.json({ success: true, message: 'Test payment recorded. No real money was charged.', booking });
 });
 

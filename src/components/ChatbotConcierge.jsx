@@ -12,7 +12,7 @@ import {
 
 export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) => {
   const { setActiveTab, openMyMoves } = useMove();
-  const [aiOn, setAiOn] = useState(null); // null = unknown, true = Claude, false = basic keyword mode
+  const [aiOn, setAiOn] = useState(null); // null = unknown, true = AI model, false = basic keyword mode
   useEffect(() => {
     if (aiOn !== null) return;
     api.assistantStatus().then((r) => setAiOn(!!r.configured)).catch(() => setAiOn(false));
@@ -87,6 +87,16 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
     }
   ];
 
+  // Small talk for basic (no-AI) mode. Whole-word, typo-tolerant ("hii", "hw r u") so "this" doesn't count as "hi".
+  const smallTalk = [
+    { re: /\b(h+i+|he+y+|hel+o+|hlo|namaste|namaskar|good (morning|afternoon|evening))\b/i, reply: 'Hi there! 👋 How can I help with your move today?' },
+    { re: /\b(how|hw|hou)\s*(are|r|ar)\s*(you|u|yu)\b|\bhow('?s| is) it going\b|\bwhat'?s up\b|\bsup\b/i, reply: "I'm doing great, thanks for asking! 😊 Ready to help you plan your move." },
+    { re: /\b(thanks?|thank\s*you|thx|ty|shukriya|dhanyavaad)\b/i, reply: "You're welcome! Anything else I can help with?" },
+    { re: /\b(bye|goodbye|see you|tata|ok bye)\b/i, reply: 'Bye! Good luck with your move. 🚚' },
+    { re: /\b(who are you|what are you|your name)\b/i, reply: "I'm PackBot, Pack&Go's assistant. I can explain prices, payments, cancellations, your booking status, box passports and PGs." }
+  ];
+  const TOPIC_CHIPS = ['How is my price calculated?', 'What is the cancellation policy?', 'Where is my booking?'];
+
   const handleSend = (userText) => {
     const textToSend = userText || inputMessage;
     if (!textToSend.trim()) return;
@@ -127,8 +137,11 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
       setIsTyping(false);
       const lower = textToSend.toLowerCase();
       const matched = botResponses.find((r) => r.keywords.some((k) => lower.includes(k)));
+      const chat = !matched && smallTalk.find((t) => t.re.test(textToSend));
 
-      const botReply = matched
+      const botReply = chat
+        ? { id: Date.now() + 1, sender: 'bot', text: chat.reply, chips: TOPIC_CHIPS }
+        : matched
         ? {
             id: Date.now() + 1,
             sender: 'bot',
@@ -138,8 +151,8 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
         : {
             id: Date.now() + 1,
             sender: 'bot',
-            text: "I'm in basic mode and didn't catch that. I can help with prices, payments, cancellations, your booking status, box passports and PGs.",
-            chips: ['How is my price calculated?', 'What is the cancellation policy?', 'Where is my booking?']
+            text: "Sorry, I didn't quite get that — smart AI replies aren't switched on yet, so I understand a set of topics: prices, payments, cancellations, your booking status, box passports and PGs. Try one of these:",
+            chips: TOPIC_CHIPS
           };
 
       setMessages((prev) => [...prev, botReply]);

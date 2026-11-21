@@ -74,11 +74,12 @@ export const cleanup = async () => {
   const ids = (await db.collection('users').find({ email: { $in: emails } }).project({ _id: 1 }).toArray()).map((u) => u._id);
   const convs = (await db.collection('conversations').find({ participants: { $in: ids } }).project({ _id: 1 }).toArray()).map((c) => c._id);
   const items = [...tracked.items];
+  const bookingIds = (await db.collection('movebookings').find({ userEmail: { $in: emails } }).project({ bookingId: 1 }).toArray()).map((b) => b.bookingId);
 
   await Promise.all([
     db.collection('messages').deleteMany({ conversation: { $in: convs } }),
     db.collection('conversations').deleteMany({ _id: { $in: convs } }),
-    db.collection('notifications').deleteMany({ $or: [{ user: { $in: ids } }, { title: { $regex: `qa-${run}|QA-${run}` } }] }),
+    db.collection('notifications').deleteMany({ $or: [{ user: { $in: ids } }, { bookingId: { $in: bookingIds } }, { title: { $regex: `qa-${run}|QA-${run}` } }] }),
     db.collection('movebookings').deleteMany({ userEmail: { $in: emails } }),
     db.collection('damageclaims').deleteMany({ userEmail: { $in: emails } }),
     db.collection('servicerequests').deleteMany({ userEmail: { $in: emails } }),

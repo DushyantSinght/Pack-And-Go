@@ -116,7 +116,7 @@ export const ACTIVE_POOLED_CORRIDORS = [
     driver: {
       name: 'Manjunath Gowda',
       rating: 4.9,
-      phone: '+91 98452 11029',
+      phone: '+91 91169 44178',
       tripsCompleted: 1420,
       photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80'
     },
@@ -148,7 +148,7 @@ export const ACTIVE_POOLED_CORRIDORS = [
     driver: {
       name: 'Harpreet Singh',
       rating: 4.85,
-      phone: '+91 98110 44219',
+      phone: '+91 91169 44178',
       tripsCompleted: 980,
       photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'
     },
@@ -183,7 +183,7 @@ export const DIGITAL_LUGGAGE_PASSPORTS = [
     conditionAtOrigin: 'Mint / Factory Cushioned (Pre-move Audit Certified)',
     conditionAtDropoff: 'Pending Delivery Audit',
     boxSize: 'Medium Sturdy Heavy-Duty (18" x 14" x 12")',
-    sealStatus: 'Tamper-Evident RFID Tape Intact (#TX-9941)',
+    sealStatus: 'Taped and QR-labelled',
     preMovePhotoUrl: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80',
     postMovePhotoUrl: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80',
     itemsContained: [
@@ -204,7 +204,7 @@ export const DIGITAL_LUGGAGE_PASSPORTS = [
     conditionAtOrigin: 'Clean / Vacuum Sealed & Barcoded',
     conditionAtDropoff: 'Delivered / Inspected & Verified',
     boxSize: 'Hanging Wardrobe Carton (24" x 20" x 45")',
-    sealStatus: 'Seal #TX-9942 Verified at Geofence',
+    sealStatus: 'Taped and QR-labelled',
     preMovePhotoUrl: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80',
     postMovePhotoUrl: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80',
     itemsContained: [
@@ -225,7 +225,7 @@ export const DIGITAL_LUGGAGE_PASSPORTS = [
     conditionAtOrigin: 'Double-Bubble Wrapped & Inspected',
     conditionAtDropoff: 'Pending Dropoff',
     boxSize: 'Cellular Divider Box (18" x 18" x 16")',
-    sealStatus: 'Shockwatch Sensor Activated: Green (No drops)',
+    sealStatus: 'Taped, QR-labelled, marked fragile',
     preMovePhotoUrl: 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?auto=format&fit=crop&w=600&q=80',
     postMovePhotoUrl: 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?auto=format&fit=crop&w=600&q=80',
     itemsContained: [
@@ -246,7 +246,7 @@ export const DIGITAL_LUGGAGE_PASSPORTS = [
     conditionAtOrigin: 'Waterproof Poly-Lined / Moisture Absorbers',
     conditionAtDropoff: 'Delivered',
     boxSize: 'Heavy-Load Small Box (14" x 12" x 10")',
-    sealStatus: 'Tamper Seal Verified',
+    sealStatus: 'Taped and QR-labelled',
     preMovePhotoUrl: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=600&q=80',
     postMovePhotoUrl: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=600&q=80',
     itemsContained: [
@@ -487,7 +487,7 @@ export const UPKEEP_SERVICES = [
     rating: 4.9,
     pricing: '₹499 for 2-Day Weekend Trial • ₹3,200/mo',
     duration: 'Breakfast & Dinner',
-    description: 'Police-verified cook tailored to your culinary spices, diet (pure veg/Jain/high-protein), and meal schedule.'
+    description: 'A home cook matched to your diet (pure veg, Jain, high-protein) and meal schedule.'
   },
   {
     id: 'srv-clean',
