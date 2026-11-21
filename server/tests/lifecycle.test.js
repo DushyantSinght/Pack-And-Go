@@ -42,13 +42,13 @@ test('full booking lifecycle: quote → book → pay → accept → pickup → d
   assert.ok(!early.body.jobs.some((j) => j.bookingId === m.bookingId), 'unpaid bookings are not offered to captains');
 
   const cfg = await call('/payments/config');
-  if (cfg.body.testPayments) {
-    const paid = await call('/payments/test-pay', { token: cust.token, method: 'POST', body: { bookingId: m.bookingId } });
+  if (cfg.body.demoPayments) {
+    const paid = await call('/payments/demo', { token: cust.token, method: 'POST', body: { bookingId: m.bookingId } });
     assert.equal(paid.status, 200);
   } else {
-    return; // real gateway configured: payment can't be automated here
+    return; // payments switched off on this server (DEMO_PAYMENTS_ENABLED=false)
   }
-  const again = await call('/payments/test-pay', { token: cust.token, method: 'POST', body: { bookingId: m.bookingId } });
+  const again = await call('/payments/demo', { token: cust.token, method: 'POST', body: { bookingId: m.bookingId } });
   assert.equal(again.status, 409, 'cannot pay twice');
 
   const jobs = await call('/moves/captain/jobs', { token: cap.token });
@@ -111,14 +111,14 @@ test('full booking lifecycle: quote → book → pay → accept → pickup → d
 test('cancellation refunds follow the policy', async () => {
   const cust = await makeUser();
   const cfg = await call('/payments/config');
-  if (!cfg.body.testPayments) return;
+  if (!cfg.body.demoPayments) return;
   const booked = await call('/moves/book', {
     token: cust.token, method: 'POST',
     body: { origin: 'A', destination: 'B', originLocation: HSR, destinationLocation: WHITEFIELD, date: tomorrow(), timeSlot: 'evening', totalCuFt: 60, contactPhone: '9876500000' }
   });
   const id = booked.body.move.bookingId;
   // Double-clicks: two simultaneous payments or cancellations must not both go through.
-  const pays = await Promise.all([1, 2].map(() => call('/payments/test-pay', { token: cust.token, method: 'POST', body: { bookingId: id } })));
+  const pays = await Promise.all([1, 2].map(() => call('/payments/demo', { token: cust.token, method: 'POST', body: { bookingId: id } })));
   assert.deepEqual(pays.map((p) => p.status).sort(), [200, 409], 'paid exactly once');
   const cancels = await Promise.all([1, 2].map(() => call(`/moves/${id}/cancel`, { token: cust.token, method: 'POST', body: { reason: 'Plans changed' } })));
   assert.deepEqual(cancels.map((c) => c.status).sort(), [200, 409], 'refunded exactly once');
@@ -131,7 +131,7 @@ test('cancellation refunds follow the policy', async () => {
 
 test('a slot that passes without a captain: hidden from captains, free to reschedule or cancel', async () => {
   const cfg = await call('/payments/config');
-  if (!cfg.body.testPayments) return;
+  if (!cfg.body.demoPayments) return;
   const cust = await makeUser();
   const cap = await makeCaptain();
   const booked = await call('/moves/book', {
@@ -139,7 +139,7 @@ test('a slot that passes without a captain: hidden from captains, free to resche
     body: { origin: 'HSR Layout, Bengaluru', destination: 'Whitefield, Bengaluru', originLocation: HSR, destinationLocation: WHITEFIELD, date: tomorrow(), timeSlot: 'morning', totalCuFt: 60, contactPhone: '9876500000' }
   });
   const id = booked.body.move.bookingId;
-  await call('/payments/test-pay', { token: cust.token, method: 'POST', body: { bookingId: id } });
+  await call('/payments/demo', { token: cust.token, method: 'POST', body: { bookingId: id } });
 
   // Move the slot into the past, as if nobody had accepted it in time.
   await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/packandgo');
@@ -168,7 +168,7 @@ test('a slot that passes without a captain: hidden from captains, free to resche
 
 test('family tracking link: owner-only to create, public read-only view, can be turned off', async () => {
   const cfg = await call('/payments/config');
-  if (!cfg.body.testPayments) return;
+  if (!cfg.body.demoPayments) return;
   const cust = await makeUser();
   const stranger = await makeUser();
   const booked = await call('/moves/book', {
@@ -177,7 +177,7 @@ test('family tracking link: owner-only to create, public read-only view, can be 
   });
   const id = booked.body.move.bookingId;
   assert.equal((await call(`/moves/${id}/share`, { token: cust.token, method: 'POST' })).status, 409, 'not before payment');
-  await call('/payments/test-pay', { token: cust.token, method: 'POST', body: { bookingId: id } });
+  await call('/payments/demo', { token: cust.token, method: 'POST', body: { bookingId: id } });
 
   assert.equal((await call(`/moves/${id}/share`, { token: stranger.token, method: 'POST' })).status, 404, "can't share someone else's move");
   const share = await call(`/moves/${id}/share`, { token: cust.token, method: 'POST' });

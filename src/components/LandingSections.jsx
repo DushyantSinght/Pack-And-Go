@@ -170,6 +170,7 @@ export const SiteFooter = () => {
         </div>
       </div>
       <div style={{ maxWidth: 1360, margin: '32px auto 0', paddingTop: 18, borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
+        <span style={{ fontWeight: 700, color: 'var(--amber)' }}>🎓 Academic Demo — No Real Money Involved. Payments are simulated.</span>
         <span>© {new Date().getFullYear()} {import.meta.env.VITE_COMPANY_NAME || 'Pack&Go'}. All rights reserved.</span>
         <a className="dst-credit" href="https://github.com/DushyantSinght" target="_blank" rel="noreferrer" data-author="DST" title="Dushyant Singh Tanwar">
           <Star size={12} /> Designed & built by <strong>DST</strong>

@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { BadgeCheck, Ban, CheckCircle2, Clock, Phone, ShieldCheck, Truck, X, XCircle } from 'lucide-react';
 import { api } from '../services/api';
 import { useMove } from '../context/MoveContext';
-import { AdminBookings, AdminClaims, AdminRequests } from './AdminOpsPanels';
+import { AdminBookings, AdminClaims, AdminRequests, AdminTransactions } from './AdminOpsPanels';
 import { SkeletonList } from './ui/Skeleton';
 import { EmptyState } from './ui/EmptyState';
 import { UserAvatar } from './ui/SafeImage';
@@ -83,7 +83,7 @@ export const AdminCaptainsModal = ({ isOpen, onClose }) => {
               <ShieldCheck size={18} color="var(--primary)" /> Pack&Go Operations
             </div>
             <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
-              {[['captains', 'Captains'], ['bookings', 'Bookings'], ['claims', 'Claims'], ['requests', 'Requests']].map(([k, l]) => (
+              {[['captains', 'Captains'], ['bookings', 'Bookings'], ['payments', 'Payments'], ['claims', 'Claims'], ['requests', 'Requests']].map(([k, l]) => (
                 <button key={k} onClick={() => setSection(k)} className="btn btn-sm" style={{ fontSize: '0.75rem', background: section === k ? 'var(--text-main)' : 'transparent', color: section === k ? 'var(--bg-card-solid)' : 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>{l}</button>
               ))}
             </div>
@@ -96,6 +96,7 @@ export const AdminCaptainsModal = ({ isOpen, onClose }) => {
             {section === 'bookings' && <AdminBookings />}
             {section === 'claims' && <AdminClaims />}
             {section === 'requests' && <AdminRequests />}
+            {section === 'payments' && <AdminTransactions />}
           </div>
         ) : (
         <>

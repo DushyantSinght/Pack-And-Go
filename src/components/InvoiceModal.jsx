@@ -1,5 +1,5 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Printer, X } from 'lucide-react';
 import { useMove } from '../context/MoveContext';
 
@@ -16,6 +16,12 @@ const inr = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractio
 const fmt = (d) => (d ? new Date(d).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' }) : '—');
 
 export const InvoiceModal = ({ isOpen, onClose }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
   const { invoiceBooking: b, user } = useMove();
   if (!isOpen || !b) return null;
   const pb = b.priceBreakdown || {};
@@ -36,7 +42,7 @@ export const InvoiceModal = ({ isOpen, onClose }) => {
       <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Receipt" style={{ width: '100%', maxWidth: 640, maxHeight: '94vh', overflowY: 'auto', background: '#fff', color: '#0F172A', borderRadius: 12, padding: 28, fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem' }}>
         <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 10 }}>
           <button onClick={() => window.print()} className="btn btn-sm" style={{ background: '#0F172A', color: '#fff', gap: 6 }}><Printer size={14} /> Print / Save PDF</button>
-          <button onClick={onClose} className="btn btn-sm" style={{ background: '#E2E8F0', color: '#0F172A' }}><X size={14} /></button>
+          <button onClick={onClose} className="btn btn-sm" aria-label="Close receipt" title="Close" style={{ background: '#E2E8F0', color: '#0F172A' }}><X size={14} /></button>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #0F172A', paddingBottom: 12, gap: 16, flexWrap: 'wrap' }}>
@@ -100,7 +106,7 @@ export const InvoiceModal = ({ isOpen, onClose }) => {
 
         <div style={{ marginTop: 14, color: '#475569', fontSize: '0.78rem', lineHeight: 1.5 }}>
           Payment: {pd.method || '—'} • Ref {pd.transactionId || '—'}
-          {pd.testMode && <div style={{ color: '#B45309', fontWeight: 700 }}>TEST PAYMENT — no money was charged. Not valid as a receipt.</div>}
+          {pd.status && pd.status !== 'unpaid' && <div style={{ color: '#B45309', fontWeight: 700 }}>SIMULATED PAYMENT — Academic Demo, no real money involved. Not a valid financial receipt.</div>}
           {!isTaxInvoice && <div>This is a payment receipt, not a GST tax invoice.</div>}
         </div>
       </div>

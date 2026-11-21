@@ -5,7 +5,7 @@ import { MoveBooking, User, LuggagePassport, generateOtp } from '../models/index
 import { requireAuth } from '../middleware/auth.js';
 import { requireApprovedCaptain } from '../middleware/roles.js';
 import { quote, roadDistanceKm, slotStart, TIME_SLOTS, refundPercentFor, PLATFORM_FEE_RATE, OPEN_JOB_GRACE_MS } from '../services/pricing.js';
-import { refund } from '../services/payments.js';
+import { refund, recordPayout, demoPaymentsEnabled } from '../services/payments.js';
 import { notify } from '../services/notify.js';
 
 const router = express.Router();
@@ -173,6 +173,8 @@ router.post('/', async (req, res) => {
 // POST /api/moves/book — turn my draft into a real booking awaiting payment
 router.post('/book', async (req, res) => {
   try {
+    // Never take a booking that can't be paid for.
+    if (!demoPaymentsEnabled()) return res.status(503).json({ success: false, code: 'payments_off', message: 'Bookings are paused: payments are switched off on this server.' });
     const me = await User.findById(req.user._id);
     if (!me.emailVerified) {
       return res.status(403).json({ success: false, code: 'email_unverified', message: 'Please verify your email before booking a move.' });
@@ -309,7 +311,7 @@ router.post('/:bookingId/cancel', async (req, res) => {
       type: 'booking',
       bookingId: move.bookingId,
       title: `Booking ${move.bookingId} cancelled`,
-      body: refundAmount ? `₹${refundAmount.toLocaleString('en-IN')} (${pct}%) will be refunded to your original payment method in 5–7 working days.` : paid ? 'No refund applies under the cancellation policy (less than 4 hours before the slot).' : 'No payment had been taken.',
+      body: refundAmount ? `₹${refundAmount.toLocaleString('en-IN')} (${pct}%) has been refunded (simulated — academic demo, no real money moves).` : paid ? 'No refund applies under the cancellation policy (less than 4 hours before the slot).' : 'No payment had been taken.',
       email: true
     });
     if (captainEmail) notify(captainEmail, { type: 'booking', bookingId: move.bookingId, title: `Job ${move.bookingId} was cancelled by the customer`, sms: true });
@@ -511,6 +513,9 @@ router.post('/verify-otp', requireApprovedCaptain, async (req, res) => {
       move.escrowStatus = 'in_transit';
       notify(move.userEmail, { type: 'driver', bookingId, title: 'Your boxes are loaded and on the way 🚚', body: 'Track the truck live from My Moves. Keep your Delivery OTP ready.', sms: true });
     } else {
+      // Claim the delivery atomically: two simultaneous correct codes must not pay the captain twice.
+      const claim = await MoveBooking.updateOne({ _id: move._id, status: 'in_transit' }, { $set: { status: 'delivered', deliveredAt: new Date() } });
+      if (!claim.modifiedCount) return res.status(409).json({ success: false, message: 'This move is already delivered.' });
       move.deliveredAt = new Date();
       move.status = 'delivered';
       move.transitStatus = 'Delivered';
@@ -520,6 +525,7 @@ router.post('/verify-otp', requireApprovedCaptain, async (req, res) => {
       const boxIds = (move.loadedBoxes || []).filter((x) => x.matched).map((x) => x.boxId);
       if (boxIds.length) await LuggagePassport.updateMany({ boxId: { $in: boxIds }, userEmail: move.userEmail }, { $set: { status: 'delivered' } });
       await User.updateOne({ email: capEmail }, { $inc: { escrowWalletBalance: payout, tripsCompleted: 1 } });
+      await recordPayout(move, capEmail, payout);
       notify(capEmail, { type: 'payment', bookingId, title: `₹${payout.toLocaleString('en-IN')} credited to your wallet`, body: `Payout for ${bookingId}.` });
       notify(move.userEmail, { type: 'booking', bookingId, title: 'Delivered! Welcome home 🏡', body: 'Rate your Move Captain, or raise a damage claim within 48 hours if anything is wrong.', email: true, sms: true });
     }

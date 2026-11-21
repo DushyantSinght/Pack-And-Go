@@ -75,12 +75,19 @@ export const cleanup = async () => {
   const convs = (await db.collection('conversations').find({ participants: { $in: ids } }).project({ _id: 1 }).toArray()).map((c) => c._id);
   const items = [...tracked.items];
   const bookingIds = (await db.collection('movebookings').find({ userEmail: { $in: emails } }).project({ bookingId: 1 }).toArray()).map((b) => b.bookingId);
+  // Staff alerts ("New damage claim CLM-…", "New request REQ-…") name the record in the title, not in bookingId.
+  const staffRefs = [
+    ...(await db.collection('damageclaims').find({ userEmail: { $in: emails } }).project({ claimId: 1 }).toArray()).map((c) => c.claimId),
+    ...(await db.collection('servicerequests').find({ userEmail: { $in: emails } }).project({ requestId: 1 }).toArray()).map((r) => r.requestId)
+  ].filter(Boolean);
+  const staffTitles = staffRefs.map((id) => new RegExp(`(^|\\s)${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
 
   await Promise.all([
     db.collection('messages').deleteMany({ conversation: { $in: convs } }),
     db.collection('conversations').deleteMany({ _id: { $in: convs } }),
-    db.collection('notifications').deleteMany({ $or: [{ user: { $in: ids } }, { bookingId: { $in: bookingIds } }, { title: { $regex: `qa-${run}|QA-${run}` } }] }),
+    db.collection('notifications').deleteMany({ $or: [{ user: { $in: ids } }, { bookingId: { $in: bookingIds } }, { title: { $regex: `qa-${run}|QA-${run}` } }, ...(staffTitles.length ? [{ title: { $in: staffTitles } }] : [])] }),
     db.collection('movebookings').deleteMany({ userEmail: { $in: emails } }),
+    db.collection('paymenttransactions').deleteMany({ $or: [{ bookingId: { $in: bookingIds } }, { userEmail: { $in: emails } }] }),
     db.collection('damageclaims').deleteMany({ userEmail: { $in: emails } }),
     db.collection('servicerequests').deleteMany({ userEmail: { $in: emails } }),
     db.collection('luggagepassports').deleteMany({ $or: [{ userEmail: { $in: emails } }, { boxId: { $in: [...tracked.boxes] } }] }),

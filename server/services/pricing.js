@@ -22,8 +22,22 @@ export const haversineKm = (a, b) => {
 const validPoint = (p) => p && Number.isFinite(+p.lat) && Number.isFinite(+p.lng) && Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180;
 
 /** Road distance via the public OSRM router, falling back to straight-line × 1.3. */
+// The public router sometimes times out; without a cache the same trip could be quoted with the
+// road distance and then booked with the straight-line fallback (a slightly different price).
+const distanceCache = new Map(); // key → { km, until }
+const CACHE_OK_MS = 6 * 3600_000;
+const CACHE_FALLBACK_MS = 10 * 60_000;
+const remember = (key, km, ms) => {
+  if (distanceCache.size > 1000) distanceCache.delete(distanceCache.keys().next().value);
+  distanceCache.set(key, { km, until: Date.now() + ms });
+  return km;
+};
+
 export const roadDistanceKm = async (from, to) => {
   if (!validPoint(from) || !validPoint(to)) return null;
+  const key = [from.lat, from.lng, to.lat, to.lng].map((n) => Number(n).toFixed(5)).join(',');
+  const hit = distanceCache.get(key);
+  if (hit && hit.until > Date.now()) return hit.km;
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 3500);
@@ -31,11 +45,11 @@ export const roadDistanceKm = async (from, to) => {
     const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'PackAndGo/1.0' } });
     clearTimeout(t);
     const j = await res.json();
-    if (j.routes?.[0]?.distance) return Math.round((j.routes[0].distance / 1000) * 10) / 10;
+    if (j.routes?.[0]?.distance) return remember(key, Math.round((j.routes[0].distance / 1000) * 10) / 10, CACHE_OK_MS);
   } catch {
     /* fall through */
   }
-  return Math.round(haversineKm(from, to) * 1.3 * 10) / 10;
+  return remember(key, Math.round(haversineKm(from, to) * 1.3 * 10) / 10, CACHE_FALLBACK_MS);
 };
 
 /** Itemised fare. `pooled` shares truck space with other moves on the corridor. */

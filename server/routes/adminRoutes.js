@@ -1,8 +1,8 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import express from 'express';
 import mongoose from 'mongoose';
-import { User, MoveBooking, DamageClaim, ServiceRequest } from '../models/index.js';
-import { refund } from '../services/payments.js';
+import { User, MoveBooking, DamageClaim, ServiceRequest, PaymentTransaction } from '../models/index.js';
+import { refund, DEMO_NOTICE } from '../services/payments.js';
 import { notify } from '../services/notify.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin, isAdminUser, profileOf } from '../middleware/roles.js';
@@ -116,6 +116,36 @@ router.get('/bookings', async (req, res) => {
   });
 });
 
+// ── Simulated transactions ledger ────────────────────────────────
+// GET /api/admin/transactions?kind=payment|refund|payout&status=success|failed&q=<bookingId or email>
+router.get('/transactions', async (req, res) => {
+  const filter = {};
+  if (['payment', 'refund', 'payout'].includes(req.query.kind)) filter.kind = req.query.kind;
+  if (['success', 'failed'].includes(req.query.status)) filter.status = req.query.status;
+  const q = String(req.query.q || '').trim().slice(0, 80);
+  if (q) {
+    const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    filter.$or = [{ bookingId: rx }, { userEmail: rx }, { txnId: rx }];
+  }
+  const [rows, totals] = await Promise.all([
+    PaymentTransaction.find(filter).sort({ createdAt: -1 }).limit(200).lean(),
+    PaymentTransaction.aggregate([{ $group: { _id: { kind: '$kind', status: '$status' }, n: { $sum: 1 }, amount: { $sum: '$amount' } } }])
+  ]);
+  const refundByBooking = new Map();
+  for (const r of rows) if (r.kind === 'refund' && r.status === 'success') refundByBooking.set(r.bookingId, (refundByBooking.get(r.bookingId) || 0) + r.amount);
+  res.json({
+    success: true,
+    simulated: true,
+    notice: DEMO_NOTICE,
+    totals: totals.map((t) => ({ kind: t._id.kind, status: t._id.status, count: t.n, amount: t.amount })),
+    transactions: rows.map((t) => ({
+      txnId: t.txnId, kind: t.kind, status: t.status, bookingId: t.bookingId, userEmail: t.userEmail, amount: t.amount,
+      method: t.method, reason: t.reason || null, relatedTxnId: t.relatedTxnId || null, createdAt: t.createdAt, simulated: true,
+      refundedAmount: t.kind === 'payment' && t.status === 'success' ? refundByBooking.get(t.bookingId) || 0 : undefined
+    }))
+  });
+});
+
 // POST /api/admin/bookings/:bookingId/cancel { reason } — staff cancel with a full refund
 router.post('/bookings/:bookingId/cancel', async (req, res) => {
   try {
@@ -137,7 +167,7 @@ router.post('/bookings/:bookingId/cancel', async (req, res) => {
     move.transitStatus = 'Cancelled by Pack&Go';
     move.cancellation = { at: new Date(), reason: req.body.reason, refundPercent: 100, by: req.user.email };
     await move.save();
-    notify(move.userEmail, { type: 'booking', bookingId: move.bookingId, title: `Booking ${move.bookingId} was cancelled by Pack&Go`, body: `${req.body.reason}${paid ? ` A full refund of ₹${paid.toLocaleString('en-IN')} is on its way.` : ''}`, email: true, sms: true });
+    notify(move.userEmail, { type: 'booking', bookingId: move.bookingId, title: `Booking ${move.bookingId} was cancelled by Pack&Go`, body: `${req.body.reason}${paid ? ` A full simulated refund of ₹${paid.toLocaleString('en-IN')} has been recorded (academic demo, no real money).` : ''}`, email: true, sms: true });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

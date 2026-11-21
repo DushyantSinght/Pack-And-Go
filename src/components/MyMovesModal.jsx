@@ -81,6 +81,37 @@ const Section = ({ title, icon: Icon, children }) => (
   </div>
 );
 
+const TXN_LABEL = { payment: 'Payment', refund: 'Refund' };
+
+/** This booking's simulated payment / refund records (academic demo — no real money). */
+const PaymentHistory = ({ move }) => {
+  const [rows, setRows] = useState(null);
+  const key = `${move.bookingId}|${move.paymentDetails?.status}|${move.paymentDetails?.refundId || ''}`;
+  useEffect(() => {
+    let live = true;
+    api.getPaymentStatus(move.bookingId).then((r) => live && setRows(r.transactions || [])).catch(() => live && setRows([]));
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  if (!rows?.length) return null;
+  return (
+    <Section title="Payment history (simulated)" icon={FileText}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {rows.map((t) => (
+          <div key={t.txnId} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', fontSize: '0.76rem', color: 'var(--text-muted)', padding: '6px 0', borderTop: '1px dashed var(--border-subtle)' }}>
+            <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+              <strong style={{ color: t.status === 'success' ? 'var(--text-main)' : '#F87171' }}>{TXN_LABEL[t.kind]} {t.status === 'failed' ? 'failed' : ''}</strong>
+              {' '}• {when(t.createdAt)} • <code style={{ fontSize: '0.7rem' }}>{t.txnId}</code>
+            </span>
+            <strong style={{ color: t.kind === 'refund' ? 'var(--emerald-light)' : 'var(--text-main)' }}>{t.kind === 'refund' ? '+ ' : ''}{inr(t.amount)}</strong>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: '0.7rem', color: 'var(--amber)', marginTop: 6, fontWeight: 700 }}>Academic Demo — No Real Money Involved.</div>
+    </Section>
+  );
+};
+
 const MoveDetail = ({ move, onBack }) => {
   const { openPayment, openInvoice, upsertMove, showToast, refreshMyMoves } = useMove();
   const { openChat, requestCall } = useComms();
@@ -190,7 +221,7 @@ const MoveDetail = ({ move, onBack }) => {
       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.55 }}>
         <div><strong style={{ color: 'var(--text-main)' }}>From:</strong> {move.origin}</div>
         <div><strong style={{ color: 'var(--text-main)' }}>To:</strong> {move.destination}</div>
-        <div>{move.totalCuFt} cu ft • {move.distanceKm} km • {inr(move.priceBreakdown?.total)} • payment {move.paymentDetails?.status}{move.paymentDetails?.testMode ? ' (test)' : ''}</div>
+        <div>{move.totalCuFt} cu ft • {move.distanceKm} km • {inr(move.priceBreakdown?.total)} • payment {move.paymentDetails?.status}{move.paymentDetails?.status && move.paymentDetails.status !== 'unpaid' ? ' (simulated)' : ''}</div>
         {move.cancellation?.at && <div>Cancelled {when(move.cancellation.at)}{move.paymentDetails?.refundAmount ? ` • refund ${inr(move.paymentDetails.refundAmount)}` : ''}</div>}
       </div>
 
@@ -247,6 +278,8 @@ const MoveDetail = ({ move, onBack }) => {
         </>
       )}
 
+      {st !== 'draft' && <PaymentHistory move={move} />}
+
       {st === 'delivered' && !move.review?.rating && (
         <Section title="How was your move?" icon={Star}>
           <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
@@ -293,7 +326,7 @@ const MoveDetail = ({ move, onBack }) => {
         <Section title="Cancel this move?">
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 8 }}>
             {move.paymentDetails?.status === 'paid'
-              ? `You'll get ${move.refundPercentIfCancelled}% back (${inr(((move.paymentDetails.amountPaid || 0) * move.refundPercentIfCancelled) / 100)}) to your original payment method.`
+              ? `You'll get ${move.refundPercentIfCancelled}% back (${inr(((move.paymentDetails.amountPaid || 0) * move.refundPercentIfCancelled) / 100)}) as a simulated refund — no real money moves.`
               : 'No payment has been taken.'}
           </div>
           <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional)" style={{ width: '100%', boxSizing: 'border-box', padding: 8, borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-main)' }} />

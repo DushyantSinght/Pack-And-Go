@@ -1,39 +1,42 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { CreditCard, FileText, Loader2, Lock, ShieldCheck, X, FlaskConical } from 'lucide-react';
+import { CreditCard, FileText, Loader2, ShieldCheck, X, FlaskConical, Smartphone, CheckCircle2, XCircle } from 'lucide-react';
 import { useMove } from '../context/MoveContext';
 import { api } from '../services/api';
 import { SuccessCheck } from './ui/SuccessCheck';
 import { Skeleton } from './ui/Skeleton';
 import { haptic, HAPTIC } from '../utils/haptics';
 import { TestPaymentDetails } from './TestPaymentDetails';
-import { isRazorpayTestMode } from '../utils/razorpayMode';
-
-const loadRazorpayScript = () =>
-  new Promise((resolve) => {
-    if (window.Razorpay) return resolve(true);
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
 
 const inr = (n) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
 
+const Choice = ({ active, onClick, icon, title, sub }) => (
+  <button type="button" onClick={onClick} aria-pressed={active} className="btn btn-secondary"
+    style={{ flex: '1 1 140px', justifyContent: 'flex-start', gap: 8, padding: '9px 11px', textAlign: 'left', minWidth: 0, borderColor: active ? 'var(--primary)' : undefined, background: active ? 'rgba(212,175,55,0.12)' : undefined }}>
+    {icon}
+    <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <span style={{ fontWeight: 700, fontSize: '0.8rem' }}>{title}</span>
+      <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', fontWeight: 500 }}>{sub}</span>
+    </span>
+  </button>
+);
+
 export const PaymentModal = ({ isOpen, onClose, onOpenInvoice }) => {
-  const { payingBooking, showToast, user, upsertMove, refreshMyMoves, openMyMoves } = useMove();
+  const { payingBooking, showToast, upsertMove, refreshMyMoves, openMyMoves } = useMove();
   const [config, setConfig] = useState(null);
   const [busy, setBusy] = useState(false);
   const [paid, setPaid] = useState(null);
   const [error, setError] = useState('');
+  const [method, setMethod] = useState('demo_card');
+  const [outcome, setOutcome] = useState('success');
 
   useEffect(() => {
     if (!isOpen) return;
     setPaid(null);
     setError('');
-    api.getPaymentConfig().then(setConfig).catch(() => setConfig({ razorpay: false, testPayments: false }));
+    setOutcome('success');
+    api.getPaymentConfig().then(setConfig).catch(() => setConfig({ demoPayments: false }));
   }, [isOpen]);
 
   if (!isOpen || !payingBooking) return null;
@@ -41,62 +44,29 @@ export const PaymentModal = ({ isOpen, onClose, onOpenInvoice }) => {
   const pb = b.priceBreakdown || {};
   const total = pb.total || 0;
 
-  const finish = async (booking, message) => {
-    setPaid(booking);
+  const finish = (booking, txnId) => {
+    setPaid({ booking, txnId });
     haptic(HAPTIC.success);
     upsertMove(booking);
     refreshMyMoves();
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
-    showToast(message, 'success');
+    showToast('Simulated payment successful — your move is confirmed.', 'success');
   };
 
-  const payOnline = async () => {
+  const pay = async () => {
     setBusy(true);
     setError('');
     try {
-      if (!(await loadRazorpayScript())) throw new Error('Could not load Razorpay. Check your connection.');
-      const { order, key } = await api.post('/payments/create-order', { bookingId: b.bookingId });
-      const rzp = new window.Razorpay({
-        key,
-        amount: order.amount,
-        currency: order.currency,
-        name: 'Pack&Go',
-        description: `Move ${b.bookingId}`,
-        order_id: order.id,
-        prefill: { name: user?.name, email: user?.email, contact: b.userPhone ? `+91${b.userPhone}` : '' },
-        notes: { bookingId: b.bookingId },
-        theme: { color: '#D4AF37' },
-        handler: async (resp) => {
-          try {
-            const v = await api.verifyPayment({ ...resp, bookingId: b.bookingId });
-            await finish(v.booking, 'Payment received — your move is confirmed!');
-          } catch (e) {
-            setError(`${e.message} If money was deducted, it will be matched automatically or refunded.`);
-          } finally {
-            setBusy(false);
-          }
-        },
-        modal: { ondismiss: () => setBusy(false) }
-      });
-      rzp.on('payment.failed', (r) => {
-        setError(r.error?.description || 'Payment failed. You have not been charged.');
-        setBusy(false);
-      });
-      rzp.open();
+      const r = await api.payDemo({ bookingId: b.bookingId, method, outcome, expectedAmount: total });
+      finish(r.booking, r.txnId);
     } catch (e) {
-      setError(e.message);
-      setBusy(false);
-    }
-  };
-
-  const payTest = async () => {
-    setBusy(true);
-    setError('');
-    try {
-      const r = await api.testPay(b.bookingId);
-      await finish(r.booking, 'Test payment recorded (no real money).');
-    } catch (e) {
-      setError(e.message);
+      if (e.code === 'payment_failed') {
+        haptic(HAPTIC.warn);
+        setError(`${e.message} Reference ${e.data?.txnId}.`);
+      } else {
+        if (e.code === 'amount_changed') refreshMyMoves();
+        setError(e.message);
+      }
     } finally {
       setBusy(false);
     }
@@ -112,17 +82,18 @@ export const PaymentModal = ({ isOpen, onClose, onOpenInvoice }) => {
             <div style={{ marginBottom: 10 }}><SuccessCheck size={72} /></div>
             <div style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--text-main)' }}>Move confirmed</div>
             <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', margin: '6px 0 16px' }}>
-              {inr(paid.paymentDetails?.amountPaid)} held in escrow for {paid.bookingId}. We'll notify you when a Move Captain accepts.
-              {paid.paymentDetails?.testMode && <><br /><strong style={{ color: 'var(--amber)' }}>Test payment — no real money was charged.</strong></>}
+              {inr(paid.booking.paymentDetails?.amountPaid)} held until delivery for {paid.booking.bookingId}. We'll notify you when a Move Captain accepts.
+              <br />Reference <code style={{ fontSize: '0.78rem' }}>{paid.txnId}</code>
+              <br /><strong style={{ color: 'var(--amber)' }}>Simulated payment — no real money was charged.</strong>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button className="btn btn-primary btn-sm" onClick={() => { onClose(); openMyMoves(paid.bookingId); }}>View my move</button>
-              <button className="btn btn-secondary btn-sm" onClick={() => onOpenInvoice(paid)} style={{ gap: 6 }}><FileText size={14} /> Receipt</button>
+              <button className="btn btn-primary btn-sm" onClick={() => { onClose(); openMyMoves(paid.booking.bookingId); }}>View my move</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => onOpenInvoice(paid.booking)} style={{ gap: 6 }}><FileText size={14} /> Receipt</button>
             </div>
           </div>
         ) : (
           <>
-            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}><Lock size={18} color="var(--primary)" /> Secure payment</div>
+            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingRight: 40 }}><FlaskConical size={18} color="var(--primary)" /> Checkout <span className="badge badge-amber" style={{ fontSize: '0.6rem', padding: '2px 8px', whiteSpace: 'nowrap' }}>Simulated payment</span></div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 16px' }}>{b.bookingId} • {b.origin?.split(',')[0]} → {b.destination?.split(',')[0]}</div>
 
             <div style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', padding: 14, fontSize: '0.84rem', marginBottom: 14 }}>
@@ -133,32 +104,33 @@ export const PaymentModal = ({ isOpen, onClose, onOpenInvoice }) => {
 
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: 16 }}>
               <ShieldCheck size={16} color="var(--emerald-light)" style={{ flexShrink: 0 }} />
-              Your money is held in escrow and released to the Move Captain only after you share the Delivery OTP.
+              The amount is held (escrow) and released to the Move Captain only after you share the Delivery OTP.
             </div>
 
             {!config ? (
               <Skeleton h={44} r={12} />
-            ) : config.razorpay ? (
+            ) : config.demoPayments ? (
               <>
-                <button disabled={busy} onClick={payOnline} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', gap: 8 }}>
-                  {busy ? <Loader2 size={16} className="spin" /> : <CreditCard size={16} />} Pay {inr(total)} — UPI, card, netbanking
-                </button>
-                {/* Only with a rzp_test_ key — never shown with live keys. */}
-                {isRazorpayTestMode(config) && <TestPaymentDetails />}
-              </>
-            ) : config.testPayments ? (
-              <>
-                <button disabled={busy} onClick={payTest} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', gap: 8 }}>
-                  {busy ? <Loader2 size={16} className="spin" /> : <FlaskConical size={16} />} Record test payment of {inr(total)}
-                </button>
-                <div style={{ fontSize: '0.72rem', color: 'var(--amber)', marginTop: 8 }}>
-                  Development mode: Razorpay keys aren't set, so this records a test payment without charging anyone. Add RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET to take real payments.
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>Demo payment method</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                  <Choice active={method === 'demo_card'} onClick={() => setMethod('demo_card')} icon={<CreditCard size={16} />} title="Demo card" sub="No card details needed" />
+                  <Choice active={method === 'demo_upi'} onClick={() => setMethod('demo_upi')} icon={<Smartphone size={16} />} title="Demo UPI" sub="No UPI ID or PIN needed" />
                 </div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>Test scenario</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+                  <Choice active={outcome === 'success'} onClick={() => setOutcome('success')} icon={<CheckCircle2 size={16} color="var(--emerald-light)" />} title="Successful payment" sub="Confirms the booking" />
+                  <Choice active={outcome === 'failure'} onClick={() => setOutcome('failure')} icon={<XCircle size={16} color="#EF4444" />} title="Failed payment" sub="Bank declines; try again" />
+                </div>
+                <button disabled={busy} onClick={pay} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', gap: 8 }}>
+                  {busy ? <Loader2 size={16} className="spin" /> : <FlaskConical size={16} />}
+                  {outcome === 'success' ? `Pay ${inr(total)} (simulated)` : `Simulate a failed payment of ${inr(total)}`}
+                </button>
+                {error && <div role="alert" style={{ marginTop: 10, fontSize: '0.82rem', color: '#EF4444' }}>{error}</div>}
+                <TestPaymentDetails />
               </>
             ) : (
-              <div style={{ fontSize: '0.84rem', color: 'var(--rose)' }}>Online payments are temporarily unavailable. Please try again later.</div>
+              <div style={{ fontSize: '0.84rem', color: 'var(--rose)' }}>Payments are switched off on this server, so bookings can't be paid right now.</div>
             )}
-            {error && <div style={{ marginTop: 10, fontSize: '0.82rem', color: '#EF4444' }}>{error}</div>}
           </>
         )}
       </div>

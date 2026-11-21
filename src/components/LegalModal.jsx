@@ -16,7 +16,7 @@ const DOCS = {
       ['Who we are', `${CO} ("we") runs a platform that connects customers with independent, verified Move Captains (drivers) for household relocation, and offers related services. Registered office: ${ADDRESS}.`],
       ['Your account', 'You must be 18+ and give accurate details, including a working mobile number and email. You are responsible for activity on your account. Keep your password and handover OTPs private.'],
       ['Bookings and prices', 'Prices are calculated from the volume you declare, road distance, stairs without a lift and the truck type, and include GST as shown at checkout. If the goods at pickup materially exceed what you declared, the Move Captain may decline the extra items or we may re-quote before loading.'],
-      ['Payment and escrow', 'You pay in advance through our payment partner. We hold the amount until you share the Delivery OTP, then release the captain\'s share. Never pay a captain directly.'],
+      ['Payment and escrow', 'Pack&Go is an academic demo: payments are SIMULATED and no real money is charged or refunded. You "pay" in advance; we hold the amount until you share the Delivery OTP, then release the captain\'s share. Never pay a captain directly.'],
       ['Cancellation and rescheduling', 'See the Refund & Cancellation Policy. You may reschedule up to twice, until 4 hours before your slot (any time while no Move Captain has accepted it).'],
       ['Prohibited items', 'We do not carry cash, jewellery, important documents, firearms, explosives, flammable liquids or gas cylinders, illegal goods, perishables, or live animals. Carry valuables yourself.'],
       ['Handover OTPs', 'Share the Pickup OTP only once loading is complete and the Delivery OTP only after you have checked your goods. Sharing an OTP confirms that stage of the move.'],
@@ -31,10 +31,10 @@ const DOCS = {
   privacy: {
     title: 'Privacy Policy',
     body: [
-      ['What we collect', 'Name, email, mobile number, addresses and map locations, moving date, item list and photos you upload, payment status (card/UPI details are handled by our payment partner, not stored by us), chat messages, call logs, ratings and damage claims. For Move Captains: driving licence and vehicle registration numbers, and live location while a job is active.'],
+      ['What we collect', 'Name, email, mobile number, addresses and map locations, moving date, item list and photos you upload, simulated payment records (no card, UPI or bank details are ever collected), chat messages, call logs, ratings and damage claims. For Move Captains: driving licence and vehicle registration numbers, and live location while a job is active.'],
       ['Why we use it', 'To quote, book and carry out your move; to let you and your Move Captain contact each other; to send booking updates by email/SMS; to process payments, refunds and claims; to keep the platform safe; and to meet legal obligations.'],
       ['AI features', 'If you use the AI room scan, voice inventory or PackBot, your photo or message is sent to our AI provider (Google Gemini, Groq, xAI or Anthropic, depending on our setup) to generate the result. On free AI plans the provider may use this data to improve its services, so don\'t include personal documents or details in photos or messages.'],
-      ['Sharing', 'With your assigned Move Captain (name, phone, addresses, items) only once they accept your job; with payment, SMS, email, mapping and AI providers who process data for us; and with authorities where required by law. We do not sell your data.'],
+      ['Sharing', 'With your assigned Move Captain (name, phone, addresses, items) only once they accept your job; with SMS, email, mapping and AI providers who process data for us; and with authorities where required by law. We do not sell your data.'],
       ['Live location', 'A captain\'s live location is shared with the customer of the active job only, and stops when the job ends.'],
       ['Retention', 'We keep booking and payment records for as long as tax and accounting law requires, and other data for as long as your account is active or as needed to resolve claims.'],
       ['Your rights', 'Under the Digital Personal Data Protection Act, 2023 you can ask to access, correct or erase your data, withdraw consent, and nominate someone to exercise your rights. Write to us at the address below.'],
@@ -51,7 +51,7 @@ const DOCS = {
       ['Less than 4 hours before, or after pickup', 'No refund (the crew and truck are already committed). Contact support if there is a genuine emergency.'],
       ['Before a Move Captain accepts', 'Until a Move Captain accepts your move, cancelling is free (100% refund) at any time. If your slot passes without one, you can also reschedule it from My Moves.'],
       ['If we cancel', 'If we or the Move Captain cancel, you get a full refund.'],
-      ['Refund timing', 'Refunds go back to the original payment method, usually within 5–7 working days.'],
+      ['Refund timing', 'Refunds are simulated and recorded instantly in your booking and transaction history. No real money moves.'],
       ['Damage claims', 'Raise within 48 hours of delivery from My Moves with photos. We aim to decide within 2 working days; approved amounts are paid to you directly.'],
       ['Contact', EMAIL]
     ]

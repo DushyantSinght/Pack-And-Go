@@ -71,7 +71,7 @@ export const AdminBookings = () => {
                   {b.bookingId} • {b.status.replace('_', ' ')}
                   {lateFlag(b, now) && <span style={flagStyle}>{lateFlag(b, now)}</span>}
                 </strong>
-                <span>{inr(b.total)} • {b.payment?.status}{b.payment?.testMode ? ' (test)' : ''}</span>
+                <span>{inr(b.total)} • {b.payment?.status}{b.payment?.status && b.payment.status !== 'unpaid' ? ' (simulated)' : ''}</span>
               </div>
               <div>{b.userName} • <a href={`tel:+91${b.userPhone}`} style={{ color: 'var(--primary)' }}>{b.userPhone}</a> • {b.userEmail}</div>
               <div>{b.origin?.split(',').slice(0, 2).join(',')} → {b.destination?.split(',').slice(0, 2).join(',')} • {b.distanceKm} km</div>
@@ -180,6 +180,57 @@ export const AdminRequests = () => {
                 </div>
               )}
               {r.status === 'confirmed' && <button onClick={() => update(r.requestId, 'completed')} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>Mark completed</button>}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
+
+const KIND_LABEL = { payment: 'Payment', refund: 'Refund', payout: 'Captain payout' };
+
+/** Ledger of SIMULATED transactions — academic demo, no real money. */
+export const AdminTransactions = () => {
+  const [kind, setKind] = useState('all');
+  const [q, setQ] = useState('');
+  const [search, setSearch] = useState('');
+  const loader = useCallback(() => api.getAdminTransactions({ kind: kind === 'all' ? '' : kind, q: search }), [kind, search]);
+  const [data] = useList(loader, `${kind}|${search}`);
+  const total = (k, st = 'success') => data?.totals?.find((t) => t.kind === k && t.status === st) || { count: 0, amount: 0 };
+  return (
+    <>
+      <div role="note" style={{ ...card, marginBottom: 10, borderColor: 'rgba(245,158,11,0.45)', background: 'rgba(245,158,11,0.08)', color: 'var(--text-main)', fontWeight: 700 }}>
+        🎓 All transactions below are SIMULATED. Academic Demo — No Real Money Involved.
+      </div>
+      {data && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: 8, marginBottom: 10 }}>
+          {[['Payments', total('payment')], ['Failed payments', total('payment', 'failed')], ['Refunds', total('refund')], ['Payouts', total('payout')]].map(([l, t]) => (
+            <div key={l} style={card}><div style={{ fontSize: '0.7rem' }}>{l}</div><strong style={{ color: 'var(--text-main)', fontSize: '0.95rem' }}>{t.count} • {inr(t.amount)}</strong></div>
+          ))}
+        </div>
+      )}
+      <Filter value={kind} onChange={setKind} options={['all', 'payment', 'refund', 'payout']} />
+      <form onSubmit={(e) => { e.preventDefault(); setSearch(q.trim()); }} style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Booking ID, email or reference" aria-label="Search transactions" style={input} />
+        <button type="submit" className="btn btn-secondary btn-sm">Search</button>
+      </form>
+      {!data ? <SkeletonList rows={3} /> : !data.transactions.length ? <EmptyState art="truck" compact title="No simulated transactions yet." /> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.transactions.map((t) => (
+            <div key={t.txnId} style={card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <strong style={{ color: 'var(--text-main)' }}>
+                  {KIND_LABEL[t.kind]} • <span style={{ color: t.status === 'success' ? 'var(--emerald-light)' : '#F87171' }}>{t.status}</span>
+                  <span className="badge badge-amber" style={{ marginLeft: 8, fontSize: '0.58rem', padding: '1px 7px', verticalAlign: 'middle' }}>Simulated</span>
+                </strong>
+                <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>{t.kind === 'refund' ? '− ' : ''}{inr(t.amount)}</span>
+              </div>
+              <div style={{ overflowWrap: 'anywhere' }}>Ref <code>{t.txnId}</code> • booking {t.bookingId}</div>
+              <div style={{ overflowWrap: 'anywhere' }}>{t.userEmail} • {t.method.replace('_', ' ')} • {fmt(t.createdAt)}</div>
+              {t.kind === 'payment' && t.status === 'success' && <div>Refund status: {t.refundedAmount ? `${inr(t.refundedAmount)} refunded` : 'not refunded'}</div>}
+              {t.reason && <div>Reason: {t.reason}</div>}
+              {t.relatedTxnId && <div style={{ overflowWrap: 'anywhere' }}>Related: <code>{t.relatedTxnId}</code></div>}
             </div>
           ))}
         </div>

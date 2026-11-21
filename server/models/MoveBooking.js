@@ -138,15 +138,14 @@ const moveBookingSchema = new mongoose.Schema(
       enum: ['pending', 'escrow_locked', 'in_transit', 'released_to_captain', 'refunded'],
       default: 'pending'
     },
-    // Real payment state — nothing is "paid" until the gateway confirms it.
+    // SIMULATED payment state (academic demo — no real money). Ledger rows live in PaymentTransaction.
     paymentDetails: {
       status: { type: String, enum: ['unpaid', 'paid', 'refunded', 'partially_refunded'], default: 'unpaid' },
       method: String,
       amountPaid: { type: Number, default: 0 },
       transactionId: String,
-      razorpayOrderId: String,
       paidAt: Date,
-      testMode: { type: Boolean, default: false },
+      testMode: { type: Boolean, default: false }, // true = simulated (every payment since the academic-demo switch)
       refundId: String,
       refundAmount: Number,
       refundedAt: Date

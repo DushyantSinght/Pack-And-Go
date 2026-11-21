@@ -25,6 +25,7 @@ const handleResponse = async (res) => {
     const err = new Error(data.message || data.error || `Request failed (HTTP ${res.status})`);
     err.status = res.status;
     err.code = data.code;
+    err.data = data;
     throw err;
   }
   return data;
@@ -209,33 +210,7 @@ export const api = {
     return handleResponse(res);
   },
 
-  // ── Payments (Razorpay) ───────────────────────────────────────────
-
-  /**
-   * Create a Razorpay order. Returns { order: { id, amount, currency }, key }.
-   * @param {string} bookingId
-   * @param {number} amountInPaise  e.g. ₹1890 → 189000
-   */
-  createPaymentOrder: async (bookingId, amountInPaise) => {
-    const res = await fetch(`${BASE_URL}/payments/create-order`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ bookingId, amount: amountInPaise })
-    });
-    return handleResponse(res);
-  },
-
-  /**
-   * Verify Razorpay payment signature server-side.
-   */
-  verifyPayment: async (paymentData) => {
-    const res = await fetch(`${BASE_URL}/payments/verify`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify(paymentData)
-    });
-    return handleResponse(res);
-  },
+  // ── Payments (SIMULATED — academic demo, no real money) ──────────
 
   getPaymentStatus: async (bookingId) => {
     const res = await fetch(`${BASE_URL}/payments/status/${bookingId}`, {
@@ -323,7 +298,10 @@ export const api = {
 
   // Payments
   getPaymentConfig: () => api.get('/payments/config'),
-  testPay: (bookingId) => api.post('/payments/test-pay', { bookingId }),
+  /** Simulated payment. outcome 'failure' records a declined demo payment. */
+  payDemo: ({ bookingId, method, outcome, expectedAmount }) => api.post('/payments/demo', { bookingId, method, outcome, expectedAmount }),
+  getPaymentHistory: () => api.get('/payments/history'),
+  getAdminTransactions: (params = {}) => api.get(`/admin/transactions?${new URLSearchParams(Object.entries(params).filter(([, v]) => v))}`),
 
   // Account
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),

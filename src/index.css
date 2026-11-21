@@ -712,3 +712,17 @@ h2, h3 {
   .print-root { position: absolute !important; inset: 0 !important; background: #fff !important; padding: 0 !important; display: block !important; }
   .no-print { display: none !important; }
 }
+
+/* Permanent academic-demo notice (no real money is ever processed). */
+.demo-notice {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.16), rgba(212, 175, 55, 0.16));
+  border-bottom: 1px solid rgba(245, 158, 11, 0.35);
+  color: var(--text-main);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 5px 16px;
+  letter-spacing: 0.01em;
+  position: relative;
+  z-index: 2;
+}

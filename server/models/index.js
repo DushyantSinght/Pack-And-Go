@@ -11,6 +11,7 @@ import { Notification } from './Notification.js';
 import { DamageClaim } from './DamageClaim.js';
 import { ServiceRequest } from './ServiceRequest.js';
 import { ErrorLog } from './ErrorLog.js';
+import { PaymentTransaction } from './PaymentTransaction.js';
 
 export {
   generateOtp,
@@ -25,10 +26,26 @@ export {
   Notification,
   DamageClaim,
   ServiceRequest,
-  ErrorLog
+  ErrorLog,
+  PaymentTransaction
 };
 
 export const SCHEMA_DEFINITIONS = [
+  {
+    collection: 'paymenttransactions',
+    model: 'PaymentTransaction',
+    description: 'Ledger of SIMULATED payments, refunds and captain payouts (academic demo, no real money).',
+    fields: [
+      { name: 'txnId', type: 'String', required: true, unique: true, description: 'Unique reference, e.g. DEMO-PAY-7F3A9C21B4E0' },
+      { name: 'kind', type: 'String', enum: ['payment', 'refund', 'payout'], description: 'What moved' },
+      { name: 'status', type: 'String', enum: ['success', 'failed'], description: 'Outcome' },
+      { name: 'bookingId', type: 'String', indexed: true, description: 'Booking reference' },
+      { name: 'userEmail', type: 'String', indexed: true, description: 'Customer (payment/refund) or captain (payout)' },
+      { name: 'amount', type: 'Number', description: 'Amount in INR (simulated)' },
+      { name: 'method', type: 'String', enum: ['demo_card', 'demo_upi', 'system'], description: 'Demo instrument' },
+      { name: 'simulated', type: 'Boolean', description: 'Always true' }
+    ]
+  },
   {
     collection: 'users',
     model: 'User',

@@ -1,22 +1,20 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
-import crypto from 'crypto';
+// SIMULATED payments only (academic demo). No card/UPI details are ever collected and no gateway is called.
 import express from 'express';
-import { MoveBooking } from '../models/index.js';
+import { MoveBooking, PaymentTransaction } from '../models/index.js';
 import { requireAuth } from '../middleware/auth.js';
-import { getRazorpay, razorpayConfigured, testPaymentsAllowed, markPaid } from '../services/payments.js';
-import { notify } from '../services/notify.js';
+import { DEMO_NOTICE, demoPaymentsEnabled, markPaid, recordFailedPayment } from '../services/payments.js';
 
 const router = express.Router();
 
-const safeEqualHex = (a, b) => {
-  const x = Buffer.from(String(a || ''), 'utf8');
-  const y = Buffer.from(String(b || ''), 'utf8');
-  return x.length === y.length && crypto.timingSafeEqual(x, y);
-};
+const METHODS = ['demo_card', 'demo_upi'];
+const OUTCOMES = ['success', 'failure'];
+const DECLINE_REASON = 'Simulated decline: the demo bank refused this payment.';
 
 /** The amount is always taken from the booking — never from the client. */
 const payableBooking = async (bookingId, email) => {
-  const booking = await MoveBooking.findOne({ bookingId, userEmail: email });
+  if (typeof bookingId !== 'string' || !bookingId) return { error: [400, 'bookingId is required.'] };
+  const booking = await MoveBooking.findOne({ bookingId, userEmail: email }); // ownership: only your own booking
   if (!booking) return { error: [404, 'Booking not found.'] };
   if (booking.paymentDetails?.status === 'paid') return { error: [409, 'This booking is already paid.'] };
   if (booking.status !== 'pending_payment') return { error: [409, 'This booking is not awaiting payment.'] };
@@ -26,110 +24,56 @@ const payableBooking = async (bookingId, email) => {
   return { booking, total };
 };
 
-// GET /api/payments/config — which payment options exist right now
+const publicTxn = (t) => ({
+  txnId: t.txnId, kind: t.kind, status: t.status, bookingId: t.bookingId, amount: t.amount, currency: t.currency,
+  method: t.method, reason: t.reason || null, relatedTxnId: t.relatedTxnId || null, simulated: true, createdAt: t.createdAt
+});
+
+// GET /api/payments/config — what the checkout should show
 router.get('/config', (req, res) => {
-  res.json({ success: true, razorpay: razorpayConfigured(), key: process.env.RAZORPAY_KEY_ID || null, testPayments: testPaymentsAllowed() });
+  res.json({ success: true, mode: 'simulated', demoPayments: demoPaymentsEnabled(), methods: METHODS, notice: DEMO_NOTICE });
 });
 
-// POST /api/payments/create-order { bookingId } — Razorpay order for the booking's server-side total
-router.post('/create-order', requireAuth, async (req, res) => {
+// POST /api/payments/demo { bookingId, method: demo_card|demo_upi, outcome: success|failure, expectedAmount }
+router.post('/demo', requireAuth, async (req, res) => {
   try {
-    if (!razorpayConfigured()) {
-      return res.status(503).json({ success: false, message: 'Online payments are not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to server/.env.' });
-    }
-    const { booking, total, error } = await payableBooking(req.body.bookingId, req.user.email);
+    if (!demoPaymentsEnabled()) return res.status(503).json({ success: false, message: 'Payments are switched off on this server (DEMO_PAYMENTS_ENABLED=false).' });
+    const { bookingId, method = 'demo_card', outcome = 'success', expectedAmount } = req.body || {};
+    if (!METHODS.includes(method)) return res.status(400).json({ success: false, message: 'Choose Demo card or Demo UPI.' });
+    if (!OUTCOMES.includes(outcome)) return res.status(400).json({ success: false, message: 'outcome must be success or failure.' });
+    const { booking, total, error } = await payableBooking(bookingId, req.user.email);
     if (error) return res.status(error[0]).json({ success: false, message: error[1] });
-
-    const order = await getRazorpay().orders.create({
-      amount: Math.round(total * 100),
-      currency: 'INR',
-      receipt: booking.bookingId,
-      notes: { bookingId: booking.bookingId, userEmail: req.user.email }
-    });
-    booking.paymentDetails = { ...(booking.paymentDetails?.toObject?.() || {}), razorpayOrderId: order.id, status: 'unpaid' };
-    await booking.save();
-    res.json({ success: true, order: { id: order.id, amount: order.amount, currency: order.currency }, key: process.env.RAZORPAY_KEY_ID });
-  } catch (error) {
-    console.error('create-order error', error);
-    res.status(502).json({ success: false, message: error?.error?.description || 'Payment gateway error. Please try again.' });
-  }
-});
-
-// POST /api/payments/verify — checkout handler posts the signed result here
-router.post('/verify', requireAuth, async (req, res) => {
-  try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
-    // Never check signatures against an empty secret.
-    if (!process.env.RAZORPAY_KEY_SECRET) return res.status(503).json({ success: false, message: 'Online payments are not configured.' });
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({ success: false, message: 'Missing payment identifiers.' });
+    // The customer must be paying the amount they were shown; if the price changed, make them look again.
+    if (expectedAmount !== undefined && Math.round(Number(expectedAmount)) !== Math.round(total)) {
+      return res.status(409).json({ success: false, code: 'amount_changed', message: `The amount due is now ₹${total.toLocaleString('en-IN')}. Please review and pay again.`, total });
     }
-    const booking = await MoveBooking.findOne({ bookingId, userEmail: req.user.email });
-    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
-    if (booking.paymentDetails?.razorpayOrderId !== razorpay_order_id) {
-      return res.status(400).json({ success: false, message: 'This payment does not belong to this booking.' });
-    }
-    const expected = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest('hex');
-    if (!safeEqualHex(expected, razorpay_signature)) {
-      return res.status(400).json({ success: false, message: 'Payment signature verification failed.' });
-    }
-    await markPaid(booking, { method: 'Razorpay', paymentId: razorpay_payment_id, orderId: razorpay_order_id, amount: booking.priceBreakdown.total });
-    res.json({ success: true, message: 'Payment verified. Your move is confirmed!', booking });
-  } catch (error) {
-    console.error('verify error', error);
-    res.status(500).json({ success: false, message: 'Could not verify payment.' });
-  }
-});
 
-// POST /api/payments/test-pay { bookingId } — development only, when no gateway keys are set
-router.post('/test-pay', requireAuth, async (req, res) => {
-  if (!testPaymentsAllowed()) return res.status(403).json({ success: false, message: 'Test payments are disabled.' });
-  const { booking, total, error } = await payableBooking(req.body.bookingId, req.user.email);
-  if (error) return res.status(error[0]).json({ success: false, message: error[1] });
-  const paid = await markPaid(booking, { method: 'Test payment (dev)', paymentId: `TEST-${Date.now()}`, amount: total, testMode: true });
-  if (!paid) return res.status(409).json({ success: false, message: 'This booking is already paid.' });
-  res.json({ success: true, message: 'Test payment recorded. No real money was charged.', booking });
-});
-
-// GET /api/payments/status/:bookingId — my booking's payment state
-router.get('/status/:bookingId', requireAuth, async (req, res) => {
-  const booking = await MoveBooking.findOne({ bookingId: req.params.bookingId, userEmail: req.user.email });
-  if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
-  res.json({ success: true, status: booking.status, escrowStatus: booking.escrowStatus, paymentDetails: booking.paymentDetails });
-});
-
-/**
- * POST /api/payments/webhook — Razorpay server-to-server events.
- * Catches payments whose browser tab closed before /verify ran, and refunds.
- * Mounted in server.js with express.raw() so the signature covers the exact body.
- */
-export const razorpayWebhook = async (req, res) => {
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-  if (!secret) return res.status(503).json({ success: false, message: 'Webhook secret not configured.' });
-  const expected = crypto.createHmac('sha256', secret).update(req.body).digest('hex');
-  if (!safeEqualHex(expected, req.get('x-razorpay-signature'))) return res.status(400).json({ success: false });
-
-  try {
-    const event = JSON.parse(req.body.toString('utf8'));
-    const payment = event.payload?.payment?.entity;
-    if (['payment.captured', 'order.paid'].includes(event.event) && payment) {
-      const booking = await MoveBooking.findOne({ 'paymentDetails.razorpayOrderId': payment.order_id });
-      if (booking && booking.paymentDetails?.status !== 'paid' && payment.amount === Math.round((booking.priceBreakdown?.total || 0) * 100)) {
-        await markPaid(booking, { method: `Razorpay (${payment.method})`, paymentId: payment.id, orderId: payment.order_id, amount: payment.amount / 100 });
-      }
+    if (outcome === 'failure') {
+      const txnId = await recordFailedPayment(booking, { amount: total, method, reason: DECLINE_REASON });
+      return res.status(402).json({ success: false, code: 'payment_failed', message: `${DECLINE_REASON} No money was taken.`, txnId, simulated: true });
     }
-    if (event.event === 'payment.failed' && payment) {
-      const booking = await MoveBooking.findOne({ 'paymentDetails.razorpayOrderId': payment.order_id });
-      if (booking) notify(booking.userEmail, { type: 'payment', bookingId: booking.bookingId, title: 'Payment failed', body: payment.error_description || 'Please try again from My Moves.' });
-    }
-    res.json({ success: true });
+
+    const paid = await markPaid(booking, { amount: total, method });
+    if (!paid) return res.status(409).json({ success: false, message: 'This booking is already paid.' });
+    res.json({ success: true, simulated: true, txnId: paid.txnId, message: `Simulated payment successful. ${DEMO_NOTICE}`, booking: paid.booking });
   } catch (err) {
-    console.error('webhook error', err);
-    res.status(500).json({ success: false });
+    console.error('demo payment error:', err.message);
+    res.status(500).json({ success: false, message: 'Could not record the payment. Nothing was charged.' });
   }
-};
+});
+
+// GET /api/payments/history — my simulated transactions (payments and refunds as a customer, payouts as a captain)
+router.get('/history', requireAuth, async (req, res) => {
+  const rows = await PaymentTransaction.find({ userEmail: req.user.email }).sort({ createdAt: -1 }).limit(200).lean();
+  res.json({ success: true, simulated: true, notice: DEMO_NOTICE, transactions: rows.map(publicTxn) });
+});
+
+// GET /api/payments/status/:bookingId — my booking's payment state plus its transactions (the receipt data)
+router.get('/status/:bookingId', requireAuth, async (req, res) => {
+  const booking = await MoveBooking.findOne({ bookingId: req.params.bookingId, userEmail: req.user.email }).lean();
+  if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
+  const rows = await PaymentTransaction.find({ bookingId: booking.bookingId, kind: { $in: ['payment', 'refund'] } }).sort({ createdAt: 1 }).lean();
+  res.json({ success: true, simulated: true, status: booking.status, escrowStatus: booking.escrowStatus, paymentDetails: booking.paymentDetails, transactions: rows.map(publicTxn) });
+});
 
 export default router;

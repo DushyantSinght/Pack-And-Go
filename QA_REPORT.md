@@ -4,7 +4,9 @@
 
 This report records what was **actually executed** and what was **not**. Nothing in the "Verified" sections was inferred from reading code alone.
 
-> **Overall status: not 100% verified.** Core flows, security, real-time features, responsive layout and production configuration are verified. Real Razorpay sandbox payments/refunds, the Claude-powered AI features, email and SMS delivery, and real-device WebRTC calls / background GPS **remain unverified** because the required credentials or devices were not available (see §9).
+> **Overall status: not 100% verified.** Core flows, simulated payments, security, real-time features, email delivery (Gmail SMTP), Gemini AI, responsive layout and production configuration are verified. SMS delivery, real-device WebRTC calls across mobile networks, background GPS and iPhone Safari QR scanning **remain unverified** because they need extra services or physical devices (see §10).
+>
+> **Payments are simulated by design.** Pack&Go is an academic project: there is no payment gateway and no real money moves. Nothing in this report claims otherwise.
 
 ---
 
@@ -12,51 +14,68 @@ This report records what was **actually executed** and what was **not**. Nothing
 
 | Check | Result | Evidence |
 |---|---|---|
-| API test suites (`npm test`) | **14 / 14 pass**, 0 fail (≈9 s) | `server/tests/lifecycle.test.js`, `server/tests/roles.test.js` |
-| Lint (`npm run lint`, oxlint) | **0 errors, 0 unused-code warnings**; 32 React style hints remain (13 set-state-in-effect, 8 only-export-components, 7 purity, 3 exhaustive-deps, 1 static-components) — reviewed, none are bugs | lint output |
-| Production build (`npm run build`) | **Builds**; main bundle 440 kB (tabs/dialogs load on demand) | Vite output |
+| API test suites (`npm test`) | **42 / 42 pass**, 0 fail (≈12 s) | `lifecycle`, `roles`, `payments` (8), `security` (4, new), `email` (mocked transport), `ai` (mocked provider) |
+| Dependency audit (`npm audit`) | **0 vulnerabilities** (production and development dependencies) | see §1b |
+| Test isolation | A full run leaves **0** records behind (notifications 92 → 92, bookings 8 → 8, users 14 → 14) | before/after counts |
+| Lint (`npm run lint`, oxlint) | **0 errors**; 29 React style hints remain (13 set-state-in-effect, 8 only-export-components, 7 purity, 1 static-components) — reviewed, none are bugs | lint output |
+| Production build (`npm run build`) | **Builds**; main bundle 454 kB (Vite 8.3.3) (tabs/dialogs load on demand) | Vite output |
+
+### 1b. Dependency security upgrade
+| Package | Was | Now | Advisories fixed | Breaking changes that matter here |
+|---|---|---|---|---|
+| `mongoose` | 9.11.3 | **9.11.4** (patch, pinned `~9.11.4`) | 4 (2 high): connection-level `sanitizeFilter` ignored; inherited-property walk when hydrating/setting/merging; discriminator-key bypass; prototype pollution via `Schema.virtual()` | none (patch release; also bumps its own `mquery` 6.0.0 → 6.0.1) |
+| `nodemailer` | 6.10.1 | **10.1.7** (pinned `~10.1.7`) | 22 (5 high, 16 moderate, 1 low), incl. address-parser DoS and mis-delivery, SMTP/header CRLF injection, OAuth2 TLS check, DNS-cache TLS name reuse | Node ≥ 20 (we run 20.17; CI 20; Docker 22) · `NoAuth` → `ENOAUTH` (we only check `EAUTH`, unchanged) · old SES SDK removed (unused) · TLS checks on remote attachments/OAuth2 (unused). Default ESM import, `createTransport`, `verify`, `requireTLS` and timeouts unchanged. |
+
+Verified after upgrading: Gmail SMTP login with nodemailer 10.1.7 (`verify`, no email sent) ✔ · new `security.test.js`: query-operator injection on login/reset/verify/forgot-password and payment IDs refused, `__proto__`/`constructor.prototype` payloads can't grant admin or change email, mongoose hydration ignores prototype keys, the real nodemailer 10 message builder produces the expected multipart email with escaped input and no injected `Bcc` ✔ · server boots, health check 200, Socket.IO handshake 200 ✔.
+
+Development tooling (never shipped to users) — also patched:
+| Package | Was | Now | Advisories fixed |
+|---|---|---|---|
+| `vite` | 8.3.0 | **8.3.3** (exact) | 6 (1 high): `launch-editor` path/argument handling (Windows), files outside `server.fs.allow`, wasm-instance byte leak, cross-origin script via custom middleware |
+| `source-map-js` | 1.2.1 | **1.2.2** (`overrides`) | 1 high: event-loop DoS via indexed source-map offsets |
+| `rolldown` (Vite's bundler) | 1.2.9 | **1.2.11** (`overrides`) | — the oldest version Vite 8.3.3 accepts, instead of the 10-day-old 1.2.19 npm picked by default |
+
+`npm audit` (all dependencies, dev included): **0 vulnerabilities**.
+
+**Node.js requirement:** Vite 8 and mongoose's `bson` need **Node 20.19+ or 22.12+** (now declared in `package.json` → `engines`). CI (latest Node 20) and Docker (Node 22) meet it. The development Mac runs Node 20.17, where npm drops the Vite/oxlint native binaries on a clean install; they were installed there with `npm install --no-save` (no change to `package.json` or the lockfile). Upgrade local Node to 22 LTS to avoid this.
+
+Also removed: the unused `paymentDetails.razorpayOrderId` field from the booking model (stored values on old bookings are untouched).
 
 All test suites create **throwaway accounts** (`qa-…@test.local`) and delete everything they created in `after()`. No reseed, reset or drop was run during this audit.
 
 ---
 
-## 2. Payments (Razorpay)
+## 2. Payments (SIMULATED) — Verified
 
-### 2a. Verified — built-in development test payments (no gateway)
-Covered by `npm test`:
-- Pay once → booking `confirmed`, escrow locked; paying again → **409**.
-- **Two simultaneous pay requests → exactly one 200, one 409** (atomic `markPaid`).
-- **Two simultaneous cancels → exactly one 200, one 409**; refund issued once.
-- Refund policy: 100 % ≥ 24 h, 50 % 24–4 h, 0 % < 4 h; **100 % any time before a captain accepts**; full refund when a captain releases the job.
-- Driver wallet credited once on delivery OTP; payout = subtotal × (1 − platform fee).
+Razorpay was removed (code, webhook, CSP exceptions and the `razorpay`/`stripe` packages). The simulated system is the app's only payment method. It is labelled everywhere: a permanent "Academic Demo — No Real Money Involved." banner, the checkout badge, the Test Payment Information panel, receipts, My Moves and the admin ledger.
 
-### 2b. Verified — local signature simulation (NOT a Razorpay sandbox test)
-An isolated API instance was started on a spare port with **throwaway secrets** (`RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` set to local dummy values). Order IDs were written onto throwaway test bookings to stand in for Razorpay's order step. Results (10/10 PASS):
-
+### 2a. Automated (`server/tests/payments.test.js` — 8 tests, all pass)
 | Case | Result |
 |---|---|
-| `/verify` with tampered signature | 400 ✔ |
-| `/verify` with another booking's order id | 400 ✔ |
-| `/verify` with correct HMAC | 200, booking `confirmed` ✔ |
-| `/verify` called twice | idempotent, one payment record ✔ |
-| Webhook with bad signature | 400 ✔ |
-| Webhook `payment.captured` with wrong amount | ignored, booking stays unpaid ✔ |
-| Webhook `payment.failed` | booking stays unpaid, customer notified "Payment failed" ✔ |
-| Webhook valid capture, then replayed | confirmed once, replay harmless ✔ |
-| Refund of a gateway payment without gateway keys | clean error **and booking is NOT cancelled** (rolled back) ✔ |
+| Config says `mode: simulated`, shows the notice, exposes no gateway keys; `/payments/webhook` no longer exists (404) | ✔ |
+| **Failed payment** → 402 `payment_failed` with a `DEMO-PAY-…` reference; booking stays `pending_payment` / `unpaid`; customer notified | ✔ |
+| **Retry succeeds** → booking `confirmed`, escrow locked, new unique reference, amount taken from the booking (client-sent `amount: 1` ignored) | ✔ |
+| Unauthorised: no sign-in 401; another customer 404; a captain 404; bad method/outcome 400; missing or `{ $ne: null }` bookingId 400; stale `expectedAmount` 409 `amount_changed`; status endpoint owner-only | ✔ |
+| No other route can mark a booking paid (PATCH with `paymentDetails.status: paid` has no effect) | ✔ |
+| **6 simultaneous payments** → exactly one 200, five 409, one ledger row | ✔ |
+| **Refunds:** full (48 h ahead) and partial (captain accepted, 10 h ahead → 50 %); double cancel → one 200 + one 409; one refund row per booking, linked to its payment | ✔ |
+| **Payout:** none at pickup or with a wrong code; **two simultaneous correct delivery codes** → one 200 + one 409, wallet credited once, one `DEMO-PAYOUT-…` row; payout not shown on the customer's receipt | ✔ (bug fixed — see §9) |
+| Admin ledger: customers 403; admin sees payments/failures/refunds with totals, refund status, filters; search text is regex-escaped | ✔ |
+| `DEMO_PAYMENTS_ENABLED` defaults to on (also in production); `false` turns it off | ✔ |
 
-### 2c. Unverified
-- **Real Razorpay sandbox** (order creation, checkout, real test-card success/failure, real refunds, real webhooks). `server/.env` contains `RAZORPAY_KEY_ID=` and `RAZORPAY_KEY_SECRET=` **with empty values**, and no `RAZORPAY_WEBHOOK_SECRET`. The server correctly reports `razorpay:false`. To verify: add `rzp_test_…` keys + webhook secret and rerun.
+### 2b. Browser (throwaway account, removed afterwards)
+Checkout at 320–1920 px: no horizontal overflow ✔ · failed payment shows the decline + reference under the Pay button ✔ · successful Demo UPI payment → "Move confirmed", reference shown, "Simulated payment — no real money was charged" ✔ · receipt says "SIMULATED PAYMENT — Academic Demo… Not a valid financial receipt" ✔ · My Moves payment history lists 2 failures, the payment and (after cancelling) the refund ✔ · admin **Ops → Payments** shows every row labelled Simulated ✔.
 
 ---
 
-## 3. AI (Anthropic Claude)
+## 3. AI (Google Gemini) — Verified
+- With a key: `/api/assistant/status` → `configured: true, provider: gemini`; PackBot chat returns real answers in about 1–3 s (checked again with the replacement key). It follows the rules (e.g. refuses to promise moving vehicles or items it isn't sure about).
+- Without a key: chat, `/scan-room` and `/parse-inventory` return 503 `ai_not_configured` and PackBot falls back to keyword answers.
+- `ai.test.js` (mocked provider): provider selection, key only in the `Authorization` header, JSON mode, image parts, fence stripping, 429 → rate-limit error, 404/503 → backup models, timeout, error messages never contain the key, output normalised and bounded.
+- **Not re-tested this pass:** room-photo scan and voice inventory against the live model (covered by mocked tests only).
 
-### Verified
-- With no key, `/api/assistant/status` → `configured:false`; `/assistant/chat`, `/scan-room`, `/parse-inventory` → **503 `ai_not_configured`** with a clear message; PackBot falls back to its offline keyword answers in the UI.
-
-### Unverified
-- **PackBot responses, AI room photo scanning, voice/text inventory parsing, invalid-image handling with a live model.** `ANTHROPIC_API_KEY` is not present in `server/.env`. To verify: add the key and exercise each endpoint.
+## 3b. Email (Gmail SMTP) — Verified
+Real delivery confirmed earlier: `npm run email:test` and a signup verification email were accepted by Gmail. `email.test.js` (mocked transport) covers statuses (`sent / not_configured / failed / skipped`), timeouts, masked logging and HTML escaping. Booking confirmation, cancellation/refund and admin-cancel messages now say the payment and refund are simulated.
 
 ---
 
@@ -131,22 +150,25 @@ Role dialogs at 320 and 1440: Driver Console ✔, Seller edit form ✔ (fixed th
 - **Backend log:** no server errors during the final run.
 - **Database (read-only check):** 15/16 invariants pass — booked moves are paid, captain fields consistent, delivered moves have payout, refunds ≤ paid, unique booking IDs, no orphan bookings/passports/conversations, claimed listings have a buyer, no fake MRPs, no leftover QA accounts, no tracking links on finished moves.
   - **Open item:** 61 notifications reference users deleted by the accidental reseed earlier in this project's history. They are unreadable by anyone; left in place per the "no destructive operations" rule. Safe to delete later with an admin script.
-- **Production mode boot (spare port):** serves the built site; test payments **disabled**; refuses to start without a strong `JWT_SECRET` (current one is 50 chars); helmet security headers present (CSP, nosniff, HSTS, frame, referrer); force reseed → 403; CORS allows only `CLIENT_URL`.
-- Auth rate limiting (20 failed attempts / 15 min), general API limit (1000 / 15 min), 10 MB JSON limit, Razorpay webhook mounted with the raw body for HMAC, non-root Docker user with healthcheck, `.env` git-ignored.
+- **Production mode boot (spare port):** serves the built site; **simulated payments stay on** (`/api/payments/config` → `demoPayments: true`, the academic-demo setup); CSP allows no third-party scripts or frames (`script-src 'self'`, `frame-src 'none'`); refuses to start without a strong `JWT_SECRET` (current one is 50 chars); helmet security headers present (CSP, nosniff, HSTS, frame, referrer); force reseed → 403; CORS allows only `CLIENT_URL`.
+- Auth rate limiting (20 failed attempts / 15 min), general API limit (1000 / 15 min), 10 MB JSON limit, no payment webhook (404), non-root Docker user with healthcheck, `.env` git-ignored.
 
 ---
 
-## 9. Defects found and fixed in this audit
+## 9. Defects found and fixed
 
+### This pass
 | # | Defect | Fix |
 |---|---|---|
-| 1 | Notification panel ran off the left edge at ≤ 860 px (navbar wraps, bell moves left) | Pinned under the navbar on phones/tablets |
-| 2 | Seller edit/list form and other card-level dialogs were trapped inside blurred glass panels (backdrop not full-screen, top cut off, no scroll lock) | Dialogs render through a top-level portal; dialog roles added |
-| 3 | Production CORS still allowed `http://localhost:5173/5174` | Dev ports allowed only in development; `CLIENT_URL` supports a comma-separated list |
-| 4 | Disallowed CORS origins produced a 500 and error log lines | Unknown origins quietly get no CORS headers |
-| 5 | `/payments/verify` would compute HMACs with an empty secret if keys were missing (not reachable today) | Returns 503 when no secret is configured |
+| 0 | Test runs left a "New damage claim" staff notification on the demo admin account each time | Test cleanup now also removes staff alerts that name its own claims/requests. **6 such leftovers from earlier runs were left in place** (no deleting existing records). |
+| 1 | **Captain could be paid twice:** two simultaneous correct Delivery OTP submissions both credited the wallet | Delivery is claimed atomically (`in_transit → delivered`); the second request gets 409 |
+| 2 | Same trip could be quoted and booked at slightly different prices when the public route server timed out between the two calls | Road distances are cached (6 h; fallback estimates 10 min) |
+| 3 | Refund messages promised money "to your original payment method in 5–7 working days" | Messages say the refund is simulated |
+| 4 | Receipt close button had no accessible name; Escape didn't close it | `aria-label` added; Escape closes it |
+| 5 | Checkout badge overlapped the close button at 320 px | Header wraps and leaves room for the button |
 
-Previously fixed in this QA cycle (still covered by tests): open database-wipe endpoint, double payment/refund races, new-account draft 500, quote/booking input validation, marketplace contact-detail leak, listing edit/delete, job release.
+### Earlier passes
+Notification panel overflow, dialogs trapped inside glass panels, production CORS allowing localhost, CORS 500s, open database-wipe endpoint, double payment/refund races, new-account draft 500, quote/booking input validation, marketplace contact-detail leak, listing edit/delete, job release.
 
 ---
 
@@ -154,9 +176,7 @@ Previously fixed in this QA cycle (still covered by tests): open database-wipe e
 
 | Area | Needed |
 |---|---|
-| Razorpay sandbox checkout, refunds, webhooks | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (rzp_test_…) and `RAZORPAY_WEBHOOK_SECRET` |
-| PackBot, AI room scan, voice/text inventory | `ANTHROPIC_API_KEY` |
-| Email verification / reset delivery | SMTP settings (currently logged to the server console only) |
+| AI room-photo scan and voice inventory against the live Gemini model | Gemini is configured; not re-run this pass (mocked tests pass) |
 | SMS alerts | Twilio (or similar) credentials |
 | Calls across mobile networks | A TURN server |
 | Background GPS while the phone is locked | A native app |

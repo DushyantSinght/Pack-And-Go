@@ -71,8 +71,8 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
       action: { label: 'View Luggage Passports', tab: 'passport' }
     },
     {
-      keywords: ['pay', 'payment', 'escrow', 'upi', 'razorpay'],
-      reply: 'You pay online when you book. We hold the money and release your Move Captain\'s share only after you check your boxes and read out your 6-digit Delivery OTP.',
+      keywords: ['pay', 'payment', 'escrow', 'upi', 'razorpay', 'card'],
+      reply: 'Payments here are simulated (this is an academic demo, so no real money moves). You pay when you book, we hold the amount and release your Move Captain\'s share only after you check your boxes and read out your 6-digit Delivery OTP.',
       action: { label: 'Open My Moves', custom: 'mymoves' }
     },
     {
