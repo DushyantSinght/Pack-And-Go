@@ -538,12 +538,6 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
               </button>
             </form>
 
-            {/* Footer */}
-            <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-              <ShieldCheck size={12} color="var(--primary)" style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-              Passwords hashed with bcrypt · JWT secured · 7-day session
-            </div>
-
             {/* Demo accounts — development only */}
             {import.meta.env.DEV && (
             <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
