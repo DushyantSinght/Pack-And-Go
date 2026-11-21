@@ -191,6 +191,39 @@ test('admin can inspect the simulated ledger; others cannot', async () => {
   assert.equal((await call('/admin/transactions?q=(((', { token: admin.token })).status, 200, 'search text is escaped');
 });
 
+test('approved damage claim: compensation recorded once; decisions only move forward', async () => {
+  const cust = await makeUser();
+  const cap = await makeCaptain();
+  const m = await book(cust);
+  await pay(cust, m.bookingId);
+  await call(`/moves/captain/jobs/${m.bookingId}/accept`, { token: cap.token, method: 'POST' });
+  await call('/moves/verify-otp', { token: cap.token, method: 'POST', body: { bookingId: m.bookingId, otp: m.pickupOtp, stage: 'pickup' } });
+  await call('/moves/verify-otp', { token: cap.token, method: 'POST', body: { bookingId: m.bookingId, otp: m.deliveryOtp, stage: 'delivery' } });
+  const filed = await call('/support/claims', { token: cust.token, method: 'POST', body: { bookingId: m.bookingId, description: 'Scratched table', amountClaimed: 800 } });
+  assert.equal(filed.status, 201, filed.body.message);
+  const id = filed.body.claim.claimId;
+  const admin = await login('admin@packandgo.in');
+  const resolve = (body) => call(`/admin/claims/${id}/resolve`, { token: admin.token, method: 'POST', body });
+
+  assert.equal((await resolve({ status: 'approved', note: 'ok' })).status, 400, 'approval needs an amount');
+  assert.equal((await resolve({ status: 'paid', note: 'x' })).status, 409, "can't mark paid before approval");
+  const both = await Promise.all([1, 2].map(() => resolve({ status: 'approved', amountApproved: 500, note: 'Scratch confirmed' })));
+  assert.deepEqual(both.map((r) => r.status).sort(), [200, 409], 'approved exactly once');
+  assert.equal((await resolve({ status: 'rejected', note: 'changed mind' })).status, 409, 'no flip-flopping after a decision');
+  assert.equal((await resolve({ status: 'paid', note: 'Settled' })).status, 200);
+
+  const comp = (await history(cust)).filter((t) => t.kind === 'compensation');
+  assert.equal(comp.length, 1);
+  assert.equal(comp[0].amount, 500);
+  assert.equal(comp[0].relatedTxnId, id);
+  assert.match(comp[0].txnId, /^DEMO-COMP-/);
+  const s = (await call(`/payments/status/${m.bookingId}`, { token: cust.token })).body;
+  assert.ok(s.transactions.some((t) => t.kind === 'compensation'), "shown on the customer's booking");
+  const mine = (await call('/support/claims/mine', { token: cust.token })).body.claims.find((c) => c.claimId === id);
+  assert.equal(mine.status, 'paid');
+  assert.equal(mine.resolution.amountApproved, 500);
+});
+
 test('DEMO_PAYMENTS_ENABLED switches payments (and therefore bookings) off; it defaults to on', async () => {
   const { demoPaymentsEnabled } = await import('../services/payments.js');
   const saved = process.env.DEMO_PAYMENTS_ENABLED;

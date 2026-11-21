@@ -14,7 +14,7 @@ export const DEMO_NOTICE = 'Academic Demo — No Real Money Involved.';
 export const demoPaymentsEnabled = () => String(process.env.DEMO_PAYMENTS_ENABLED ?? 'true').toLowerCase().trim() !== 'false';
 
 /** Unique, unguessable reference such as DEMO-PAY-7F3A9C21B4E0. */
-export const newTxnId = (kind) => `DEMO-${{ payment: 'PAY', refund: 'RFND', payout: 'PAYOUT' }[kind]}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
+export const newTxnId = (kind) => `DEMO-${{ payment: 'PAY', refund: 'RFND', payout: 'PAYOUT', compensation: 'COMP' }[kind]}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
 
 const ledger = (row) =>
   PaymentTransaction.create({ ...row, simulated: true }).catch((err) => {
@@ -88,6 +88,12 @@ export const refund = async (booking, amountRupees, reason) => {
   booking.escrowStatus = 'refunded';
   await ledger({ txnId: refundId, kind: 'refund', status: 'success', bookingId: booking.bookingId, userEmail: booking.userEmail, amount, method: 'system', reason: String(reason || '').slice(0, 300), relatedTxnId: pd.transactionId });
   return { refunded: amount, refundId };
+};
+
+/** Record the (simulated) compensation for an approved damage claim — once per claim. */
+export const recordCompensation = (claim, amount) => {
+  const txnId = newTxnId('compensation');
+  return ledger({ txnId, kind: 'compensation', status: 'success', bookingId: claim.bookingId, userEmail: claim.userEmail, amount, method: 'system', reason: `Damage claim ${claim.claimId}`, relatedTxnId: claim.claimId }).then(() => txnId);
 };
 
 /** Record the captain's payout (called once, after the delivery OTP is verified). */

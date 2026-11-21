@@ -13,6 +13,30 @@ import { api, tokenStorage } from '../services/api';
 // (otherwise components briefly lose their provider and the error screen flashes).
 const MoveContext = (globalThis.__packandgoMoveContext ??= createContext());
 
+/** The signed-out starting estimate (demo example). Also restored on sign-out so the next person on the device starts clean. */
+const freshEstimate = () => ({
+  bookingId: 'PKG-MOV-2026-9214',
+  origin: 'HSR Layout Sector 1, Bengaluru',
+  destination: 'Hope Farm, Whitefield, Bengaluru',
+  presetId: 'studio-pg',
+  items: ROOM_PRESETS[0].items,
+  totalCuFt: ROOM_PRESETS[0].totalCuFt,
+  estimatedWeightKg: ROOM_PRESETS[0].estimatedWeightKg,
+  cartons: ROOM_PRESETS[0].recommendedCartons,
+  labour: ROOM_PRESETS[0].labourNeeded,
+  vehicle: ROOM_PRESETS[0].recommendedVehicle,
+  soloPrice: ROOM_PRESETS[0].soloPrice,
+  pooledPrice: ROOM_PRESETS[0].pooledPrice,
+  savingsPercent: ROOM_PRESETS[0].savingsPercent,
+  isPriceLocked: true,
+  // Real codes come from the server for the signed-in owner only.
+  pickupOtp: null,
+  deliveryOtp: null,
+  transitStatus: 'In Transit • 34 km/h • Geofence Validated',
+  selectedTheme: 'theme-urban-tech',
+  selectedEssentials: ['ess-water', 'ess-bedding', 'ess-grocery']
+});
+
 export const MoveProvider = ({ children }) => {
   // Navigation & Role
   const [activeTab, setActiveTab] = useState('estimator');
@@ -29,28 +53,7 @@ export const MoveProvider = ({ children }) => {
   });
 
   // Active Move State
-  const [currentEstimate, setCurrentEstimate] = useState({
-    bookingId: 'PKG-MOV-2026-9214',
-    origin: 'HSR Layout Sector 1, Bengaluru',
-    destination: 'Hope Farm, Whitefield, Bengaluru',
-    presetId: 'studio-pg',
-    items: ROOM_PRESETS[0].items,
-    totalCuFt: ROOM_PRESETS[0].totalCuFt,
-    estimatedWeightKg: ROOM_PRESETS[0].estimatedWeightKg,
-    cartons: ROOM_PRESETS[0].recommendedCartons,
-    labour: ROOM_PRESETS[0].labourNeeded,
-    vehicle: ROOM_PRESETS[0].recommendedVehicle,
-    soloPrice: ROOM_PRESETS[0].soloPrice,
-    pooledPrice: ROOM_PRESETS[0].pooledPrice,
-    savingsPercent: ROOM_PRESETS[0].savingsPercent,
-    isPriceLocked: true,
-    // Real codes come from the server for the signed-in owner only.
-    pickupOtp: null,
-    deliveryOtp: null,
-    transitStatus: 'In Transit • 34 km/h • Geofence Validated',
-    selectedTheme: 'theme-urban-tech',
-    selectedEssentials: ['ess-water', 'ess-bedding', 'ess-grocery']
-  });
+  const [currentEstimate, setCurrentEstimate] = useState(freshEstimate);
 
   // Digital Luggage Passports
   const [passports, setPassports] = useState(DIGITAL_LUGGAGE_PASSPORTS);
@@ -208,10 +211,17 @@ export const MoveProvider = ({ children }) => {
         // Fetch Move Booking from MongoDB
         const moveRes = authed ? await api.getCurrentMove().catch(() => null) : null;
         if (moveRes?.move) {
-          setCurrentEstimate((prev) => ({
-            ...prev,
-            ...moveRes.move
-          }));
+          const server = moveRes.move;
+          setCurrentEstimate((prev) => {
+            // A visitor who built a list (AI scan, typed or by hand) and then signs up or signs in
+            // must not lose it to the account's empty draft: carry it over and save it there.
+            const carry = server.status === 'draft' && !(server.items?.length) && prev.presetId === 'custom'
+              && prev.items?.length > 0 && prev.bookingId !== server.bookingId;
+            if (!carry) return { ...prev, ...server };
+            const keep = { items: prev.items, totalCuFt: prev.totalCuFt, estimatedWeightKg: prev.estimatedWeightKg, cartons: prev.cartons, vehicle: prev.vehicle, labour: prev.labour, presetId: 'custom' };
+            api.saveMoveEstimate({ bookingId: server.bookingId, ...keep }).catch(() => {});
+            return { ...prev, ...server, ...keep };
+          });
         }
       } catch (err) {
         console.warn('Initial MongoDB sync notice (using cached defaults):', err.message);
@@ -285,12 +295,19 @@ export const MoveProvider = ({ children }) => {
   const logout = () => {
     api.logout(); // Clears JWT from localStorage
     setUser(null);
-    setCurrentEstimate((prev) => ({ ...prev, pickupOtp: null, deliveryOtp: null }));
+    setCurrentEstimate(freshEstimate());
     setMyMoves([]);
-    setIsMyMovesOpen(false);
+    // Close everything that belonged to the signed-in person.
+    [setIsMyMovesOpen, setIsDriverConsoleOpen, setIsAdminOpen, setIsPaymentModalOpen, setIsInvoiceModalOpen, setIsBookingOpen, setIsDepositCertOpen].forEach((close) => close(false));
     setPassports(DIGITAL_LUGGAGE_PASSPORTS);
     setActiveRole('customer');
     showToast('Logged out of Pack&Go.', 'info');
+  };
+
+  /** Reload resale listings (e.g. after someone claims one of mine). */
+  const refreshMarketplace = async () => {
+    const res = await api.getMarketplaceItems().catch(() => null);
+    if (res?.items) setMarketplaceItems(res.items);
   };
 
   const openAuth = (mode = 'login') => {
@@ -554,6 +571,7 @@ export const MoveProvider = ({ children }) => {
         setScannedBox,
         addNewBoxPassport,
         marketplaceItems,
+        refreshMarketplace,
         addMarketplaceItem,
         claimMarketplaceItem,
         updateMarketplaceItem,

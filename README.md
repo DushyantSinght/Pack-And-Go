@@ -55,7 +55,7 @@ The tests cover the booking lifecycle (quote → book → pay → accept → pic
 
 ## Payments (simulated)
 
-Pack&Go never processes real money. The checkout offers a **Demo card** or **Demo UPI** and a **Successful** or **Failed** test scenario, and shows a *Test Payment Information* panel. Every page shows the notice **"Academic Demo — No Real Money Involved."**
+Pack&Go never processes real money. The checkout offers a **Demo card** or **Demo UPI** and a **Successful** or **Failed** test scenario, and shows a *Test Payment Information* panel. The checkout, receipts, My Moves and the admin ledger all label payments as simulated.
 
 What the server still enforces, exactly as a real payment system would:
 

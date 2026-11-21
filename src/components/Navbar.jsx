@@ -1,8 +1,9 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
-import React from 'react';
+import React, { useState } from 'react';
 import { useMove } from '../context/MoveContext';
 import { useComms } from '../context/CommsContext';
 import { NotificationBell } from './NotificationBell';
+import { AccountModal } from './AccountModal';
 import { CountBadge, useBump } from './ui/AnimatedNumber';
 import { withViewTransition } from '../utils/viewTransition';
 import {
@@ -70,6 +71,8 @@ export const Navbar = () => {
       );
     }).catch(() => {});
   };
+
+  const [accountOpen, setAccountOpen] = useState(false);
 
   return (
     <header className="glass-panel navbar-header">
@@ -220,23 +223,31 @@ export const Navbar = () => {
             borderRadius: 'var(--radius-full)',
             border: '1px solid var(--border-subtle)'
           }}>
-            <div style={{
-              width: '24px',
-              height: '24px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--primary), var(--accent))',
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.7rem',
-              fontWeight: 800
-            }}>
-              {user.name?.charAt(0) || '•'}
-            </div>
-            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)' }}>
-              {user.name?.split(' ')[0] || 'Account'}
-            </span>
+            <button
+              type="button"
+              onClick={() => setAccountOpen(true)}
+              title="Your account"
+              aria-label="Your account"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', font: 'inherit' }}
+            >
+              <div style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, var(--primary), var(--accent))',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.7rem',
+                fontWeight: 800
+              }}>
+                {user.name?.charAt(0) || '•'}
+              </div>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                {user.name?.split(' ')[0] || 'Account'}
+              </span>
+            </button>
             <button
               onClick={logout}
               style={{
@@ -286,6 +297,7 @@ export const Navbar = () => {
           <span className="ti ti-moon"><Moon size={15} color="#6366F1" /></span>
         </button>
       </div>
+      <AccountModal isOpen={accountOpen && !!user} onClose={() => setAccountOpen(false)} />
     </header>
   );
 };

@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, CheckCheck, MessageSquare, Phone, PhoneCall, Send, Truck, ShoppingBag, X, WifiOff } from 'lucide-react';
 import { useComms } from '../context/CommsContext';
+import { useMove } from '../context/MoveContext';
 import { SkeletonList, SkeletonBubbles } from './ui/Skeleton';
 import { EmptyState } from './ui/EmptyState';
 import { UserAvatar } from './ui/SafeImage';
@@ -74,10 +75,12 @@ const Inbox = ({ conversations, onSelect, loaded }) => {
   );
 };
 
+// Picked by what the chat is about (a move or a resale listing) and which side you're on.
 const QUICK_REPLIES = {
   captain: ['On my way 🚚', 'Reached pickup point', 'Running 10 mins late', 'Please share the OTP at handover'],
-  outgoing: ['Yes, still available!', 'Can do ₹200 less', 'Available this evening for handoff', 'Sold, sorry!'],
-  default: ['Hi! Where are you now?', 'Please call me when you reach', 'Is this still available?', 'Thank you!']
+  mover: ['Hi! Where are you now?', 'Please call me when you reach', 'Please take care with the fragile items', 'Thank you!'],
+  seller: ['Yes, still available!', 'Can do ₹200 less', 'Available this evening for handoff', 'Sold, sorry!'],
+  buyer: ['Is this still available?', 'Can I see it today?', 'Is the price negotiable?', 'Thank you!']
 };
 
 const Thread = ({ conversation, myId, onBack, onClose }) => {
@@ -90,7 +93,12 @@ const Thread = ({ conversation, myId, onBack, onClose }) => {
   const list = loadedList || [];
   const other = conversation.otherUser;
   const iAm = conversation.participants.find((p) => p._id === myId);
-  const quick = QUICK_REPLIES[iAm?.userType] || QUICK_REPLIES.default;
+  const { marketplaceItems } = useMove();
+  const listing = conversation.context?.type === 'seller' ? marketplaceItems.find((i) => i.itemId === conversation.context.refId) : null;
+  const iAmSeller = !!listing?.mine;
+  const side = conversation.context?.type === 'seller' ? (iAmSeller ? 'seller' : 'buyer') : iAm?.userType === 'captain' ? 'captain' : 'mover';
+  const quick = QUICK_REPLIES[side];
+  const otherRole = conversation.context?.type === 'seller' ? (iAmSeller ? 'Buyer' : 'Seller') : ROLE_LABEL[other?.userType] || 'Member';
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -124,7 +132,7 @@ const Thread = ({ conversation, myId, onBack, onClose }) => {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>{other?.name}</div>
           <div style={{ fontSize: '0.72rem', color: typing[conversation._id] ? 'var(--primary)' : 'var(--text-muted)' }}>
-            {typing[conversation._id] ? 'typing…' : `${ROLE_LABEL[other?.userType] || 'Member'} · ${other?.online ? 'Online' : 'Offline'}`}
+            {typing[conversation._id] ? 'typing…' : `${otherRole} · ${other?.online ? 'Online' : 'Offline'}`}
           </div>
         </div>
         <button onClick={() => requestCall({ conversation })} className="btn btn-outline-emerald btn-sm" title={`Call ${other?.name}`}>
@@ -194,7 +202,7 @@ const Thread = ({ conversation, myId, onBack, onClose }) => {
 
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '6px 12px' }}>
         {quick.map((q) => (
-          <button key={q} onClick={() => submit(q)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem', whiteSpace: 'nowrap', padding: '4px 10px' }}>{q}</button>
+          <button key={q} onClick={() => submit(q)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem', whiteSpace: 'nowrap', padding: '4px 10px', flexShrink: 0 }}>{q}</button>
         ))}
       </div>
 

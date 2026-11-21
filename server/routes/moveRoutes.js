@@ -144,7 +144,8 @@ router.get('/mine', async (req, res) => {
 router.get('/current', async (req, res) => {
   try {
     let move =
-      (await MoveBooking.findOne({ userEmail: req.user.email, status: { $in: [...ACTIVE, 'pending_payment'] } }).sort({ moveDate: 1 })) ||
+      // Soonest move; ties (same slot) broken by booking ID so the choice never flips between loads.
+      (await MoveBooking.findOne({ userEmail: req.user.email, status: { $in: [...ACTIVE, 'pending_payment'] } }).sort({ moveDate: 1, bookingId: 1 })) ||
       (await MoveBooking.findOne({ userEmail: req.user.email, $or: [{ status: 'draft' }, { status: { $exists: false } }] }).sort({ updatedAt: -1 }));
     if (!move) move = await createDraftFor(req.user);
     res.json({ success: true, move: ownerView(move) });

@@ -2,7 +2,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import { User, MoveBooking, DamageClaim, ServiceRequest, PaymentTransaction } from '../models/index.js';
-import { refund, DEMO_NOTICE } from '../services/payments.js';
+import { refund, recordCompensation, DEMO_NOTICE } from '../services/payments.js';
 import { notify } from '../services/notify.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin, isAdminUser, profileOf } from '../middleware/roles.js';
@@ -120,7 +120,7 @@ router.get('/bookings', async (req, res) => {
 // GET /api/admin/transactions?kind=payment|refund|payout&status=success|failed&q=<bookingId or email>
 router.get('/transactions', async (req, res) => {
   const filter = {};
-  if (['payment', 'refund', 'payout'].includes(req.query.kind)) filter.kind = req.query.kind;
+  if (['payment', 'refund', 'payout', 'compensation'].includes(req.query.kind)) filter.kind = req.query.kind;
   if (['success', 'failed'].includes(req.query.status)) filter.status = req.query.status;
   const q = String(req.query.q || '').trim().slice(0, 80);
   if (q) {
@@ -185,16 +185,25 @@ router.post('/claims/:claimId/resolve', async (req, res) => {
   const { status, amountApproved, note } = req.body;
   if (!['under_review', 'approved', 'rejected', 'paid'].includes(status)) return res.status(400).json({ success: false, message: 'Invalid status.' });
   if (status !== 'under_review' && !String(note || '').trim()) return res.status(400).json({ success: false, message: 'Add a note for the customer.' });
+  const amount = Math.max(0, Math.min(200000, Math.round(Number(amountApproved) || 0)));
+  if (status === 'approved' && amount <= 0) return res.status(400).json({ success: false, message: 'Enter the approved amount.' });
+  // Decisions only move forward, atomically — approving twice can never pay twice.
+  const FROM = { under_review: ['open'], approved: ['open', 'under_review'], rejected: ['open', 'under_review'], paid: ['approved'] };
   const claim = await DamageClaim.findOneAndUpdate(
-    { claimId: req.params.claimId },
-    { $set: { status, resolution: { note, amountApproved: Number(amountApproved) || 0, by: req.user.email, at: new Date() } } },
+    { claimId: req.params.claimId, status: { $in: FROM[status] } },
+    // Only approval sets the amount; later steps (paid) keep it.
+    { $set: { status, 'resolution.note': note, 'resolution.by': req.user.email, 'resolution.at': new Date(), ...(status === 'approved' && { 'resolution.amountApproved': amount }) } },
     { returnDocument: 'after' }
   );
-  if (!claim) return res.status(404).json({ success: false, message: 'Claim not found.' });
+  if (!claim) {
+    const exists = await DamageClaim.exists({ claimId: req.params.claimId });
+    return res.status(exists ? 409 : 404).json({ success: false, message: exists ? 'This claim was already decided — refresh to see its status.' : 'Claim not found.' });
+  }
+  if (status === 'approved') await recordCompensation(claim, amount);
   notify(claim.userEmail, {
     type: 'claim', bookingId: claim.bookingId,
     title: `Claim ${claim.claimId}: ${status.replace('_', ' ')}`,
-    body: [note, status === 'approved' || status === 'paid' ? `Approved amount: ₹${(Number(amountApproved) || 0).toLocaleString('en-IN')}` : ''].filter(Boolean).join(' • '),
+    body: [note, status === 'approved' || status === 'paid' ? `Approved amount: ₹${(claim.resolution?.amountApproved || 0).toLocaleString('en-IN')} (simulated — no real money)` : ''].filter(Boolean).join(' • '),
     email: true
   });
   res.json({ success: true, claim: { ...claim.toObject(), photos: undefined } });

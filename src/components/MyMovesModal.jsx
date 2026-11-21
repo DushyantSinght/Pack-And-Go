@@ -81,7 +81,36 @@ const Section = ({ title, icon: Icon, children }) => (
   </div>
 );
 
-const TXN_LABEL = { payment: 'Payment', refund: 'Refund' };
+const CLAIM_STATUS = {
+  open: ['Received — waiting for review', 'var(--amber)'],
+  under_review: ['Under review', 'var(--amber)'],
+  approved: ['Approved', 'var(--emerald-light)'],
+  paid: ['Settled', 'var(--emerald-light)'],
+  rejected: ['Not approved', '#F87171']
+};
+
+/** This booking's damage claims and what Pack&Go decided. */
+const ClaimStatus = ({ claims }) => (
+  <Section title="Damage claims" icon={ShieldAlert}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {claims.map((c) => {
+        const [label, color] = CLAIM_STATUS[c.status] || [c.status, 'var(--text-muted)'];
+        return (
+          <div key={c.claimId} style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <strong style={{ color: 'var(--text-main)' }}>{c.claimId}</strong>
+              <strong style={{ color }}>{label}</strong>
+            </div>
+            <div>Claimed {inr(c.amountClaimed)}{c.resolution?.amountApproved != null && ['approved', 'paid'].includes(c.status) ? ` • approved ${inr(c.resolution.amountApproved)} (simulated)` : ''} • filed {when(c.createdAt)}</div>
+            {c.resolution?.note && <div style={{ color: 'var(--text-main)' }}>Pack&Go: {c.resolution.note}</div>}
+          </div>
+        );
+      })}
+    </div>
+  </Section>
+);
+
+const TXN_LABEL = { payment: 'Payment', refund: 'Refund', compensation: 'Claim compensation' };
 
 /** This booking's simulated payment / refund records (academic demo — no real money). */
 const PaymentHistory = ({ move }) => {
@@ -103,7 +132,7 @@ const PaymentHistory = ({ move }) => {
               <strong style={{ color: t.status === 'success' ? 'var(--text-main)' : '#F87171' }}>{TXN_LABEL[t.kind]} {t.status === 'failed' ? 'failed' : ''}</strong>
               {' '}• {when(t.createdAt)} • <code style={{ fontSize: '0.7rem' }}>{t.txnId}</code>
             </span>
-            <strong style={{ color: t.kind === 'refund' ? 'var(--emerald-light)' : 'var(--text-main)' }}>{t.kind === 'refund' ? '+ ' : ''}{inr(t.amount)}</strong>
+            <strong style={{ color: t.kind !== 'payment' ? 'var(--emerald-light)' : 'var(--text-main)' }}>{t.kind !== 'payment' ? '+ ' : ''}{inr(t.amount)}</strong>
           </div>
         ))}
       </div>
@@ -124,7 +153,16 @@ const MoveDetail = ({ move, onBack }) => {
   const [comment, setComment] = useState('');
   const [claim, setClaim] = useState({ description: '', amount: '', photos: [] });
   const [shareLink, setShareLink] = useState('');
+  const [claims, setClaims] = useState([]);
   const st = move.status;
+  // Reload after a claim is filed (the panel closes) and whenever another booking is opened.
+  useEffect(() => {
+    if (st !== 'delivered') return undefined;
+    let live = true;
+    api.getMyClaims().then((r) => live && setClaims((r.claims || []).filter((c) => c.bookingId === move.bookingId))).catch(() => {});
+    return () => { live = false; };
+  }, [move.bookingId, st, panel]);
+  const claimPending = claims.some((c) => ['open', 'under_review'].includes(c.status));
   const deliveredRecently = st === 'delivered' && move.deliveredAt && Date.now() - new Date(move.deliveredAt).getTime() < 48 * 3600_000;
   // Paid, but the slot came and went without any captain accepting it.
   const missedSlot = st === 'confirmed' && !move.assignedCaptainEmail && move.moveDate && new Date(move.moveDate).getTime() < Date.now();
@@ -279,6 +317,7 @@ const MoveDetail = ({ move, onBack }) => {
       )}
 
       {st !== 'draft' && <PaymentHistory move={move} />}
+      {claims.length > 0 && <ClaimStatus claims={claims} />}
 
       {st === 'delivered' && !move.review?.rating && (
         <Section title="How was your move?" icon={Star}>
@@ -317,7 +356,7 @@ const MoveDetail = ({ move, onBack }) => {
         {['pending_payment', 'confirmed', 'assigned'].includes(st) && (
           <button className="btn btn-secondary btn-sm" onClick={() => setPanel(panel === 'cancel' ? null : 'cancel')} style={{ gap: 5, color: '#EF4444' }}><XCircle size={13} /> Cancel</button>
         )}
-        {deliveredRecently && (
+        {deliveredRecently && !claimPending && (
           <button className="btn btn-secondary btn-sm" onClick={() => setPanel(panel === 'claim' ? null : 'claim')} style={{ gap: 5 }}><ShieldAlert size={13} /> Report damage</button>
         )}
       </div>

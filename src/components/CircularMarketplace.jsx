@@ -44,17 +44,17 @@ export const CircularMarketplace = () => {
   // New Listing Form State
   const [listingForm, setListingForm] = useState({
     title: '',
-    society: 'Prestige Falcon City, Bengaluru',
+    society: '',
     category: 'Furniture',
     price: '',
     originalPrice: '',
-    condition: 'Like New (6 months old)',
+    condition: 'Good (light wear)',
     description: '',
     imageUrl: ''
   });
   const [photoBusy, setPhotoBusy] = useState(false);
   const [editingId, setEditingId] = useState(null); // itemId when editing one of my listings
-  const EMPTY_FORM = { title: '', society: 'Prestige Falcon City, Bengaluru', category: 'Furniture', price: '', originalPrice: '', condition: 'Like New (6 months old)', description: '', imageUrl: '' };
+  const EMPTY_FORM = { title: '', society: '', category: 'Furniture', price: '', originalPrice: '', condition: 'Good (light wear)', description: '', imageUrl: '' };
   const startEdit = (item) => {
     setEditingId(item.itemId);
     setListingForm({ title: item.title, society: item.society, category: item.category, price: String(item.price), originalPrice: item.originalPrice > item.price ? String(item.originalPrice) : '', condition: item.condition, description: item.description || '', imageUrl: item.imageUrl || '' });
@@ -531,9 +531,17 @@ export const CircularMarketplace = () => {
                     className="form-input"
                     value={listingForm.society}
                     onChange={(e) => setListingForm({ ...listingForm, society: e.target.value })}
+                    placeholder="e.g. Prestige Falcon City, Bengaluru"
                     required
                   />
                 </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Condition</label>
+                <select className="form-input" value={listingForm.condition} onChange={(e) => setListingForm({ ...listingForm, condition: e.target.value })}>
+                  {[...new Set(['Like new', 'Good (light wear)', 'Fair (visible marks)', listingForm.condition])].filter(Boolean).map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
 
               <div className="grid-2" style={{ gap: '10px' }}>

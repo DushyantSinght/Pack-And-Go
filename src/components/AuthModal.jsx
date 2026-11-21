@@ -109,6 +109,16 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
     vehicleType: 'Tata Ace / mini-truck'
   });
 
+  // Every time the dialog opens it starts clean. Without this, the last sign-in/sign-up's
+  // "Account Created!" screen (and its typed values) came back for the next person.
+  useEffect(() => {
+    if (!isOpen) return;
+    setSuccess(false);
+    setErrors({});
+    setIsLoading(false);
+    setFormData({ name: '', email: '', password: '', confirmPassword: '', phone: '', acceptTerms: false, userType: 'student', licenseNumber: '', vehicleNumber: '', vehicleType: 'Tata Ace / mini-truck' });
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const updateField = (key, value) => {

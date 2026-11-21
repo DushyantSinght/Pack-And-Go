@@ -188,7 +188,7 @@ export const AdminRequests = () => {
   );
 };
 
-const KIND_LABEL = { payment: 'Payment', refund: 'Refund', payout: 'Captain payout' };
+const KIND_LABEL = { payment: 'Payment', refund: 'Refund', payout: 'Captain payout', compensation: 'Claim compensation' };
 
 /** Ledger of SIMULATED transactions — academic demo, no real money. */
 export const AdminTransactions = () => {
@@ -205,12 +205,12 @@ export const AdminTransactions = () => {
       </div>
       {data && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: 8, marginBottom: 10 }}>
-          {[['Payments', total('payment')], ['Failed payments', total('payment', 'failed')], ['Refunds', total('refund')], ['Payouts', total('payout')]].map(([l, t]) => (
+          {[['Payments', total('payment')], ['Failed payments', total('payment', 'failed')], ['Refunds', total('refund')], ['Payouts', total('payout')], ['Compensation', total('compensation')]].map(([l, t]) => (
             <div key={l} style={card}><div style={{ fontSize: '0.7rem' }}>{l}</div><strong style={{ color: 'var(--text-main)', fontSize: '0.95rem' }}>{t.count} • {inr(t.amount)}</strong></div>
           ))}
         </div>
       )}
-      <Filter value={kind} onChange={setKind} options={['all', 'payment', 'refund', 'payout']} />
+      <Filter value={kind} onChange={setKind} options={['all', 'payment', 'refund', 'payout', 'compensation']} />
       <form onSubmit={(e) => { e.preventDefault(); setSearch(q.trim()); }} style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Booking ID, email or reference" aria-label="Search transactions" style={input} />
         <button type="submit" className="btn btn-secondary btn-sm">Search</button>
@@ -224,7 +224,7 @@ export const AdminTransactions = () => {
                   {KIND_LABEL[t.kind]} • <span style={{ color: t.status === 'success' ? 'var(--emerald-light)' : '#F87171' }}>{t.status}</span>
                   <span className="badge badge-amber" style={{ marginLeft: 8, fontSize: '0.58rem', padding: '1px 7px', verticalAlign: 'middle' }}>Simulated</span>
                 </strong>
-                <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>{t.kind === 'refund' ? '− ' : ''}{inr(t.amount)}</span>
+                <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>{['refund', 'compensation'].includes(t.kind) ? '− ' : ''}{inr(t.amount)}</span>
               </div>
               <div style={{ overflowWrap: 'anywhere' }}>Ref <code>{t.txnId}</code> • booking {t.bookingId}</div>
               <div style={{ overflowWrap: 'anywhere' }}>{t.userEmail} • {t.method.replace('_', ' ')} • {fmt(t.createdAt)}</div>

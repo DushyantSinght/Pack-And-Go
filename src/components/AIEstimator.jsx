@@ -217,7 +217,7 @@ export const AIEstimator = () => {
               }}
             >
               <Camera size={15} />
-              Photo Sweep (CV)
+              Photo Scan (AI)
             </button>
             <button
               onClick={() => setActiveMode('voice')}
@@ -351,11 +351,11 @@ export const AIEstimator = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span className="radar-dot" style={{ width: '8px', height: '8px' }}></span>
                     <span style={{ color: '#FFFFFF', fontWeight: 600 }}>
-                      YOLOv8 + Depth Estimator Active
+                      AI vision scan (Google Gemini)
                     </span>
                   </div>
                   <span style={{ color: 'var(--primary)', fontWeight: 600 }}>
-                    Confidence: 96.4% • Zero Human Surveyor Needed
+                    Volumes are estimates • edit the list if anything is off
                   </span>
                 </div>
               </div>

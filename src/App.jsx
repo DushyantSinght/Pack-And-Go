@@ -197,9 +197,6 @@ export function App() {
         </div>
       )}
 
-      {/* Permanent: Pack&Go is an academic project and never processes real money. */}
-      <div className="demo-notice" role="note">🎓 Academic Demo — No Real Money Involved.</div>
-
       <VerifyEmailBanner />
 
       {/* Main Sticky Navbar */}

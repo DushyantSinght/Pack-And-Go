@@ -187,7 +187,7 @@ export const BookingWizard = () => {
           <div style={{ fontSize: '0.82rem', color: 'var(--amber)', marginBottom: 12 }}>Add the items you're moving in the estimator first.</div>
         )}
 
-        <div key={step} className={dir > 0 ? 'step-in-right' : 'step-in-left'}>
+        <div key={step} className={dir > 0 ? 'step-in-right' : 'step-in-left'} style={{ position: 'relative', zIndex: 2 }}>
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>

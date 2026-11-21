@@ -14,7 +14,7 @@ This report records what was **actually executed** and what was **not**. Nothing
 
 | Check | Result | Evidence |
 |---|---|---|
-| API test suites (`npm test`) | **42 / 42 pass**, 0 fail (≈12 s) | `lifecycle`, `roles`, `payments` (8), `security` (4, new), `email` (mocked transport), `ai` (mocked provider) |
+| API test suites (`npm test`) | **44 / 44 pass** on two back-to-back runs, 0 fail (≈13 s) | `lifecycle`, `roles`, `payments` (9), `security` (5), `email` (mocked transport), `ai` (mocked provider) |
 | Dependency audit (`npm audit`) | **0 vulnerabilities** (production and development dependencies) | see §1b |
 | Test isolation | A full run leaves **0** records behind (notifications 92 → 92, bookings 8 → 8, users 14 → 14) | before/after counts |
 | Lint (`npm run lint`, oxlint) | **0 errors**; 29 React style hints remain (13 set-state-in-effect, 8 only-export-components, 7 purity, 1 static-components) — reviewed, none are bugs | lint output |
@@ -45,9 +45,32 @@ All test suites create **throwaway accounts** (`qa-…@test.local`) and delete e
 
 ---
 
+## 1c. Real-user walkthrough in the browser — Verified
+
+Done by hand in the app, as real people would, with **two separate browser sessions side by side** (customer on one, driver / buyer / admin on the other) and four throwaway accounts (`qa-…@test.local`, all deleted afterwards with everything they created; no other data touched).
+
+| Who | What was done in the UI | Result |
+|---|---|---|
+| Visitor | Browsed all 7 tabs; asked PackBot a pricing question; typed an inventory; scanned a real room photo | ✔ tabs render, no errors or sideways scroll; PackBot answered with live Gemini (~6 s); AI turned one sentence into 8 items and the photo into 8 more (left out a built-in cabinet) |
+| Customer | Registered → verified email → signed out → wrong password → **forgot password** → reset link → new password → signed in | ✔ all steps; "password changed" notification |
+| Customer | Typed inventory → booking wizard (map-suggested addresses, 3rd floor no lift, date, slot, pooled) → itemised quote → **failed then successful** simulated payment | ✔ ₹4,742 = ₹4,019 + 18 % GST, stairs surcharge shown; decline left booking unpaid; success confirmed it with a unique reference |
+| Customer | My Moves, receipt, payment history, **family tracking link** opened signed-out in the other session, box label created | ✔ family view hides phone, price and codes |
+| Driver | Applied as Move Captain (licence, vehicle) → pending screen | ✔ job board locked while pending |
+| Admin | Approved the driver | ✔ |
+| Driver | Saw the paid job (₹3,215 payout, phone hidden) → accepted → **two-way chat** with the customer → shared live GPS → scanned the customer's box + an unknown box → wrong then right **pickup code** → drove → **delivery code** | ✔ customer notified live at every step; live map with truck, trail, distance and speed; unknown box flagged; wrong code rejected ("4 attempts left"); wallet ₹0 → ₹3,215 |
+| Customer | Rated 4★ with a comment → **damage claim with a photo** | ✔ |
+| Seller / buyer | Customer listed a table with a photo → a new neighbour registered, chatted, **claimed** it | ✔ seller notified live; listing locked to the buyer |
+| Customer | Requested a home cook (After the Move) | ✔ request reference + admin queue |
+| Admin | Bookings, **simulated ledger** (failed payment, payment, payout), approved the claim for ₹500 with a note, confirmed the service request | ✔ customer notified of the claim decision |
+| Everyone | Account screen (change phone, wrong/right current password), sign-out, register again on the same device | ✔ after fixes (see §9) |
+
+**Couldn't be verified here:** in-app voice-call audio (the test browser has no microphone; the call screen, the "missed call" log and the permission-denied message work).
+
+---
+
 ## 2. Payments (SIMULATED) — Verified
 
-Razorpay was removed (code, webhook, CSP exceptions and the `razorpay`/`stripe` packages). The simulated system is the app's only payment method. It is labelled everywhere: a permanent "Academic Demo — No Real Money Involved." banner, the checkout badge, the Test Payment Information panel, receipts, My Moves and the admin ledger.
+Razorpay was removed (code, webhook, CSP exceptions and the `razorpay`/`stripe` packages). The simulated system is the app's only payment method. It is labelled on every payment screen: the checkout badge, the Test Payment Information panel, receipts, My Moves and the admin ledger.
 
 ### 2a. Automated (`server/tests/payments.test.js` — 8 tests, all pass)
 | Case | Result |
@@ -157,7 +180,26 @@ Role dialogs at 320 and 1440: Driver Console ✔, Seller edit form ✔ (fixed th
 
 ## 9. Defects found and fixed
 
-### This pass
+### Real-user walkthrough
+| # | Defect | Fix |
+|---|---|---|
+| W1 | **Register showed "Account Created!" forever** after anyone had signed in/up in that browser — the next person couldn't sign up without reloading | The sign-in dialog resets every time it opens |
+| W2 | **A visitor's estimate was lost on sign-up** (the account's empty draft overwrote it) | Carried over and saved to the new account |
+| W3 | Sign-out left the previous person's estimate (items, addresses) and open dialogs (Driver Console, Ops…) on screen | Sign-out restores the starting estimate and closes everything |
+| W4 | Box and listing forms started filled with demo text ("Studio Audio & Accessories", "Prestige Falcon City"); typing appended to it | Empty fields; examples moved to placeholders |
+| W5 | Every listing was saved as "Like New (6 months old)" (no condition field) | Condition choice added |
+| W6 | Scanner overlay claimed "YOLOv8 + Depth Estimator • Confidence 96.4 %" (hard-coded); box form promised a "Shock Sensor" | Truthful labels (Gemini AI vision; volumes are estimates) |
+| W7 | PackBot didn't know payments are simulated | Its instructions say so; it never asks for card/UPI details |
+| W8 | Customers couldn't see a damage claim's status, and could file duplicates | "Damage claims" section in My Moves; button hidden while a claim is pending |
+| W9 | Approved claim compensation wasn't recorded; claims could be approved twice; "paid" reset the amount to ₹0 | One-way decisions (atomic), one `DEMO-COMP-…` ledger row per claim, amount kept |
+| W10 | No profile screen — name, phone, password couldn't be changed | **Your account** dialog (tap your name) + `POST /api/auth/change-password` (current password required, rate-limited) |
+| W11 | Seller's listing didn't update when claimed | Reloads when the claim notification arrives |
+| W12 | Chat quick replies clipped; move chats offered "Is this still available?"; the seller was labelled "Customer" | Chips don't shrink; replies and labels match the chat (move / buyer / seller) |
+| W13 | Drop-off address suggestions were hidden under Cancel / Next | Wizard step drawn above its footer |
+| W14 | "1 moves" in the Driver Console | "1 move" |
+| W15 | Repeated `npm test` runs locked themselves out (sign-in limiter: 20 failures / 15 min) | 20 in production, 200 in development (`AUTH_RATE_LIMIT_MAX` to override) |
+
+### Earlier this pass
 | # | Defect | Fix |
 |---|---|---|
 | 0 | Test runs left a "New damage claim" staff notification on the demo admin account each time | Test cleanup now also removes staff alerts that name its own claims/requests. **6 such leftovers from earlier runs were left in place** (no deleting existing records). |

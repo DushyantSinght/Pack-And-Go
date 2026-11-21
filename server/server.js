@@ -102,10 +102,12 @@ const generalLimiter = rateLimit({
 });
 
 // Brute-force protection: 20 FAILED attempts per 15 minutes per IP on credential
-// endpoints. Successful requests don't count, so normal sign-ins never lock people out.
+// endpoints (production). Successful requests don't count, so normal sign-ins never lock people
+// out. Development allows 200 so repeated local test runs (which try wrong passwords on purpose)
+// don't lock themselves out. Override with AUTH_RATE_LIMIT_MAX.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX) || (process.env.NODE_ENV === 'production' ? 20 : 200),
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
@@ -113,7 +115,7 @@ const authLimiter = rateLimit({
 });
 
 app.use('/api', generalLimiter);
-app.use(['/api/auth/login', '/api/auth/signup', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/auth/verify-email'], authLimiter);
+app.use(['/api/auth/login', '/api/auth/signup', '/api/auth/forgot-password', '/api/auth/reset-password', '/api/auth/verify-email', '/api/auth/change-password'], authLimiter);
 
 // ── Body Parsers ─────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));

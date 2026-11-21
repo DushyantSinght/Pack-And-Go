@@ -158,7 +158,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
               {user?.userType === 'captain' && user?.name ? `Captain ${user.name}` : 'Move Captain Console'}
             </h3>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Vehicle: <strong>{user?.captainApplication?.vehicleNumber || '—'}{user?.captainApplication?.vehicleType ? ` (${user.captainApplication.vehicleType})` : ''}</strong> • {user?.ratingCount ? `⭐ ${user.rating} (${user.ratingCount} reviews)` : 'No reviews yet'} • {user?.tripsCompleted ?? 0} moves • Wallet <AnimatedNumber value={user?.escrowWalletBalance || 0} format={inr} />
+              Vehicle: <strong>{user?.captainApplication?.vehicleNumber || '—'}{user?.captainApplication?.vehicleType ? ` (${user.captainApplication.vehicleType})` : ''}</strong> • {user?.ratingCount ? `⭐ ${user.rating} (${user.ratingCount} reviews)` : 'No reviews yet'} • {user?.tripsCompleted ?? 0} {(user?.tripsCompleted ?? 0) === 1 ? 'move' : 'moves'} • Wallet <AnimatedNumber value={user?.escrowWalletBalance || 0} format={inr} />
             </div>
           </div>
         </div>

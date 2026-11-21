@@ -28,8 +28,13 @@ export const LuggagePassport = () => {
     setActiveTab,
     openDepositCert,
     user,
-    openAuth
+    openAuth,
+    myMoves,
+    openMyMoves
   } = useMove();
+  // The codes below belong to ONE booking; with several active moves the customer must know which.
+  const activeMoves = (myMoves || []).filter((m) => ['confirmed', 'assigned', 'in_transit'].includes(m.status));
+  const codeMove = currentEstimate?.bookingId && currentEstimate.pickupOtp ? currentEstimate : null;
 
   const [selectedBox, setSelectedBox] = useState(passports[0]);
   // Keep the selection in step with the list (e.g. after your own boxes load).
@@ -42,12 +47,8 @@ export const LuggagePassport = () => {
   const [qrDataUrl, setQrDataUrl] = useState('');
 
   // New Box Form State
-  const [newBoxForm, setNewBoxForm] = useState({
-    category: 'Electronics & Gadgets',
-    label: 'Studio Audio & Accessories',
-    fragile: true,
-    items: 'Headphones, Audio Interface, Mic, Cables'
-  });
+  // Starts empty: the examples live in the placeholders, never in the values (typing used to append to them).
+  const [newBoxForm, setNewBoxForm] = useState({ category: 'Electronics & Gadgets', label: '', fragile: false, items: '' });
 
   // Generate QR Code when selected box changes
   useEffect(() => {
@@ -93,12 +94,7 @@ export const LuggagePassport = () => {
     });
     if (!ok) return;
     setShowAddBoxModal(false);
-    setNewBoxForm({
-      category: 'Electronics & Gadgets',
-      label: 'Studio Audio & Accessories',
-      fragile: true,
-      items: 'Headphones, Audio Interface, Mic, Cables'
-    });
+    setNewBoxForm({ category: 'Electronics & Gadgets', label: '', fragile: false, items: '' });
   };
 
   return (
@@ -419,7 +415,7 @@ export const LuggagePassport = () => {
                 </button>
               </div>
 
-              {/* Dual-End OTP & Geofence Verification Panel */}
+              {/* Handover codes for one booking (pickup + delivery) */}
               <div style={{
                 marginTop: '20px',
                 background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%)',
@@ -430,19 +426,34 @@ export const LuggagePassport = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <KeyRound size={16} color="var(--primary)" />
-                    <strong style={{ fontSize: '0.9rem' }}>Dual-End OTP & GPS Geofence Gate</strong>
+                    <strong style={{ fontSize: '0.9rem' }}>Handover codes</strong>
                   </div>
-                  <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>Geofence Radius: 150m OK</span>
                 </div>
 
+                {codeMove && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '10px', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+                    For booking <strong style={{ color: 'var(--text-main)' }}>{codeMove.bookingId}</strong>
+                    {codeMove.origin && codeMove.destination ? <> · {codeMove.origin.split(',')[0]} → {codeMove.destination.split(',')[0]}</> : null}
+                    {codeMove.moveDate ? <> · {new Date(codeMove.moveDate).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })}</> : null}
+                  </div>
+                )}
+                {activeMoves.length > 1 && (
+                  <div role="note" style={{ fontSize: '0.76rem', marginBottom: '10px', padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.35)', color: 'var(--text-main)', lineHeight: 1.5 }}>
+                    You have {activeMoves.length} active moves, and each has its own codes. Check the booking ID your Move Captain is working on, or{' '}
+                    <button type="button" onClick={() => openMyMoves()} className="btn-link" style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', font: 'inherit' }}>
+                      open My Moves
+                    </button>{' '}to see every move's codes.
+                  </div>
+                )}
+
                 <div className="grid-2" style={{ gap: '10px', marginBottom: '12px' }}>
-                  <div style={{ background: 'var(--bg-card-solid)', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '10px 12px', borderRadius: 'var(--radius-sm)', minWidth: 0 }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Pickup OTP {currentEstimate.pickupVerifiedAt ? '(Verified ✓)' : ''}</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.1em' }}>
                       <FlipCode code={currentEstimate.pickupOtp} used={!!currentEstimate.pickupVerifiedAt} tone="var(--primary)" />
                     </div>
                   </div>
-                  <div style={{ background: 'var(--bg-card-solid)', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '10px 12px', borderRadius: 'var(--radius-sm)', minWidth: 0 }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Delivery OTP {currentEstimate.deliveredAt ? '(Verified ✓)' : ''}</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent)', letterSpacing: '0.1em' }}>
                       <FlipCode code={currentEstimate.deliveryOtp} used={!!currentEstimate.deliveredAt} tone="var(--accent)" />
@@ -551,7 +562,7 @@ export const LuggagePassport = () => {
                   style={{ width: '16px', height: '16px', accentColor: 'var(--rose)' }}
                 />
                 <label htmlFor="fragileCheck" style={{ fontSize: '0.85rem', color: 'var(--text-main)', cursor: 'pointer' }}>
-                  Mark as Fragile (Includes Bubble Seal & Shock Sensor)
+                  Mark as fragile (the crew packs and handles it with extra care)
                 </label>
               </div>
 

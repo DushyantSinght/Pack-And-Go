@@ -266,6 +266,25 @@ router.post('/resend-verification', requireAuth, async (req, res) => {
 });
 
 // PATCH /api/auth/me  { name, phone }  — keep your contact details current
+// POST /api/auth/change-password { currentPassword, newPassword } — signed-in users only
+router.post('/change-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (typeof currentPassword !== 'string' || !currentPassword) return res.status(400).json({ success: false, message: 'Enter your current password.' });
+    if (!validatePassword(newPassword)) return res.status(400).json({ success: false, message: 'New password must be at least 6 characters.' });
+    if (newPassword === currentPassword) return res.status(400).json({ success: false, message: 'Choose a password different from the current one.' });
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
+      return res.status(401).json({ success: false, message: 'Your current password is incorrect.' });
+    }
+    await User.updateOne({ _id: user._id }, { $set: { password: await bcrypt.hash(newPassword, 12) }, $unset: { passwordResetTokenHash: '', passwordResetExpires: '' } });
+    notify(user, { type: 'account', title: 'Your password was changed', body: "If this wasn't you, reset your password and contact Pack&Go support.", email: true });
+    res.json({ success: true, message: 'Password changed.' });
+  } catch {
+    res.status(500).json({ success: false, message: 'Could not change your password.' });
+  }
+});
+
 router.patch('/me', requireAuth, async (req, res) => {
   const updates = {};
   if (typeof req.body.name === 'string' && req.body.name.trim()) updates.name = req.body.name.trim().slice(0, 80);

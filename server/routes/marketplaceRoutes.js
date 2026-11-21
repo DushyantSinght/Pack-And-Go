@@ -93,7 +93,7 @@ router.post('/', requireAuth, async (req, res) => {
     const newItem = await MarketplaceItem.create({
       itemId,
       title,
-      society: String(society || 'Prestige Falcon City, Bengaluru').slice(0, 120),
+      society: String(society || 'Location not given').slice(0, 120),
       category: String(category || 'Furniture').slice(0, 40),
       price: parsedPrice,
       originalPrice: mrp > parsedPrice ? mrp : parsedPrice, // no made-up "was" price
@@ -189,7 +189,7 @@ router.post('/:itemId/claim', requireAuth, async (req, res) => {
     if (!claimed) return res.status(409).json({ success: false, message: 'This item has already been claimed.' });
     if (item.seller?.email) {
       notify(item.seller.email, {
-        type: 'info',
+        type: 'marketplace', // the seller's screen reloads its listings when this arrives
         title: `${me?.name || 'Someone'} claimed “${item.title}”`,
         body: 'Chat with them from Messages to arrange the handoff.',
         email: true

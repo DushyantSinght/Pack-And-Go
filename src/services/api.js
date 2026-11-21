@@ -309,6 +309,7 @@ export const api = {
   verifyEmail: (token) => api.post('/auth/verify-email', { token }),
   resendVerification: () => api.post('/auth/resend-verification'),
   updateProfile: (data) => api.patch('/auth/me', data),
+  changePassword: (currentPassword, newPassword) => api.post('/auth/change-password', { currentPassword, newPassword }),
 
   // Notifications
   getNotifications: () => api.get('/notifications'),

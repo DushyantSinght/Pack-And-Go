@@ -70,6 +70,19 @@ test('payment and booking endpoints reject operator objects instead of matching 
   assert.equal(s.status, 404, 'path params are plain strings');
 });
 
+test('change password: needs the current password; the old one stops working', async () => {
+  const u = await makeUser();
+  const change = (body, token = u.token) => call('/auth/change-password', { token, method: 'POST', body });
+  assert.equal((await change({ currentPassword: 'secret12', newPassword: 'newpass99' }, null)).status, 401, 'must be signed in');
+  assert.equal((await change({ currentPassword: 'wrong-one', newPassword: 'newpass99' })).status, 401, 'wrong current password');
+  assert.equal((await change({ currentPassword: 'secret12', newPassword: '123' })).status, 400, 'too short');
+  assert.equal((await change({ currentPassword: 'secret12', newPassword: 'secret12' })).status, 400, 'must differ');
+  assert.equal((await change({ currentPassword: { $ne: null }, newPassword: 'newpass99' })).status, 400, 'no operator injection');
+  assert.equal((await change({ currentPassword: 'secret12', newPassword: 'newpass99' })).status, 200);
+  assert.equal((await call('/auth/login', { method: 'POST', body: { email: u.email, password: 'secret12' } })).status, 401, 'old password rejected');
+  assert.equal((await call('/auth/login', { method: 'POST', body: { email: u.email, password: 'newpass99' } })).status, 200, 'new password works');
+});
+
 test('nodemailer 10: our transport options and message format still work with the real library', async () => {
   // The real nodemailer 10 message builder (stream transport — nothing leaves this machine).
   const real = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: 'unix' });

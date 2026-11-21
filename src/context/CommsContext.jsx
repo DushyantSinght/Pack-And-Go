@@ -69,13 +69,15 @@ const createRinger = () => {
 };
 
 export const CommsProvider = ({ children }) => {
-  const { user, showToast, openAuth, updateUser, setActiveRole, refreshMyMoves } = useMove();
+  const { user, showToast, openAuth, updateUser, setActiveRole, refreshMyMoves, refreshMarketplace } = useMove();
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notificationsLoaded, setNotificationsLoaded] = useState(false);
   const [inboxLoaded, setInboxLoaded] = useState(false);
   const refreshMovesRef = useRef(refreshMyMoves);
   refreshMovesRef.current = refreshMyMoves;
+  const refreshMarketRef = useRef(refreshMarketplace);
+  refreshMarketRef.current = refreshMarketplace;
   const myId = user?._id ? String(user._id) : null;
 
   const socketRef = useRef(null);
@@ -239,6 +241,7 @@ export const CommsProvider = ({ children }) => {
       setUnreadNotifications((c) => c + 1);
       if (n.type !== 'chat') showToast(`🔔 ${n.title}`, 'info');
       if (n.bookingId) refreshMovesRef.current?.();
+      if (n.type === 'marketplace') refreshMarketRef.current?.();
       if (document.hidden && window.Notification?.permission === 'granted' && n.type !== 'chat') {
         new Notification(n.title, { body: n.body || '', tag: n._id });
       }

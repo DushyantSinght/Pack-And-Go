@@ -72,7 +72,7 @@ router.get('/history', requireAuth, async (req, res) => {
 router.get('/status/:bookingId', requireAuth, async (req, res) => {
   const booking = await MoveBooking.findOne({ bookingId: req.params.bookingId, userEmail: req.user.email }).lean();
   if (!booking) return res.status(404).json({ success: false, message: 'Booking not found.' });
-  const rows = await PaymentTransaction.find({ bookingId: booking.bookingId, kind: { $in: ['payment', 'refund'] } }).sort({ createdAt: 1 }).lean();
+  const rows = await PaymentTransaction.find({ bookingId: booking.bookingId, kind: { $in: ['payment', 'refund', 'compensation'] } }).sort({ createdAt: 1 }).lean();
   res.json({ success: true, simulated: true, status: booking.status, escrowStatus: booking.escrowStatus, paymentDetails: booking.paymentDetails, transactions: rows.map(publicTxn) });
 });
 
