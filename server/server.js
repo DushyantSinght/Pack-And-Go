@@ -60,7 +60,10 @@ app.use(
         'media-src': ["'self'", 'blob:']
       }
     },
-    crossOriginEmbedderPolicy: false
+    crossOriginEmbedderPolicy: false,
+    // Send only our origin as the referrer to other sites (the browser default). Helmet's default
+    // "no-referrer" makes map tile servers refuse requests ("Access blocked").
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
   })
 );
 
