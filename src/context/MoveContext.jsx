@@ -43,13 +43,13 @@ export const MoveProvider = ({ children }) => {
   // customer | captain | outgoing (seller) | parent. Signed-out visitors may preview any view;
   // signed-in users always see the view for their account type (set via accountRole below).
   const [previewRole, setPreviewRole] = useState('customer');
-  // Remember the visitor's theme; first visit follows the device setting.
+  // Remember the visitor's theme; first visit uses the light theme.
   const [themeMode, setThemeMode] = useState(() => {
     try {
       const saved = localStorage.getItem('pkg_theme');
       if (saved === 'light' || saved === 'dark') return saved;
     } catch { /* storage blocked */ }
-    return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    return 'light';
   });
 
   // Active Move State
@@ -68,7 +68,6 @@ export const MoveProvider = ({ children }) => {
   const [selectedCorridorId, setSelectedCorridorId] = useState('blr-koramangala-whitefield');
 
   // MongoDB Status State
-  const [dbStatus, setDbStatus] = useState({ isConnected: false, dbName: 'packandgo', host: '127.0.0.1' });
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
 
   // User Authentication — restore from token if present on page load
@@ -180,11 +179,6 @@ export const MoveProvider = ({ children }) => {
   useEffect(() => {
     const syncFromMongoDB = async () => {
       try {
-        const statusRes = await api.getDBStatus();
-        if (statusRes?.status) {
-          setDbStatus(statusRes.status);
-        }
-
         // Fetch Passports from MongoDB
         // Signed-in-only data: skip the calls entirely when logged out (no 401 noise).
         const authed = !!tokenStorage.get();
@@ -603,7 +597,6 @@ export const MoveProvider = ({ children }) => {
         setIsDriverConsoleOpen,
         isDbModalOpen,
         setIsDbModalOpen,
-        dbStatus,
         openInvoice,
         openPayment,
         openDepositCert,

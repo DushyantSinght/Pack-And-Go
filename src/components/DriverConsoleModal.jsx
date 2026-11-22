@@ -15,8 +15,53 @@ import {
   Radio,
   AlertCircle,
   Clock,
-  MessageSquare
+  MessageSquare,
+  Wallet
 } from 'lucide-react';
+
+const fmtDate = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+
+/** The captain's payouts, newest first (simulated ledger — academic demo, no real money). */
+const PayoutHistory = ({ refreshKey }) => {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let alive = true;
+    api.getPaymentHistory()
+      .then((r) => alive && setRows((r.transactions || []).filter((t) => t.kind === 'payout')))
+      .catch((e) => alive && setError(e.message));
+    return () => { alive = false; };
+  }, [refreshKey]);
+  const total = (rows || []).reduce((n, t) => n + (t.amount || 0), 0);
+  return (
+    <details style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 16, background: 'var(--bg-elevated)' }}>
+      <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, listStyle: 'none' }}>
+        <Wallet size={16} color="var(--primary)" /> Earnings history
+        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+          {rows ? `${rows.length} payout${rows.length === 1 ? '' : 's'} • ${inr(total)}` : error ? '' : 'Loading…'}
+        </span>
+      </summary>
+      <div style={{ marginTop: 10, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+        {error && <div role="alert" style={{ color: '#EF4444' }}>{error}</div>}
+        {rows && !rows.length && <div>No payouts yet. You're paid after the customer gives you their delivery code.</div>}
+        {rows && rows.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+            {rows.map((t) => (
+              <div key={t.txnId} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 0', borderTop: '1px solid var(--border-subtle)' }}>
+                <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                  <strong style={{ color: 'var(--text-main)' }}>{t.bookingId}</strong> • {fmtDate(t.createdAt)}
+                  <br /><span style={{ fontSize: '0.72rem' }}>{t.txnId}</span>
+                </span>
+                <strong style={{ color: 'var(--emerald)', whiteSpace: 'nowrap' }}>+{inr(t.amount)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ fontSize: '0.7rem', marginTop: 8 }}>Simulated payouts for the academic demo. No real money is transferred.</div>
+      </div>
+    </details>
+  );
+};
 
 export const DriverConsoleModal = ({ isOpen, onClose }) => {
   const { showToast, user, openAuth, updateUser } = useMove();
@@ -182,6 +227,8 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
           )}
         </button>
 
+        {isCaptain && isOpen && <PayoutHistory refreshKey={user?.escrowWalletBalance || 0} />}
+
         {isCaptain && (
           <DriverJobPanel jobs={jobs} setJobs={setJobs} loading={jobsLoading} selectedJobId={selectedJobId} setSelectedJobId={setSelectedJobId} />
         )}
@@ -221,7 +268,7 @@ export const DriverConsoleModal = ({ isOpen, onClose }) => {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <span style={{ fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <KeyRound size={15} color="#D4AF37" /> 3. Handover OTP
+              <KeyRound size={15} color="#2563EB" /> 3. Handover OTP
             </span>
             <span className="badge badge-gold" style={{ fontSize: '0.7rem' }}>
               {otpStage === 'pickup' ? 'Pickup Verification' : otpStage === 'delivery' ? 'Delivery Handover' : 'Completed'}

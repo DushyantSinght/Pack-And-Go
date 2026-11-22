@@ -13,7 +13,7 @@ const inr = (n) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
 
 const Choice = ({ active, onClick, icon, title, sub }) => (
   <button type="button" onClick={onClick} aria-pressed={active} className="btn btn-secondary"
-    style={{ flex: '1 1 140px', justifyContent: 'flex-start', gap: 8, padding: '9px 11px', textAlign: 'left', minWidth: 0, borderColor: active ? 'var(--primary)' : undefined, background: active ? 'rgba(212,175,55,0.12)' : undefined }}>
+    style={{ flex: '1 1 140px', justifyContent: 'flex-start', gap: 8, padding: '9px 11px', textAlign: 'left', minWidth: 0, borderColor: active ? 'var(--primary)' : undefined, background: active ? 'rgba(37, 99, 235,0.12)' : undefined }}>
     {icon}
     <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
       <span style={{ fontWeight: 700, fontSize: '0.8rem' }}>{title}</span>

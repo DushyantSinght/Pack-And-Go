@@ -36,7 +36,8 @@ export const api = {
   // ── Database ─────────────────────────────────────────────────────
   getDBStatus: async () => {
     try {
-      const res = await fetch(`${BASE_URL}/database/status`);
+      // Admin only on the server; sends the sign-in token.
+      const res = await fetch(`${BASE_URL}/database/status`, { headers: authHeaders() });
       return await handleResponse(res);
     } catch (err) {
       return { success: false, isConnected: false, error: err.message };
@@ -89,9 +90,13 @@ export const api = {
   },
 
   /**
-   * Sign out — clears local token.
+   * Sign out — tells the server to revoke this token (best effort), then clears it locally.
    */
-  logout: () => tokenStorage.clear(),
+  logout: () => {
+    const headers = authHeaders();
+    tokenStorage.clear();
+    if (headers.Authorization) fetch(`${BASE_URL}/auth/logout`, { method: 'POST', headers }).catch(() => {});
+  },
 
   getUsers: async () => {
     const res = await fetch(`${BASE_URL}/auth/users`, { headers: authHeaders() });
@@ -309,7 +314,12 @@ export const api = {
   verifyEmail: (token) => api.post('/auth/verify-email', { token }),
   resendVerification: () => api.post('/auth/resend-verification'),
   updateProfile: (data) => api.patch('/auth/me', data),
-  changePassword: (currentPassword, newPassword) => api.post('/auth/change-password', { currentPassword, newPassword }),
+  // Other devices are signed out; this one gets a fresh token from the server.
+  changePassword: async (currentPassword, newPassword) => {
+    const r = await api.post('/auth/change-password', { currentPassword, newPassword });
+    if (r?.token) tokenStorage.set(r.token);
+    return r;
+  },
 
   // Notifications
   getNotifications: () => api.get('/notifications'),
@@ -336,7 +346,13 @@ export const api = {
   adminClaims: (status = 'all') => api.get(`/admin/claims?status=${encodeURIComponent(status)}`),
   adminResolveClaim: (id, data) => api.post(`/admin/claims/${encodeURIComponent(id)}/resolve`, data),
   adminRequests: (status = 'all') => api.get(`/admin/requests?status=${encodeURIComponent(status)}`),
-  adminUpdateRequest: (id, status, note) => api.post(`/admin/requests/${encodeURIComponent(id)}/status`, { status, note })
+  adminUpdateRequest: (id, status, note) => api.post(`/admin/requests/${encodeURIComponent(id)}/status`, { status, note }),
+  adminUsers: ({ filter = 'all', q = '' } = {}) => api.get(`/admin/users?${new URLSearchParams({ filter, q })}`),
+  adminBlockUser: (id, reason) => api.post(`/admin/users/${encodeURIComponent(id)}/block`, { reason }),
+  adminUnblockUser: (id) => api.post(`/admin/users/${encodeURIComponent(id)}/unblock`),
+  adminListings: ({ status = 'all', q = '' } = {}) => api.get(`/admin/listings?${new URLSearchParams({ status, q })}`),
+  adminRemoveListing: (itemId, reason) => api.post(`/admin/listings/${encodeURIComponent(itemId)}/remove`, { reason }),
+  adminRestoreListing: (itemId) => api.post(`/admin/listings/${encodeURIComponent(itemId)}/restore`)
 };
 
 /** Report a client error to the server (best effort, never throws). */

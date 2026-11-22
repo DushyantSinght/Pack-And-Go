@@ -10,10 +10,11 @@ export const DEMO_PASSWORD = 'demo1234';
 // instead of a stranger. Applies to newly seeded accounts; existing accounts keep their numbers.
 export const DEMO_CONTACT_PHONE = '9116944178';
 
+// There is deliberately NO demo admin: the only admin is the fixed account configured with
+// ADMIN_EMAIL / ADMIN_PASSWORD (see services/adminAccount.js).
 // People a customer can contact from the UI. Emails link listings & corridors to
 // real user accounts so messages are delivered to whoever is logged in as them.
 export const CONTACT_ACCOUNTS = [
-  { name: 'Pack&Go Ops Admin', email: 'admin@packandgo.in', phone: '9876500001', userType: 'professional', isAdmin: true },
   { name: 'Demo User', email: 'demo@packandgo.in', phone: '9876500000', userType: 'student', college: 'BITS Pilani', society: 'HSR Layout Sector 1, Bengaluru' },
   { name: 'Manjunath Gowda', email: 'captain.manju@packandgo.in', phone: DEMO_CONTACT_PHONE, userType: 'captain', tripsCompleted: 1420, rating: 4.9, ratingCount: 1180, captain: { status: 'approved', licenseNumber: 'KA0120150012345', vehicleNumber: 'KA01MJ4921', vehicleType: 'Tata Ace EV', reviewedBy: 'admin@packandgo.in' }, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80', corridorId: 'blr-koramangala-whitefield' },
   { name: 'Harpreet Singh', email: 'captain.harpreet@packandgo.in', phone: DEMO_CONTACT_PHONE, userType: 'captain', tripsCompleted: 980, rating: 4.85, ratingCount: 812, captain: { status: 'approved', licenseNumber: 'DL0420160098765', vehicleNumber: 'DL1LAB2207', vehicleType: 'Ashok Leyland Dost CNG', reviewedBy: 'admin@packandgo.in' }, avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80', corridorId: 'del-campus-cybercity' },
@@ -46,7 +47,6 @@ export const ensureDemoAccounts = async () => {
     if (existing) {
       const fix = {};
       if (profile.avatar && existing.avatar !== profile.avatar) fix.avatar = profile.avatar;
-      if (profile.isAdmin && !existing.isAdmin) fix.isAdmin = true;
       if (!existing.emailVerified) fix.emailVerified = true; // fixture inboxes don't exist
       // Fixture drivers' ratings stand for years of reviews — one new review shouldn't swing them.
       if (profile.ratingCount && (existing.ratingCount || 0) < profile.ratingCount / 2) fix.ratingCount = profile.ratingCount;
@@ -78,8 +78,12 @@ export const ensureDemoAccounts = async () => {
     { $set: { 'captain.status': 'pending', 'captain.appliedAt': new Date() } }
   );
 
-  // Older seeds created users without passwords — let them sign in too.
-  await User.updateMany({ $or: [{ password: null }, { password: { $exists: false } }] }, { $set: { password: hash } });
+  // Older seeds created fixture users without passwords — let them sign in too.
+  // Only @packandgo.in fixture accounts, never an admin, never a real person's account.
+  await User.updateMany(
+    { email: /@packandgo\.in$/, isAdmin: { $ne: true }, $or: [{ password: null }, { password: { $exists: false } }] },
+    { $set: { password: hash } }
+  );
 
   await rollDemoBookingsForward();
 };

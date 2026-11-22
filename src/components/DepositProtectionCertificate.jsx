@@ -236,7 +236,7 @@ export const DepositProtectionCertificate = ({ isOpen, onClose }) => {
 
           <div style={{ textAlign: 'center' }}>
             <div style={{
-              border: '2px dashed #D4AF37',
+              border: '2px dashed #2563EB',
               borderRadius: '6px',
               padding: '8px 18px',
               color: '#B45309',

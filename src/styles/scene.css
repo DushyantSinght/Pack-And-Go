@@ -1,0 +1,129 @@
+/* © 2026 Dushyant Singh Tanwar (DST). All rights reserved. */
+/* Shared styles for the animated moving scenes (hero scene and journey): tokens and the hs-* palette. */
+
+:root {
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px;
+  --space-8: 32px; --space-10: 40px; --space-12: 48px;
+  --text-xs: 0.72rem; --text-sm: 0.82rem; --text-base: 0.95rem; --text-md: 1rem;
+  --weight-semibold: 600; --weight-bold: 700;
+  --shadow-lg: 0 24px 60px -18px rgba(0, 0, 0, 0.7);
+}
+[data-theme="light"] { --shadow-lg: 0 28px 60px -20px rgba(30, 64, 175, 0.25), 0 4px 12px rgba(38, 54, 75, 0.06); }
+
+/* Scene palette — light */
+.hs-sky-top { stop-color: #DCEBFF; }
+.hs-sky-bottom { stop-color: #F4F8FF; }
+.hs-cloud ellipse { fill: #FFFFFF; opacity: 0.9; }
+.hs-hill-back { fill: #DDEBFC; }
+.hs-ground { fill: #EAF3FF; }
+.hs-shadow { fill: rgba(30, 64, 175, 0.14); }
+.hs-house { fill: #FFFFFF; stroke: #D3E1F2; stroke-width: 1; }
+.hs-house-side { fill: #E3EEFB; }
+.hs-roof { fill: #2563EB; }
+.hs-roof-side { fill: #1D4ED8; }
+.hs-door { fill: #93C5FD; }
+.hs-window { fill: #DBEAFE; }
+.hs-glow { fill: #A5F3FC; }
+.hs-trunk { fill: #94A3B8; }
+.hs-tree { fill: #5EEAD4; }
+.hs-tree-light { fill: #99F6E4; }
+.hs-road-edge { fill: none; stroke: #D3E1F2; stroke-width: 36; stroke-linecap: round; stroke-linejoin: round; }
+.hs-road { fill: none; stroke: #FFFFFF; stroke-width: 30; stroke-linecap: round; stroke-linejoin: round; }
+.hs-road-line { fill: none; stroke: #CBD8E8; stroke-width: 2; stroke-dasharray: 10 12; }
+.hs-route-plan { fill: none; stroke: #93C5FD; stroke-width: 3; stroke-dasharray: 2 8; stroke-linecap: round; }
+.hs-route { fill: none; stroke: #2563EB; stroke-width: 4; stroke-linecap: round; }
+.hs-pin { fill: #2563EB; }
+.hs-pin-drop .hs-pin { fill: #0D9488; }
+.hs-pin-dot { fill: #FFFFFF; }
+.hs-pin-label { font: 600 11px var(--font-body); fill: #26364B; paint-order: stroke; stroke: rgba(255, 255, 255, 0.9); stroke-width: 4px; }
+.hs-sparkle { fill: #60A5FA; }
+.hs-box-front { fill: #F8FAFC; stroke: #CBD8E8; stroke-width: 0.8; }
+.hs-box-top { fill: #FFFFFF; stroke: #CBD8E8; stroke-width: 0.8; }
+.hs-box-side { fill: #DCE7F5; }
+.hs-tape { fill: #60A5FA; }
+.hs-chair { fill: #5EEAD4; }
+.hs-chair-dark { fill: #14B8A6; }
+.hs-chair-leg { fill: #64748B; }
+.hs-van-top { fill: #EEF4FC; }
+.hs-van-cargo { fill: #FFFFFF; stroke: #CBD8E8; stroke-width: 1; }
+.hs-van-window { fill: #EFF6FF; }
+.hs-mini { fill: #F8FAFC; stroke: #93C5FD; stroke-width: 1; }
+.hs-van-stripe { fill: #2563EB; }
+.hs-van-logo { font: 800 8px var(--font-heading); fill: #1E40AF; }
+.hs-van-cab { fill: #2563EB; }
+.hs-van-glass { fill: #BFDBFE; }
+.hs-light { fill: #FDE68A; }
+.hs-bumper { fill: #94A3B8; }
+.hs-tire { fill: #26364B; }
+.hs-hub { fill: #E2EAF4; }
+.hs-spoke { stroke: #64748B; stroke-width: 1.6; stroke-linecap: round; }
+.hs-success { fill: #16A34A; }
+.hs-check { fill: none; stroke: #FFFFFF; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.hs-ring { fill: none; stroke: #16A34A; stroke-width: 2; }
+.hs-card { fill: #FFFFFF; stroke: #E2EAF4; filter: drop-shadow(0 8px 16px rgba(37, 99, 235, 0.14)); }
+.hs-card-icon { fill: #EFF6FF; }
+.hs-card-truck { fill: #2563EB; }
+.hs-card-title { font: 700 12.5px var(--font-body); fill: #26364B; }
+.hs-card-sub { font: 500 10.5px var(--font-body); fill: #64748B; }
+.hs-card-track { fill: #E2EAF4; }
+.hs-card-bar { fill: #2563EB; }
+
+/* Scene palette — dark */
+[data-theme="dark"] .hs-sky-top { stop-color: #0E1A33; }
+[data-theme="dark"] .hs-sky-bottom { stop-color: #13223F; }
+[data-theme="dark"] .hs-cloud ellipse { fill: #2A3B5C; opacity: 0.7; }
+[data-theme="dark"] .hs-hill-back { fill: #16264A; }
+[data-theme="dark"] .hs-ground { fill: #1A2C52; }
+[data-theme="dark"] .hs-shadow { fill: rgba(0, 0, 0, 0.3); }
+[data-theme="dark"] .hs-house { fill: #DCE7F5; stroke: none; }
+[data-theme="dark"] .hs-house-side { fill: #B6C7DE; }
+[data-theme="dark"] .hs-road-edge { stroke: #24375C; }
+[data-theme="dark"] .hs-road { stroke: #2C416A; }
+[data-theme="dark"] .hs-road-line { stroke: #4A6290; }
+[data-theme="dark"] .hs-route { stroke: #60A5FA; }
+[data-theme="dark"] .hs-pin-label { fill: #E6EDF7; stroke: rgba(14, 26, 51, 0.9); }
+[data-theme="dark"] .hs-card { fill: #111A2B; stroke: rgba(148, 163, 184, 0.2); filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4)); }
+[data-theme="dark"] .hs-card-icon { fill: rgba(96, 165, 250, 0.15); }
+[data-theme="dark"] .hs-card-truck, [data-theme="dark"] .hs-card-bar { fill: #60A5FA; }
+[data-theme="dark"] .hs-card-title { fill: #E6EDF7; }
+[data-theme="dark"] .hs-card-sub { fill: #A9B6C8; }
+[data-theme="dark"] .hs-card-track { fill: #22324F; }
+
+
+/* Hero scene container + step chips */
+.hero-scene { --rx: 0deg; --ry: 0deg; min-width: 0; perspective: 1200px; }
+.hero-scene-stage {
+  transform: rotateX(var(--rx)) rotateY(var(--ry));
+  transform-style: preserve-3d;
+  transition: transform 0.5s var(--ease-out);
+  border-radius: 26px;
+  box-shadow: var(--shadow-lg);
+  will-change: transform;
+}
+.hero-scene-svg { display: block; width: 100%; height: auto; border-radius: 26px; }
+/* Stage chips under the scene */
+.hero-stages { list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: var(--space-4); }
+.hero-stage {
+  width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 38px; padding: 6px 4px; border-radius: 10px;
+  border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-muted);
+  font-size: var(--text-xs); font-weight: var(--weight-semibold); cursor: pointer;
+  transition: background-color 0.3s var(--ease), color 0.3s var(--ease), border-color 0.3s var(--ease);
+}
+.hero-stage:hover { border-color: var(--border-accent); color: var(--primary); }
+.hero-stage:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.hero-stage-dot {
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg-elevated); color: var(--text-muted); font-size: 0.66rem;
+  transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
+}
+.hero-stage.done .hero-stage-dot { background: var(--primary-light); color: var(--primary); }
+.hero-stage.active { background: var(--primary); border-color: var(--primary); color: var(--primary-contrast); }
+.hero-stage.active .hero-stage-dot { background: rgba(255, 255, 255, 0.25); color: var(--primary-contrast); }
+
+@media (max-width: 520px) {
+  .hero-stages { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .hero-scene-stage, .hero-scene-svg { border-radius: 18px; }
+}

@@ -9,7 +9,7 @@ const COMPANY = {
   name: import.meta.env.VITE_COMPANY_NAME || 'Pack&Go',
   address: import.meta.env.VITE_COMPANY_ADDRESS || '',
   gstin: import.meta.env.VITE_COMPANY_GSTIN || '',
-  email: import.meta.env.VITE_SUPPORT_EMAIL || 'support@packandgo.in'
+  email: import.meta.env.VITE_SUPPORT_EMAIL || ''
 };
 
 const inr = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -50,7 +50,7 @@ export const InvoiceModal = ({ isOpen, onClose }) => {
             <div style={{ fontWeight: 800, fontSize: '1.3rem' }}>{COMPANY.name}</div>
             {COMPANY.address && <div style={{ color: '#475569' }}>{COMPANY.address}</div>}
             {COMPANY.gstin && <div style={{ color: '#475569' }}>GSTIN: {COMPANY.gstin}</div>}
-            <div style={{ color: '#475569' }}>{COMPANY.email}</div>
+            {COMPANY.email && <div style={{ color: '#475569' }}>{COMPANY.email}</div>}
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{isTaxInvoice ? 'TAX INVOICE' : 'PAYMENT RECEIPT'}</div>

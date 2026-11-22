@@ -16,8 +16,9 @@ import { requireAdmin } from '../middleware/roles.js';
 
 const router = express.Router();
 
-// GET /api/database/status - Real-time MongoDB health, stats, and collection counts
-router.get('/status', async (req, res) => {
+// GET /api/database/status - MongoDB health and collection counts (admin only: it reveals the
+// database host and how many users/bookings exist). Public liveness is /api/health.
+router.get('/status', requireAuth, requireAdmin, async (req, res) => {
   try {
     const dbStatus = getDBStatus();
 

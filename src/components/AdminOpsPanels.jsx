@@ -238,3 +238,156 @@ export const AdminTransactions = () => {
     </>
   );
 };
+
+/** Search box that reloads after typing pauses. */
+const useDebounced = (value, ms = 350) => {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return v;
+};
+
+const ROLE_LABEL = { captain: 'Move Captain', outgoing: 'Seller', student: 'Student', professional: 'Professional', parent: 'Parent' };
+const pill = (bg, fg) => ({ marginLeft: 6, padding: '1px 8px', borderRadius: 999, fontSize: '0.66rem', fontWeight: 800, background: bg, color: fg, verticalAlign: 'middle' });
+
+/** Users: search, block (can't sign in, signed out everywhere) and unblock. */
+export const AdminUsers = () => {
+  const { showToast } = useMove();
+  const [filter, setFilter] = useState('all');
+  const [text, setText] = useState('');
+  const q = useDebounced(text);
+  const [data, setData] = useState(null);
+  const [blockId, setBlockId] = useState(null);
+  const [reason, setReason] = useState('');
+  const load = useCallback(() => {
+    api.adminUsers({ filter, q }).then(setData).catch((e) => showToast(e.message, 'error'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- showToast is recreated every render
+  }, [filter, q]);
+  useEffect(() => { load(); }, [load]);
+
+  const block = async (u) => {
+    try {
+      await api.adminBlockUser(u._id, reason);
+      showToast(`${u.name} is blocked and signed out.`, 'success');
+      setBlockId(null);
+      setReason('');
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+  const unblock = async (u) => {
+    try {
+      await api.adminUnblockUser(u._id);
+      showToast(`${u.name} can sign in again.`, 'success');
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
+  return (
+    <>
+      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search name, email or phone" aria-label="Search users" style={{ ...input, width: '100%', marginBottom: 8 }} />
+      <Filter value={filter} onChange={setFilter} options={['all', 'customer', 'captain', 'blocked']} />
+      {!data ? <SkeletonList rows={3} /> : !data.users.length ? <EmptyState art="box" compact title="No users match." /> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.users.map((u) => (
+            <div key={u._id} style={card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <strong style={{ color: 'var(--text-main)' }}>
+                  {u.name}
+                  {u.isAdmin && <span style={pill('var(--primary-light)', 'var(--primary)')}>Admin</span>}
+                  {u.isBlocked && <span style={pill('rgba(239,68,68,0.14)', '#F87171')}>Blocked</span>}
+                </strong>
+                <span>{ROLE_LABEL[u.userType] || u.userType} • joined {fmt(u.createdAt)}</span>
+              </div>
+              <div style={{ overflowWrap: 'anywhere' }}>{u.email}{u.phone ? ` • ${u.phone}` : ''}{u.emailVerified ? '' : ' • email not verified'}</div>
+              {u.isBlocked && u.blocked && <div>Blocked {fmt(u.blocked.at)}: {u.blocked.reason}</div>}
+              {!u.isAdmin && (u.isBlocked ? (
+                <button onClick={() => unblock(u)} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>Unblock</button>
+              ) : blockId === u._id ? (
+                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                  <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (kept on record)" aria-label="Reason for blocking" style={input} />
+                  <button disabled={!reason.trim()} onClick={() => block(u)} className="btn btn-sm" style={{ background: '#DC2626', color: '#fff' }}>Block & sign out</button>
+                  <button onClick={() => setBlockId(null)} className="btn btn-secondary btn-sm">Back</button>
+                </div>
+              ) : (
+                <button onClick={() => { setBlockId(u._id); setReason(''); }} className="btn btn-secondary btn-sm" style={{ marginTop: 8, color: '#EF4444' }}>Block user</button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
+
+/** Marketplace listings: remove (hidden, seller notified) and restore. */
+export const AdminListings = () => {
+  const { showToast, refreshMarketplace } = useMove();
+  const [status, setStatus] = useState('all');
+  const [text, setText] = useState('');
+  const q = useDebounced(text);
+  const [data, setData] = useState(null);
+  const [removeId, setRemoveId] = useState(null);
+  const [reason, setReason] = useState('');
+  const load = useCallback(() => {
+    api.adminListings({ status, q }).then(setData).catch((e) => showToast(e.message, 'error'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- showToast is recreated every render
+  }, [status, q]);
+  useEffect(() => { load(); }, [load]);
+
+  const act = async (fn, msg) => {
+    try {
+      await fn();
+      showToast(msg, 'success');
+      setRemoveId(null);
+      setReason('');
+      load();
+      refreshMarketplace?.();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
+  return (
+    <>
+      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search title, item ID or seller email" aria-label="Search listings" style={{ ...input, width: '100%', marginBottom: 8 }} />
+      <Filter value={status} onChange={setStatus} options={['all', 'available', 'claimed', 'sold', 'removed']} />
+      {!data ? <SkeletonList rows={3} /> : !data.listings.length ? <EmptyState art="box" compact title="No listings match." /> : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.listings.map((l) => (
+            <div key={l.itemId} style={{ ...card, display: 'flex', gap: 10 }}>
+              {l.imageUrl ? <img src={l.imageUrl} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} /> : null}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                  <strong style={{ color: 'var(--text-main)' }}>
+                    {l.title}
+                    {l.status === 'removed' && <span style={pill('rgba(239,68,68,0.14)', '#F87171')}>Removed</span>}
+                  </strong>
+                  <span>{inr(l.price)} • {l.status}</span>
+                </div>
+                <div style={{ overflowWrap: 'anywhere' }}>{l.itemId} • {l.category} • {l.seller?.name}{l.seller?.email ? ` (${l.seller.email})` : ''}</div>
+                {l.moderation && <div>Removed {fmt(l.moderation.at)}: {l.moderation.reason}</div>}
+                {l.status === 'removed' ? (
+                  <button onClick={() => act(() => api.adminRestoreListing(l.itemId), `"${l.title}" restored.`)} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>Restore</button>
+                ) : removeId === l.itemId ? (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                    <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason sent to the seller" aria-label="Reason for removal" style={input} />
+                    <button disabled={!reason.trim()} onClick={() => act(() => api.adminRemoveListing(l.itemId, reason), `"${l.title}" removed.`)} className="btn btn-sm" style={{ background: '#DC2626', color: '#fff' }}>Remove listing</button>
+                    <button onClick={() => setRemoveId(null)} className="btn btn-secondary btn-sm">Back</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setRemoveId(l.itemId); setReason(''); }} className="btn btn-secondary btn-sm" style={{ marginTop: 8, color: '#EF4444' }}>Remove</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+};

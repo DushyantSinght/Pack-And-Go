@@ -4,7 +4,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
-import { call, login, makeUser, makeCaptain, cleanup } from './_helpers.js';
+import { call, login, makeUser, makeCaptain, cleanup, qaItems } from './_helpers.js';
 
 after(cleanup);
 const tomorrow = () => new Date(Date.now() + 2 * 86400_000).toISOString().slice(0, 10);
@@ -26,12 +26,12 @@ test('full booking lifecycle: quote → book → pay → accept → pickup → d
   }
   const cheat = await call('/moves/quote', { token: cust.token, method: 'POST', body: { totalCuFt: 115, originLocation: HSR, destinationLocation: WHITEFIELD, distanceKm: 0 } });
   assert.equal(cheat.body.distanceKm, q.body.distanceKm, 'client-sent distance is ignored');
-  const bad = await call('/moves/book', { token: cust.token, method: 'POST', body: { origin: 'x', destination: 'y', date: tomorrow(), timeSlot: 'morning', totalCuFt: 115 } });
+  const bad = await call('/moves/book', { token: cust.token, method: 'POST', body: { origin: 'x', destination: 'y', date: tomorrow(), timeSlot: 'morning', totalCuFt: 115, items: qaItems(115) } });
   assert.equal(bad.status, 400, 'addresses must be geocoded');
 
   const booked = await call('/moves/book', {
     token: cust.token, method: 'POST',
-    body: { origin: 'HSR Layout Sector 1, Bengaluru', destination: 'Hope Farm, Whitefield, Bengaluru', originLocation: HSR, destinationLocation: WHITEFIELD, date: tomorrow(), timeSlot: 'morning', totalCuFt: 115, contactPhone: '9876500000', floorsOrigin: 3, hasLiftOrigin: false }
+    body: { origin: 'HSR Layout Sector 1, Bengaluru', destination: 'Hope Farm, Whitefield, Bengaluru', originLocation: HSR, destinationLocation: WHITEFIELD, date: tomorrow(), timeSlot: 'morning', totalCuFt: 115, items: qaItems(115), contactPhone: '9876500000', floorsOrigin: 3, hasLiftOrigin: false }
   });
   assert.equal(booked.status, 201, JSON.stringify(booked.body));
   const m = booked.body.move;
@@ -96,6 +96,10 @@ test('full booking lifecycle: quote → book → pay → accept → pickup → d
   const before = await wallet();
   assert.equal((await call('/moves/verify-otp', { token: cap.token, method: 'POST', body: { bookingId: m.bookingId, otp: m.deliveryOtp, stage: 'delivery' } })).status, 200);
   assert.ok((await wallet()) > before, 'captain wallet credited on delivery');
+  // The Driver Console's "Earnings history" lists this payout (simulated ledger).
+  const credited = (await wallet()) - before;
+  const payouts = (await call('/payments/history', { token: cap.token })).body.transactions.filter((t) => t.kind === 'payout');
+  assert.ok(payouts.some((t) => t.bookingId === m.bookingId && t.amount === credited), 'payout shows in the captain history with the credited amount');
 
   const rev = await call(`/moves/${m.bookingId}/review`, { token: cust.token, method: 'POST', body: { rating: 5, comment: 'Careful with my monitor, thanks!' } });
   assert.equal(rev.status, 200);
@@ -114,7 +118,7 @@ test('cancellation refunds follow the policy', async () => {
   if (!cfg.body.demoPayments) return;
   const booked = await call('/moves/book', {
     token: cust.token, method: 'POST',
-    body: { origin: 'A', destination: 'B', originLocation: HSR, destinationLocation: WHITEFIELD, date: tomorrow(), timeSlot: 'evening', totalCuFt: 60, contactPhone: '9876500000' }
+    body: { origin: 'A', destination: 'B', originLocation: HSR, destinationLocation: WHITEFIELD, date: tomorrow(), timeSlot: 'evening', totalCuFt: 60, items: qaItems(60), contactPhone: '9876500000' }
   });
   const id = booked.body.move.bookingId;
   // Double-clicks: two simultaneous payments or cancellations must not both go through.
@@ -136,7 +140,7 @@ test('a slot that passes without a captain: hidden from captains, free to resche
   const cap = await makeCaptain();
   const booked = await call('/moves/book', {
     token: cust.token, method: 'POST',
-    body: { origin: 'HSR Layout, Bengaluru', destination: 'Whitefield, Bengaluru', originLocation: HSR, destinationLocation: WHITEFIELD, date: tomorrow(), timeSlot: 'morning', totalCuFt: 60, contactPhone: '9876500000' }
+    body: { origin: 'HSR Layout, Bengaluru', destination: 'Whitefield, Bengaluru', originLocation: HSR, destinationLocation: WHITEFIELD, date: tomorrow(), timeSlot: 'morning', totalCuFt: 60, items: qaItems(60), contactPhone: '9876500000' }
   });
   const id = booked.body.move.bookingId;
   await call('/payments/demo', { token: cust.token, method: 'POST', body: { bookingId: id } });
@@ -173,7 +177,7 @@ test('family tracking link: owner-only to create, public read-only view, can be 
   const stranger = await makeUser();
   const booked = await call('/moves/book', {
     token: cust.token, method: 'POST',
-    body: { origin: 'HSR Layout, Bengaluru', destination: 'Whitefield, Bengaluru', originLocation: HSR, destinationLocation: WHITEFIELD, date: tomorrow(), timeSlot: 'evening', totalCuFt: 60, contactPhone: '9876500000' }
+    body: { origin: 'HSR Layout, Bengaluru', destination: 'Whitefield, Bengaluru', originLocation: HSR, destinationLocation: WHITEFIELD, date: tomorrow(), timeSlot: 'evening', totalCuFt: 60, items: qaItems(60), contactPhone: '9876500000' }
   });
   const id = booked.body.move.bookingId;
   assert.equal((await call(`/moves/${id}/share`, { token: cust.token, method: 'POST' })).status, 409, 'not before payment');

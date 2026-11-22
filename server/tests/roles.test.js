@@ -2,7 +2,7 @@
 // Per-role API checks: what each kind of user can and cannot do. Run with the API on :5001:  npm test
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { call, login, makeUser, makeCaptain, cleanup, track, runTag as TAG } from './_helpers.js';
+import { call, login, makeUser, makeAdmin, makeCaptain, cleanup, track, runTag as TAG } from './_helpers.js';
 
 // Data-creating checks use throwaway accounts; demo accounts are only signed in for read-only checks.
 after(cleanup);
@@ -146,7 +146,7 @@ test('parent: account works, cannot use captain or admin tools', async () => {
 });
 
 test('admin: every operations list loads; customers are refused', async () => {
-  const admin = await login('admin@packandgo.in');
+  const admin = await makeAdmin();
   const cust = await makeUser();
   // Wiping the database is never available to ordinary users (and needs an explicit opt-in even for staff).
   assert.equal((await call('/database/seed', { token: cust.token, method: 'POST', body: { force: true } })).status, 403, 'customer cannot reseed');

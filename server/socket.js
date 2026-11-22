@@ -6,7 +6,7 @@ import { Conversation, User, MoveBooking } from './models/index.js';
 import { haversineKm } from './services/pricing.js';
 import { notify } from './services/notify.js';
 import { createMessage } from './routes/chatRoutes.js';
-import { verifyToken } from './middleware/auth.js';
+import { checkSession } from './middleware/auth.js';
 
 let io = null;
 const onlineCounts = new Map(); // userId -> number of open sockets
@@ -16,6 +16,14 @@ export const isOnline = (userId) => (onlineCounts.get(String(userId)) || 0) > 0;
 export const emitToUsers = (userIds, event, payload) => {
   if (!io) return;
   for (const id of userIds) io.to(`user:${id}`).emit(event, payload);
+};
+
+/** Closes Socket.IO and the HTTP server it is attached to (graceful shutdown). */
+export const closeSocket = (cb) => (io ? io.close(cb) : cb?.());
+
+/** Closes every live connection of a user (e.g. when the admin blocks them). */
+export const disconnectUser = (userId) => {
+  if (io) io.in(`user:${userId}`).disconnectSockets(true);
 };
 
 /** Users who share at least one conversation with `userId` (for presence + call auth). */
@@ -39,11 +47,9 @@ export const initSocket = (httpServer, corsOrigin) => {
   // Auth + profile lookup happen here, before 'connection', so event handlers
   // below are attached synchronously and no early client emit is dropped.
   io.use(async (socket, next) => {
-    try {
-      socket.user = verifyToken(socket.handshake.auth?.token);
-    } catch {
-      return next(new Error('unauthorized'));
-    }
+    // Same check as the API: a signed-out or pre-password-change token can't open a socket.
+    socket.user = await checkSession(String(socket.handshake.auth?.token || '')).catch(() => null);
+    if (!socket.user) return next(new Error('unauthorized'));
     const me = await User.findById(socket.user._id).select('name avatar phone').lean().catch(() => null);
     if (!me) return next(new Error('unauthorized'));
     socket.profile = { _id: String(socket.user._id), name: me.name, avatar: me.avatar, phone: me.phone };

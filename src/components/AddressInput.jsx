@@ -2,14 +2,29 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapPin, Loader2, LocateFixed } from 'lucide-react';
 
-// Address search via OpenStreetMap Nominatim (free, no key). Their usage policy
-// allows ~1 request/second, so input is debounced and results are cached.
+// Address search via a Nominatim-compatible geocoder. Default: the free public OpenStreetMap
+// server, whose usage policy allows at most 1 request/second, so input is debounced, results are
+// cached, and requests are spaced at least 1.1 s apart. For production you can point
+// VITE_GEOCODER_URL at a keyed Nominatim-compatible service (e.g. LocationIQ) with VITE_GEOCODER_KEY,
+// and add its origin to CSP_CONNECT_EXTRA on the server.
+const GEOCODER = (import.meta.env.VITE_GEOCODER_URL || 'https://nominatim.openstreetmap.org').replace(/\/$/, '');
+const GEOCODER_KEY = import.meta.env.VITE_GEOCODER_KEY ? `&key=${encodeURIComponent(import.meta.env.VITE_GEOCODER_KEY)}` : '';
+const MIN_GAP_MS = 1100;
+let lastRequestAt = 0;
+const politeFetch = async (url, signal) => {
+  const wait = lastRequestAt + MIN_GAP_MS - Date.now();
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  lastRequestAt = Date.now();
+  return fetch(url, { signal, headers: { 'Accept-Language': 'en' } });
+};
+
 const cache = new Map();
 const search = async (q, signal) => {
   const key = q.toLowerCase();
   if (cache.has(key)) return cache.get(key);
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=in&q=${encodeURIComponent(q)}`;
-  const res = await fetch(url, { signal, headers: { 'Accept-Language': 'en' } });
+  const url = `${GEOCODER}/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=in&q=${encodeURIComponent(q)}${GEOCODER_KEY}`;
+  const res = await politeFetch(url, signal);
   if (!res.ok) throw new Error('Address search is unavailable right now.');
   const data = (await res.json()).map((r) => ({ label: r.display_name, lat: +r.lat, lng: +r.lon }));
   cache.set(key, data);
@@ -17,7 +32,7 @@ const search = async (q, signal) => {
 };
 
 const reverse = async (lat, lng) => {
-  const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, { headers: { 'Accept-Language': 'en' } });
+  const res = await politeFetch(`${GEOCODER}/reverse?format=jsonv2&lat=${lat}&lon=${lng}${GEOCODER_KEY}`);
   const j = await res.json();
   return j.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 };

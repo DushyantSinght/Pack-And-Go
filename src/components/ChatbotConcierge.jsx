@@ -185,16 +185,16 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
             bottom: '24px',
             right: '24px',
             zIndex: 190,
-            background: 'linear-gradient(135deg, #D4AF37 0%, #AA7C11 100%)',
-            color: '#0F172A',
-            border: '2px solid rgba(255, 255, 255, 0.4)',
+            background: 'var(--primary)',
+            color: 'var(--primary-contrast)',
+            border: 'none',
             borderRadius: '30px',
             padding: '12px 20px',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
             cursor: 'pointer',
-            boxShadow: '0 10px 30px rgba(212, 175, 55, 0.45)',
+            boxShadow: '0 8px 20px -8px rgba(37, 99, 235, 0.55)',
             fontWeight: 700,
             fontSize: '0.9rem',
             fontFamily: 'var(--font-sans)',
@@ -204,8 +204,8 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
           <Sparkles size={18} />
           <span>Ask PackBot AI</span>
           <span style={{
-            background: '#0F172A',
-            color: '#D4AF37',
+            background: 'rgba(255, 255, 255, 0.22)',
+            color: 'inherit',
             fontSize: '0.7rem',
             padding: '2px 6px',
             borderRadius: '10px',
@@ -251,7 +251,7 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
                 width: '34px',
                 height: '34px',
                 borderRadius: '50%',
-                background: 'rgba(212, 175, 55, 0.2)',
+                background: 'rgba(37, 99, 235, 0.2)',
                 border: '1px solid var(--primary)',
                 display: 'flex',
                 alignItems: 'center',
@@ -350,8 +350,8 @@ export const ChatbotConcierge = ({ onOpenInvoice, onOpenPayment, onOpenCert }) =
                           key={idx}
                           onClick={() => handleSend(chip)}
                           style={{
-                            background: 'rgba(212, 175, 55, 0.08)',
-                            border: '1px solid rgba(212, 175, 55, 0.3)',
+                            background: 'rgba(37, 99, 235, 0.08)',
+                            border: '1px solid rgba(37, 99, 235, 0.3)',
                             color: 'var(--primary)',
                             padding: '4px 10px',
                             borderRadius: '12px',

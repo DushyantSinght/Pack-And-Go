@@ -50,7 +50,7 @@ export const NotificationBell = () => {
             <button
               key={n._id}
               onClick={() => { setOpen(false); if (n.type === 'chat') openInbox(); else if (n.bookingId) openMyMoves(n.bookingId); }}
-              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: n.read ? 'transparent' : 'rgba(212,175,55,0.06)', border: 'none', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', color: 'inherit' }}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: n.read ? 'transparent' : 'rgba(37, 99, 235,0.06)', border: 'none', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', color: 'inherit' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                 <span style={{ fontWeight: 700, fontSize: '0.83rem', color: 'var(--text-main)' }}>{n.title}</span>

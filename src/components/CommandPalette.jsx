@@ -70,10 +70,14 @@ export const CommandPalette = () => {
   };
 
   const commands = useMemo(() => {
+    const captain = user?.userType === 'captain';
     const c = [
-      { group: 'Actions', label: 'Book a move', hint: 'Addresses, slot & price', icon: CalendarPlus, run: move.openBooking, keys: 'new booking schedule' },
+      // Move Captains get their console; customers get booking and their moves.
+      ...(captain
+        ? [{ group: 'Actions', label: 'Driver Console', hint: 'Jobs, handover codes, payouts', icon: Truck, run: move.openDriverConsole, keys: 'jobs driver captain accept otp earnings payout' }]
+        : [{ group: 'Actions', label: 'Book a move', hint: 'Addresses, slot & price', icon: CalendarPlus, run: move.openBooking, keys: 'new booking schedule' }]),
       ...(user ? [
-        { group: 'Actions', label: 'My moves', hint: 'Status, codes, receipts', icon: PackageCheck, run: () => move.openMyMoves(), keys: 'bookings track receipt invoice cancel reschedule' },
+        ...(captain ? [] : [{ group: 'Actions', label: 'My moves', hint: 'Status, codes, receipts', icon: PackageCheck, run: () => move.openMyMoves(), keys: 'bookings track receipt invoice cancel reschedule' }]),
         { group: 'Actions', label: 'Messages', hint: 'Chat with your captain or sellers', icon: MessageSquare, run: comms.openInbox, keys: 'chat inbox call' },
         { group: 'Actions', label: 'Notifications', icon: Bell, run: () => document.querySelector('[aria-label="Notifications"]')?.click(), keys: 'alerts updates' }
       ] : []),

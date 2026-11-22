@@ -3,13 +3,18 @@
 // approval, rejection or suspension takes effect immediately (JWTs are 7 days).
 import { User } from '../models/index.js';
 
-const adminEmails = () =>
-  (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-export const isAdminUser = (user) => !!user && (user.isAdmin === true || adminEmails().includes(user.email));
+/**
+ * Admin rights need ALL of: the isAdmin flag (set only by services/adminAccount.js — never by
+ * signup, profile edits, password reset or any other route), a verified email, and — in
+ * production — the email configured as ADMIN_EMAIL. With no ADMIN_EMAIL in production nobody is
+ * admin (fails closed), so a stale flag in the database can never grant access on its own.
+ */
+export const isAdminUser = (user) => {
+  if (!user || user.isAdmin !== true || user.emailVerified !== true) return false;
+  if (process.env.NODE_ENV !== 'production') return true;
+  const configured = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  return !!configured && String(user.email || '').toLowerCase() === configured;
+};
 
 export const captainStatusOf = (user) =>
   user?.userType === 'captain' ? user.captain?.status || 'pending' : 'none';

@@ -1,12 +1,12 @@
 // © 2026 Dushyant Singh Tanwar (DST). All rights reserved. Unauthorised copying prohibited — see LICENSE.
 import express from 'express';
 import mongoose from 'mongoose';
-import { User, MoveBooking, DamageClaim, ServiceRequest, PaymentTransaction } from '../models/index.js';
+import { User, MoveBooking, DamageClaim, ServiceRequest, PaymentTransaction, MarketplaceItem } from '../models/index.js';
 import { refund, recordCompensation, DEMO_NOTICE } from '../services/payments.js';
 import { notify } from '../services/notify.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin, isAdminUser, profileOf } from '../middleware/roles.js';
-import { emitToUsers } from '../socket.js';
+import { emitToUsers, disconnectUser } from '../socket.js';
 
 const router = express.Router();
 router.use(requireAuth, requireAdmin);
@@ -34,8 +34,7 @@ const applicationOf = (u) => ({
 
 /** Ping every online admin so their approvals queue updates live. */
 export const notifyAdminsOfApplication = async (applicant) => {
-  const envAdmins = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-  const admins = await User.find({ $or: [{ isAdmin: true }, { email: { $in: envAdmins } }] }).select('_id').lean();
+  const admins = await User.find({ isAdmin: true }).select('_id').lean();
   emitToUsers(admins.map((a) => String(a._id)), 'admin:captain-application', applicationOf(applicant));
 };
 
@@ -223,6 +222,113 @@ router.post('/requests/:requestId/status', async (req, res) => {
   if (!r) return res.status(404).json({ success: false, message: 'Request not found.' });
   notify(r.userEmail, { type: 'info', title: `${r.title}: ${status}`, body: note || undefined, sms: status === 'confirmed' });
   res.json({ success: true, request: r });
+});
+
+// ── Moderation: users ────────────────────────────────────────────
+const escapeRe = (v) => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const userRow = (u) => ({
+  _id: String(u._id),
+  name: u.name,
+  email: u.email,
+  phone: u.phone || null,
+  userType: u.userType,
+  isAdmin: !!u.isAdmin,
+  emailVerified: !!u.emailVerified,
+  isBlocked: !!u.isBlocked,
+  blocked: u.isBlocked ? u.blocked || null : null,
+  createdAt: u.createdAt
+});
+
+// GET /api/admin/users?q=&filter=all|blocked|captain|customer — newest first, max 100
+router.get('/users', async (req, res) => {
+  const filter = {};
+  if (req.query.filter === 'blocked') filter.isBlocked = true;
+  if (req.query.filter === 'captain') filter.userType = 'captain';
+  if (req.query.filter === 'customer') filter.userType = { $ne: 'captain' };
+  const q = String(req.query.q || '').trim().slice(0, 80);
+  if (q) filter.$or = [{ name: new RegExp(escapeRe(q), 'i') }, { email: new RegExp(escapeRe(q), 'i') }, { phone: new RegExp(escapeRe(q.replace(/\D/g, '') || q)) }];
+  const users = await User.find(filter).sort({ createdAt: -1 }).limit(100).lean();
+  res.json({ success: true, users: users.map(userRow) });
+});
+
+// POST /api/admin/users/:id/block { reason } — can't sign in; every open session ends now
+router.post('/users/:id/block', async (req, res) => {
+  const reason = String(req.body?.reason || '').trim().slice(0, 300);
+  if (!reason) return res.status(400).json({ success: false, message: 'Give a reason.' });
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: 'User not found.' });
+  const target = await User.findById(req.params.id).lean();
+  if (!target) return res.status(404).json({ success: false, message: 'User not found.' });
+  if (isAdminUser(target)) return res.status(403).json({ success: false, message: 'The admin account cannot be blocked.' });
+  const u = await User.findOneAndUpdate(
+    { _id: target._id, isBlocked: { $ne: true } },
+    { $set: { isBlocked: true, blocked: { reason, at: new Date(), by: req.user.email } }, $inc: { tokenVersion: 1 } },
+    { returnDocument: 'after' }
+  );
+  if (!u) return res.status(409).json({ success: false, message: 'This user is already blocked.' });
+  disconnectUser(String(u._id)); // live chat/calls end now, not at the next reconnect
+  res.json({ success: true, user: userRow(u) });
+});
+
+// POST /api/admin/users/:id/unblock
+router.post('/users/:id/unblock', async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ success: false, message: 'User not found.' });
+  const u = await User.findOneAndUpdate({ _id: req.params.id, isBlocked: true }, { $set: { isBlocked: false }, $unset: { blocked: '' } }, { returnDocument: 'after' });
+  if (!u) return res.status(404).json({ success: false, message: 'User not found or not blocked.' });
+  notify(u, { type: 'account', title: 'Your account is active again', body: 'You can sign in to Pack&Go again.', email: true });
+  res.json({ success: true, user: userRow(u) });
+});
+
+// ── Moderation: marketplace listings ─────────────────────────────
+const listingRow = (i) => ({
+  itemId: i.itemId,
+  title: i.title,
+  price: i.price,
+  category: i.category,
+  society: i.society,
+  imageUrl: i.imageUrl,
+  status: i.status,
+  seller: { name: i.seller?.name, email: i.seller?.email || null },
+  moderation: i.status === 'removed' ? i.moderation || null : null,
+  createdAt: i.createdAt
+});
+
+// GET /api/admin/listings?status=all|available|claimed|sold|removed&q=
+router.get('/listings', async (req, res) => {
+  const filter = {};
+  if (['available', 'claimed', 'sold', 'removed'].includes(req.query.status)) filter.status = req.query.status;
+  const q = String(req.query.q || '').trim().slice(0, 80);
+  if (q) filter.$or = [{ title: new RegExp(escapeRe(q), 'i') }, { itemId: new RegExp(escapeRe(q), 'i') }, { 'seller.email': new RegExp(escapeRe(q), 'i') }];
+  const items = await MarketplaceItem.find(filter).sort({ createdAt: -1 }).limit(100).lean();
+  res.json({ success: true, listings: items.map(listingRow) });
+});
+
+// POST /api/admin/listings/:itemId/remove { reason } — hidden from the marketplace (not deleted)
+router.post('/listings/:itemId/remove', async (req, res) => {
+  const reason = String(req.body?.reason || '').trim().slice(0, 300);
+  if (!reason) return res.status(400).json({ success: false, message: 'Give a reason.' });
+  const item = await MarketplaceItem.findOne({ itemId: String(req.params.itemId) });
+  if (!item) return res.status(404).json({ success: false, message: 'Listing not found.' });
+  const updated = await MarketplaceItem.findOneAndUpdate(
+    { _id: item._id, status: { $ne: 'removed' } },
+    { $set: { status: 'removed', moderation: { reason, by: req.user.email, at: new Date(), previousStatus: item.status } } },
+    { returnDocument: 'after' }
+  );
+  if (!updated) return res.status(409).json({ success: false, message: 'This listing is already removed.' });
+  if (item.seller?.email) {
+    notify(item.seller.email, { type: 'marketplace', title: `Your listing "${item.title}" was removed`, body: `Reason: ${reason}`, email: true });
+  }
+  res.json({ success: true, listing: listingRow(updated) });
+});
+
+// POST /api/admin/listings/:itemId/restore — back to the status it had before removal
+router.post('/listings/:itemId/restore', async (req, res) => {
+  const item = await MarketplaceItem.findOne({ itemId: String(req.params.itemId), status: 'removed' });
+  if (!item) return res.status(404).json({ success: false, message: 'Listing not found or not removed.' });
+  const back = ['available', 'claimed', 'sold'].includes(item.moderation?.previousStatus) ? item.moderation.previousStatus : 'available';
+  const updated = await MarketplaceItem.findOneAndUpdate({ _id: item._id, status: 'removed' }, { $set: { status: back }, $unset: { moderation: '' } }, { returnDocument: 'after' });
+  if (!updated) return res.status(409).json({ success: false, message: 'This listing was just changed — refresh and try again.' });
+  if (item.seller?.email) notify(item.seller.email, { type: 'marketplace', title: `Your listing "${item.title}" is back`, body: 'Pack&Go restored it to the marketplace.' });
+  res.json({ success: true, listing: listingRow(updated) });
 });
 
 export default router;

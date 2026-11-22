@@ -75,10 +75,10 @@ export const PoolingLiveTracking = () => {
             </div>
             <div className="page-title-row">
               <PageIcon tab="tracking" />
-              <h2 style={{ fontSize: '1.6rem' }}>Dynamic Shared-Capacity Pooling Engine</h2>
+              <h2 style={{ fontSize: '1.6rem' }}>Share a truck, pay less</h2>
             </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-              Why pay 100% for a truck running half-empty? Pack&Go pairs your move along shared corridors with dynamic multi-stop routing.
+              Why pay for a truck that runs half-empty? Pack&Go puts moves going the same way on one truck and plans the stops in order along the route.
             </p>
           </div>
 
@@ -111,10 +111,10 @@ export const PoolingLiveTracking = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontWeight: 700, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Gauge size={18} color="var(--primary)" />
-                3D Shared Capacity Utilization
+                How full the shared truck is
               </span>
               <span className="badge badge-emerald">
-                {Math.round(((activeCorridor.totalCapacityCuFt - activeCorridor.remainingCapacityCuFt) / activeCorridor.totalCapacityCuFt) * 100)}% Optimized
+                {Math.round(((activeCorridor.totalCapacityCuFt - activeCorridor.remainingCapacityCuFt) / activeCorridor.totalCapacityCuFt) * 100)}% full
               </span>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -265,7 +265,7 @@ export const PoolingLiveTracking = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontWeight: 700, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Navigation size={18} color="var(--accent)" />
-                Live Corridor Telemetry & Geofence
+                Live route & stops
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {/* Map Mode Switcher */}

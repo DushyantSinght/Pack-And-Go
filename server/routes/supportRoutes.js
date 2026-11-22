@@ -14,8 +14,7 @@ const MAX_PHOTO_BYTES = 1.5 * 1024 * 1024;
 const shortId = (p) => `${p}-${crypto.randomInt(100000, 1000000)}`;
 
 const notifyStaff = async (title, body) => {
-  const envAdmins = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-  const admins = await User.find({ $or: [{ isAdmin: true }, { email: { $in: envAdmins } }] }).lean();
+  const admins = await User.find({ isAdmin: true }).lean();
   admins.forEach((a) => notify(a, { type: 'info', title, body }));
 };
 

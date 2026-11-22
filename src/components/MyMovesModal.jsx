@@ -70,7 +70,7 @@ const compress = (file, maxSide = 1280) =>
     img.src = URL.createObjectURL(file);
   });
 
-const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'support@packandgo.in';
+const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || '';
 
 const Section = ({ title, icon: Icon, children }) => (
   <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 14 }}>
@@ -239,7 +239,7 @@ const MoveDetail = ({ move, onBack }) => {
         <div role="status" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.35)', fontSize: '0.8rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
           <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 2 }} />
           <div>
-            <strong>Your slot has ended and pickup wasn't confirmed.</strong> Call or chat with {move.captain?.name?.split(' ')[0] || 'your captain'} below. If they didn't turn up, email <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Missed pickup ${move.bookingId}`)}`} style={{ color: 'var(--primary)' }}>{SUPPORT_EMAIL}</a> and we'll refund you in full.
+            <strong>Your slot has ended and pickup wasn't confirmed.</strong> Call or chat with {move.captain?.name?.split(' ')[0] || 'your captain'} below. If they didn't turn up, cancel below for a full (simulated) refund{SUPPORT_EMAIL ? <> or email <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Missed pickup ${move.bookingId}`)}`} style={{ color: 'var(--primary)' }}>{SUPPORT_EMAIL}</a></> : null}.
           </div>
         </div>
       )}

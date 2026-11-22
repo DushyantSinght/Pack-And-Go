@@ -1,0 +1,161 @@
+/* © 2026 Dushyant Singh Tanwar (DST). All rights reserved. */
+/* "From Here to Home" journey section. Shared hs-* palette lives in scene.css. */
+
+/* ==========================================================================
+   Cinematic journey section (above footer)
+   ========================================================================== */
+.cj {
+  --cj-p: 0;
+  position: relative;
+  padding: var(--space-12) var(--space-6) var(--space-10);
+  background:
+    radial-gradient(900px 400px at 50% 0%, #E0F2FE, transparent 70%),
+    linear-gradient(180deg, var(--bg-app) 0%, #EAF2FE 100%);
+  border-top: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+[data-theme="dark"] .cj { background: radial-gradient(900px 400px at 50% 0%, rgba(96, 165, 250, 0.12), transparent 70%), linear-gradient(180deg, var(--bg-app), #0E1830); }
+.cj > * { max-width: 1280px; margin-left: auto; margin-right: auto; }
+.cj-head { text-align: center; margin-bottom: var(--space-8); opacity: 0; transform: translateY(16px); transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out); }
+.cj-eyebrow { display: inline-block; font-size: var(--text-xs); font-weight: var(--weight-bold); letter-spacing: 0.14em; text-transform: uppercase; color: var(--primary); background: var(--primary-soft); border: 1px solid var(--border-accent); padding: 5px 12px; border-radius: 999px; margin-bottom: var(--space-4); }
+.cj-title { font-size: clamp(1.9rem, 4.2vw, 3.2rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; max-width: 860px; margin: 0 auto var(--space-3); }
+.cj-text { font-size: var(--text-md); color: var(--text-muted); max-width: 620px; margin: 0 auto; }
+
+.cj-stage {
+  position: relative;
+  aspect-ratio: 2 / 1;
+  max-height: 760px;
+  border-radius: 28px;
+  overflow: hidden;
+  border: 1px solid #DBEAFE;
+  box-shadow: 0 40px 80px -40px rgba(30, 64, 175, 0.4), 0 8px 24px -12px rgba(38, 54, 75, 0.12);
+  opacity: 0;
+  transform: translateY(28px) scale(0.98);
+  transition: opacity 0.9s var(--ease-out) 0.1s, transform 0.9s var(--ease-out) 0.1s;
+}
+[data-theme="dark"] .cj-stage { border-color: rgba(148, 163, 184, 0.2); }
+.cj.is-revealed .cj-head, .cj.is-revealed .cj-stage { opacity: 1; transform: none; }
+.cj-svg { display: block; width: 100%; height: 100%; }
+.cj-toggle {
+  position: absolute; right: 16px; bottom: 16px;
+  width: 40px; height: 40px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-subtle); background: rgba(255, 255, 255, 0.9); color: var(--text-main);
+  box-shadow: var(--shadow-md); cursor: pointer; backdrop-filter: blur(6px);
+}
+[data-theme="dark"] .cj-toggle { background: rgba(17, 26, 43, 0.85); }
+.cj-toggle:hover { color: var(--primary); border-color: var(--border-accent); }
+.cj-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* World palette (light) */
+.cj-sky-top { stop-color: #CFE3FF; }
+.cj-sky-bottom { stop-color: #F2F7FF; }
+.cj-sun { fill: #FFFFFF; opacity: 0.55; }
+.cj-cloud ellipse { fill: #FFFFFF; opacity: 0.92; }
+.cj-ground { fill: #E6F0FD; }
+.cj-edge-top { stop-color: #C7D9F2; }
+.cj-edge-bottom { stop-color: #A9C2E4; }
+.cj-edge-line { stroke: #F8FBFF; stroke-width: 2; }
+.cj-bld { fill: #FFFFFF; }
+.cj-bld-side { fill: #D6E4F7; }
+.cj-bld-top { fill: #EDF4FE; }
+.cj-win { fill: #DBEAFE; }
+.cj-road-edge { fill: none; stroke: #CFDDF0; stroke-width: 44; stroke-linecap: round; stroke-linejoin: round; }
+.cj-road { fill: none; stroke: #FFFFFF; stroke-width: 36; stroke-linecap: round; stroke-linejoin: round; }
+.cj-road-line { fill: none; stroke: #CBD8E8; stroke-width: 2.5; stroke-dasharray: 14 14; }
+.cj-route { fill: none; stroke: #2563EB; stroke-width: 5; stroke-linecap: round; }
+.cj-label { font: 700 15px var(--font-body); fill: #26364B; paint-order: stroke; stroke: rgba(255, 255, 255, 0.95); stroke-width: 5px; }
+.cj-roof-top { fill: #DBEAFE; }
+.cj-light { fill: #A5F3FC; }
+.cj-lamp { fill: #2563EB; }
+.cj-lamp-glow { fill: #FEF9C3; opacity: 0.55; }
+.cj-leg { fill: #334155; }
+.cj-worker { fill: #2563EB; }
+.cj-skin { fill: #F1C9A5; }
+.cj-cap { fill: #1E40AF; }
+.cj-cargo-fill { fill: #93C5FD; }
+/* Shared (pooled) pickup + van load */
+.cj-customer { fill: #0D9488; }
+.cj-hair { fill: #334155; }
+.cj-pool-tag { fill: #14B8A6; }
+.cj-pin-pool { fill: #0D9488; }
+.cj-mini-own { fill: #FFFFFF; stroke: #2563EB; stroke-width: 1; }
+.cj-mini-pool { fill: #5EEAD4; stroke: #0D9488; stroke-width: 1; }
+.cj-load-badge { fill: #FFFFFF; stroke: #BFDBFE; filter: drop-shadow(0 4px 8px rgba(37, 99, 235, 0.16)); }
+.cj-load-text { font: 700 11px var(--font-body); fill: #1E40AF; }
+.cj-dusk { fill: #1E3A8A; fill-opacity: 0.16; }
+.cj-card-check { fill: none; stroke: #16A34A; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.cj-card-title { font: 800 20px var(--font-heading); fill: #26364B; }
+.cj-card-sub { font: 500 13px var(--font-body); fill: #64748B; }
+
+/* World palette (dark) */
+[data-theme="dark"] .cj-sky-top { stop-color: #0B1730; }
+[data-theme="dark"] .cj-sky-bottom { stop-color: #15264A; }
+[data-theme="dark"] .cj-sun { fill: #93C5FD; opacity: 0.12; }
+[data-theme="dark"] .cj-cloud ellipse { fill: #2A3B5C; opacity: 0.6; }
+[data-theme="dark"] .cj-ground { fill: #19294D; }
+[data-theme="dark"] .cj-edge-top { stop-color: #13203D; }
+[data-theme="dark"] .cj-edge-bottom { stop-color: #0B1428; }
+[data-theme="dark"] .cj-edge-line { stroke: #2A3D63; }
+[data-theme="dark"] .cj-bld { fill: #22355A; }
+[data-theme="dark"] .cj-bld-side { fill: #1A2A49; }
+[data-theme="dark"] .cj-bld-top { fill: #2B4170; }
+[data-theme="dark"] .cj-win { fill: #60A5FA; opacity: 0.55; }
+[data-theme="dark"] .cj-road-edge { stroke: #22355A; }
+[data-theme="dark"] .cj-road { stroke: #2C416A; }
+[data-theme="dark"] .cj-road-line { stroke: #4A6290; }
+[data-theme="dark"] .cj-route { stroke: #60A5FA; }
+[data-theme="dark"] .cj-label { fill: #E6EDF7; stroke: rgba(11, 23, 48, 0.9); }
+[data-theme="dark"] .cj-roof-top { fill: #93C5FD; }
+[data-theme="dark"] .cj-dusk { fill: #020617; fill-opacity: 0.3; }
+[data-theme="dark"] .cj-card-title { fill: #E6EDF7; }
+[data-theme="dark"] .cj-card-sub { fill: #A9B6C8; }
+[data-theme="dark"] .cj-load-badge { fill: #111A2B; stroke: #2B4170; }
+[data-theme="dark"] .cj-load-text { fill: #93C5FD; }
+
+/* Journey progress */
+.cj-progress {
+  position: relative; list-style: none;
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-8) !important;
+}
+.cj-progress-line {
+  position: absolute; left: 8.33%; right: 8.33%; top: 22px; height: 4px;
+  border-radius: 4px; background: var(--border-subtle); overflow: hidden;
+}
+.cj-progress-line span {
+  position: absolute; inset: 0; transform-origin: left center;
+  transform: scaleX(var(--cj-p)); transition: transform 0.2s linear;
+  background: linear-gradient(90deg, var(--primary), #0EA5E9);
+}
+.cj-step { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; color: var(--text-muted); }
+.cj-step-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg-card); border: 2px solid var(--border-subtle); color: var(--text-dim);
+  box-shadow: var(--shadow-sm); z-index: 1;
+  transition: all 0.35s var(--ease-out);
+}
+.cj-step-num { font-size: var(--text-xs); font-weight: var(--weight-bold); color: var(--text-dim); letter-spacing: 0.06em; }
+.cj-step-label { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.cj-step.done .cj-step-icon { border-color: var(--border-accent); color: var(--primary); background: var(--primary-soft); }
+.cj-step.active .cj-step-icon { background: var(--primary); border-color: var(--primary); color: var(--primary-contrast); transform: scale(1.12); box-shadow: 0 0 0 6px var(--primary-glow), var(--shadow-md); }
+.cj-step.active .cj-step-label, .cj-step.active .cj-step-num { color: var(--primary); }
+
+.cj-cta { display: flex; justify-content: center; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-8) !important; }
+
+@media (max-width: 768px) {
+  .cj { padding: var(--space-10) var(--space-4) var(--space-8); }
+  .cj-stage { border-radius: 20px; }
+  .cj-step-icon { width: 40px; height: 40px; }
+  .cj-progress-line { top: 18px; }
+}
+@media (max-width: 640px) {
+  .cj-stage { aspect-ratio: 1 / 1; }
+  .cj-opt { display: none; }
+  .cj-step-label { font-size: 0.72rem; }
+  .cj-step-num { display: none; }
+  .cj-cta .btn { flex: 1 1 100%; }
+}
+

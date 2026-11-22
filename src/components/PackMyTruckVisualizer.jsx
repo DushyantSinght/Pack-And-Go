@@ -32,9 +32,9 @@ export const PackMyTruckVisualizer = () => {
       owner: 'Your Move (HSR ➔ Whitefield)',
       cuFt: 180,
       weightKg: 210,
-      color: '#D4AF37',
-      bgGlow: 'rgba(212, 175, 55, 0.18)',
-      borderColor: '#D4AF37',
+      color: '#2563EB',
+      bgGlow: 'rgba(37, 99, 235, 0.18)',
+      borderColor: '#2563EB',
       category: 'Mid-Bay Luggage & Electronics',
       isYou: true,
       items: [
@@ -89,10 +89,10 @@ export const PackMyTruckVisualizer = () => {
             </span>
           </div>
           <h3 style={{ fontSize: '1.35rem', margin: 0 }}>
-            Interactive "Pack-My-Truck" Spatial Loading Engine
+            How your things sit in the shared truck
           </h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Inspect exactly how your luggage is partitioned from co-pooled shipments with anti-slip divider bulkheads.
+            See which part of the truck holds your things, kept apart from other customers' loads by dividers.
           </p>
         </div>
 
@@ -160,7 +160,7 @@ export const PackMyTruckVisualizer = () => {
           gap: '8px',
           height: '180px',
           background: 'rgba(255, 255, 255, 0.02)',
-          border: '2px dashed rgba(212, 175, 55, 0.3)',
+          border: '2px dashed rgba(37, 99, 235, 0.3)',
           borderRadius: '12px',
           padding: '12px',
           perspective: '600px'
@@ -257,7 +257,7 @@ export const PackMyTruckVisualizer = () => {
                     <div
                       key={idx}
                       style={{
-                        background: comp.isYou ? 'rgba(212, 175, 55, 0.25)' : 'rgba(255, 255, 255, 0.1)',
+                        background: comp.isYou ? 'rgba(37, 99, 235, 0.25)' : 'rgba(255, 255, 255, 0.1)',
                         border: `1px solid ${comp.color}`,
                         borderRadius: '4px',
                         padding: '3px 6px',

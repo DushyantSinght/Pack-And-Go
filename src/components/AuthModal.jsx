@@ -19,8 +19,7 @@ const USER_TYPES = [
 const DEMO_ACCOUNTS = [
   { email: 'demo@packandgo.in', label: 'Customer', icon: User },
   { email: 'captain.manju@packandgo.in', label: 'Driver', icon: Truck },
-  { email: 'ananya.roy@packandgo.in', label: 'Seller', icon: ShoppingBag },
-  { email: 'admin@packandgo.in', label: 'Admin', icon: ShieldCheck }
+  { email: 'ananya.roy@packandgo.in', label: 'Seller', icon: ShoppingBag }
 ];
 
 const validate = (formData, mode) => {
@@ -222,7 +221,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
         borderRadius: 'var(--radius-lg)'
       }}>
         {/* Close */}
-        <button onClick={onClose} style={{
+        <button onClick={onClose} aria-label="Close" title="Close" style={{
           position: 'absolute', top: '16px', right: '16px',
           background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
           color: 'var(--text-muted)', width: '32px', height: '32px',
@@ -290,7 +289,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
                 <span style={{ color: 'var(--primary)' }}>Pack&Go</span>
               </h2>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>
-                Your unified relocation operating system
+                Book, track and settle into your new home
               </p>
             </div>
 
@@ -455,7 +454,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
                     style={{ ...inputStyle('password'), paddingRight: '42px' }}
                     autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
                   />
-                  <button type="button" onClick={() => setShowPassword((p) => !p)} style={{
+                  <button type="button" onClick={() => setShowPassword((p) => !p)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} style={{
                     position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
                     background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)',
                     display: 'flex', alignItems: 'center'
@@ -554,7 +553,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
               <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textAlign: 'center', marginBottom: '8px', letterSpacing: '0.05em' }}>
                 QUICK DEMO LOGIN
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                 {DEMO_ACCOUNTS.map(({ email, label, icon: Icon }) => (
                   <button
                     key={email}

@@ -225,7 +225,8 @@ export const CommsProvider = ({ children }) => {
       return undefined;
     }
 
-    const socket = io({ auth: { token }, transports: ['websocket', 'polling'] });
+    // Read the token on every (re)connect, so a fresh token after a password change is used.
+    const socket = io({ auth: (cb) => cb({ token: tokenStorage.get() }), transports: ['websocket', 'polling'] });
     socketRef.current = socket;
     socket.on('connect', () => {
       setConnected(true);

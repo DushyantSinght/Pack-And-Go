@@ -104,7 +104,7 @@ export const InteractiveLeafletMap = ({ corridorId = 'blr-koramangala-whitefield
 
     // Add Route Polyline
     L.polyline(activeData.routeCoords, {
-      color: '#D4AF37',
+      color: '#2563EB',
       weight: 4,
       opacity: 0.85,
       dashArray: '8, 8'
@@ -117,7 +117,7 @@ export const InteractiveLeafletMap = ({ corridorId = 'blr-koramangala-whitefield
 
       const iconHtml = `
         <div style="
-          background: ${isDelivery ? '#D4AF37' : isPickup ? '#10B981' : '#6366F1'};
+          background: ${isDelivery ? '#2563EB' : isPickup ? '#10B981' : '#6366F1'};
           color: #FFFFFF;
           width: 28px;
           height: 28px;
@@ -171,19 +171,19 @@ export const InteractiveLeafletMap = ({ corridorId = 'blr-koramangala-whitefield
           width: 52px;
           height: 52px;
           border-radius: 50%;
-          background: rgba(212, 175, 55, 0.25);
+          background: rgba(37, 99, 235, 0.25);
           animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
         "></div>
         <div style="
           background: #0F172A;
-          border: 2px solid #D4AF37;
+          border: 2px solid #2563EB;
           width: 38px;
           height: 38px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+          box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
           font-size: 16px;
         ">
           🚛
@@ -387,7 +387,7 @@ export const InteractiveLeafletMap = ({ corridorId = 'blr-koramangala-whitefield
           <span>Pickups</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#D4AF37' }}></span>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2563EB' }}></span>
           <span>Destination</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

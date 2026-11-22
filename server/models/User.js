@@ -42,8 +42,13 @@ const userSchema = new mongoose.Schema(
     escrowWalletBalance: { type: Number, default: 0 },
     tripsCompleted: { type: Number, default: 0 },
     rating: { type: Number }, // average of customer reviews; unset until the first one (see ratingCount)
-    // Platform staff who can review Move Captain applications.
+    // The platform owner. Set only by server/services/adminAccount.js (never by signup or profile edits).
     isAdmin: { type: Boolean, default: false },
+    // Bumped on password change/reset so every older sign-in token stops working.
+    tokenVersion: { type: Number, default: 0 },
+    // Blocked by the admin: can't sign in, and every open session ends immediately.
+    isBlocked: { type: Boolean, default: false, index: true },
+    blocked: { reason: String, at: Date, by: String },
     emailVerified: { type: Boolean, default: false },
     emailVerifyTokenHash: { type: String, select: false },
     passwordResetTokenHash: { type: String, select: false },

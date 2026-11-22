@@ -117,12 +117,12 @@ const LiveCall = () => {
 
   return (
     <div style={{ ...overlay, background: 'rgba(0,0,0,0.82)' }}>
-      <div style={{ ...card, background: 'linear-gradient(180deg, #12202A 0%, #0B0C10 100%)', color: '#fff', padding: '36px 24px' }} role="dialog" aria-label="Voice call">
+      <div style={{ ...card, background: 'linear-gradient(180deg, #12202A 0%, #0B1220 100%)', color: '#fff', padding: '36px 24px' }} role="dialog" aria-label="Voice call">
         <div style={{ fontSize: '0.72rem', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.6)', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           {isIncoming ? <PhoneIncoming size={13} /> : <Wifi size={13} />} PACK&GO VOICE
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-          <div style={{ borderRadius: '50%', padding: 6, animation: ['ringing', 'incoming'].includes(call.status) ? 'pulse 1.6s infinite' : 'none', boxShadow: '0 0 0 6px rgba(212,175,55,0.15)' }}>
+          <div style={{ borderRadius: '50%', padding: 6, animation: ['ringing', 'incoming'].includes(call.status) ? 'pulse 1.6s infinite' : 'none', boxShadow: '0 0 0 6px rgba(37, 99, 235,0.15)' }}>
             <Avatar person={{ ...call.peer, online: undefined }} size={96} />
           </div>
         </div>

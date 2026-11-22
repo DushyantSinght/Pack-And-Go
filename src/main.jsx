@@ -13,7 +13,7 @@ import { reportClientError } from './services/api.js'
 // Author signature (visible in the browser developer console)
 console.log(
   '%cPack&Go%c  designed & built by DST — Dushyant Singh Tanwar\n© 2026 All rights reserved. Unauthorised copying prohibited.',
-  'font: 700 22px system-ui; color: #D4AF37;',
+  'font: 700 22px system-ui; color: #2563EB;',
   'font: 12px system-ui; color: #A3A7B3;'
 )
 document.documentElement.dataset.author = 'DST'

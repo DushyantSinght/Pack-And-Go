@@ -36,8 +36,11 @@ export const Navbar = () => {
     setIsAdminOpen,
     openBooking,
     openMyMoves,
+    openDriverConsole,
     myMoves
   } = useMove();
+  // Move Captains use a work account: show their console instead of the customer's booking buttons.
+  const isCaptain = user?.userType === 'captain';
 
   const scrollToId = (id) => {
     const el = document.getElementById(id);
@@ -85,14 +88,14 @@ export const Navbar = () => {
           width: '38px',
           height: '38px',
           borderRadius: '9px',
-          background: 'linear-gradient(135deg, #D4AF37 0%, #947222 100%)',
+          background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 3px 12px rgba(212, 175, 55, 0.25)',
+          boxShadow: '0 3px 12px rgba(37, 99, 235, 0.25)',
           flexShrink: 0
         }}>
-          <Truck size={20} color="#0B0C10" />
+          <Truck size={20} color="#FFFFFF" />
         </div>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -133,12 +136,19 @@ export const Navbar = () => {
           <Leaf size={12} />
           <span>{carbonSavedTotalKg} kg CO₂</span>
         </div>
-        {/* Book / My Moves */}
-        <button onClick={openBooking} className="btn btn-primary btn-sm" style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }} title="Book a move">
-          <CalendarPlus size={13} />
-          <span className="nav-label">Book a move</span>
-        </button>
-        {user && (
+        {/* Book / My Moves (customers) — Driver Console (Move Captains) */}
+        {isCaptain ? (
+          <button onClick={openDriverConsole} className="btn btn-primary btn-sm" style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }} title="Driver Console">
+            <Truck size={13} />
+            <span className="nav-label">Driver Console</span>
+          </button>
+        ) : (
+          <button onClick={openBooking} className="btn btn-primary btn-sm" style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }} title="Book a move">
+            <CalendarPlus size={13} />
+            <span className="nav-label">Book a move</span>
+          </button>
+        )}
+        {user && !isCaptain && (
           <button onClick={() => openMyMoves()} className="btn btn-secondary btn-sm" style={{ position: 'relative', padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }} title="My Moves">
             <PackageCheck size={13} color="var(--primary)" />
             <span className="nav-label">My Moves</span>

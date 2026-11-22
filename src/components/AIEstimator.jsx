@@ -188,15 +188,15 @@ export const AIEstimator = () => {
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span className="badge badge-emerald">Zero-Touch Estimation</span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>AI photo & voice estimate</span>
+              <span className="badge badge-emerald">AI-assisted estimate</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>AI suggests, you confirm</span>
             </div>
             <div className="page-title-row">
               <PageIcon tab="estimator" />
-              <h2 style={{ fontSize: '1.6rem' }}>AI Volumetric Scan & Price-Lock Engine</h2>
+              <h2 style={{ fontSize: '1.6rem' }}>Estimate your move from a photo or a sentence</h2>
             </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-              Scan your belongings via room photo sweep or voice walkthrough. Locks in transparent pricing before a truck is dispatched.
+              Snap your room or describe what you own. AI (Google Gemini) suggests an item list, you edit it, and the price comes from that list.
             </p>
           </div>
 
@@ -243,7 +243,7 @@ export const AIEstimator = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                 <span style={{ fontWeight: 700, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Layers size={18} color="var(--primary)" />
-                  Computer Vision Room Sweep
+                  Photo scan (AI-assisted)
                 </span>
 
                 <button
@@ -399,7 +399,7 @@ export const AIEstimator = () => {
                 padding: '30px 20px',
                 textAlign: 'center',
                 border: isRecording ? '2px solid var(--accent)' : '1px solid var(--border-subtle)',
-                boxShadow: isRecording ? '0 0 30px rgba(212, 175, 55, 0.25)' : 'none',
+                boxShadow: isRecording ? '0 0 30px rgba(37, 99, 235, 0.25)' : 'none',
                 transition: 'all 0.3s ease'
               }}>
                 <button
@@ -474,9 +474,9 @@ export const AIEstimator = () => {
                 No moving-day surprises
               </span>
             </div>
-            <h3 style={{ fontSize: '1.4rem' }}>Transparent Volumetric Breakdown</h3>
+            <h3 style={{ fontSize: '1.4rem' }}>How your price is worked out</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Calculated dynamically from recognized 3D volumes. No in-person surveyor required, no moving-day price renegotiations.
+              A fixed formula, not AI: the volume of your items, the road distance and any stairs. No surveyor visit and no renegotiation on moving day.
             </p>
           </div>
 

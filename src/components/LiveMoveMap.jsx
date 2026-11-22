@@ -48,9 +48,9 @@ export const LiveMoveMap = ({ booking, height = 240 }) => {
     const pts = [];
     if (o?.lat) { L.marker([o.lat, o.lng], { icon: pin('#2563EB', 'Pickup') }).addTo(map.current); pts.push([o.lat, o.lng]); }
     if (d?.lat) { L.marker([d.lat, d.lng], { icon: pin('#16A34A', 'Drop') }).addTo(map.current); pts.push([d.lat, d.lng]); }
-    if (pts.length === 2) L.polyline(pts, { color: '#D4AF37', weight: 3, opacity: 0.35, dashArray: '6 8' }).addTo(map.current);
-    trailLine.current = L.polyline([], { color: '#D4AF37', weight: 5, opacity: 0.9, lineCap: 'round' }).addTo(map.current);
-    aheadLine.current = L.polyline([], { color: '#F3E7C4', weight: 3, opacity: 0.7, dashArray: '2 8', lineCap: 'round' }).addTo(map.current);
+    if (pts.length === 2) L.polyline(pts, { color: '#2563EB', weight: 3, opacity: 0.35, dashArray: '6 8' }).addTo(map.current);
+    trailLine.current = L.polyline([], { color: '#2563EB', weight: 5, opacity: 0.9, lineCap: 'round' }).addTo(map.current);
+    aheadLine.current = L.polyline([], { color: '#DBEAFE', weight: 3, opacity: 0.7, dashArray: '2 8', lineCap: 'round' }).addTo(map.current);
     if (pts.length) map.current.fitBounds(pts, { padding: [36, 36] });
     else map.current.setView([12.97, 77.59], 11);
     return () => {

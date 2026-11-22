@@ -27,9 +27,10 @@ Open http://localhost:5173. In development the server seeds demo data and these 
 | Customer | `demo@packandgo.in` |
 | Move Captain (approved) | `captain.manju@packandgo.in`, `captain.harpreet@packandgo.in` |
 | Marketplace seller | `ananya.roy@packandgo.in` (and the other sellers) |
-| Ops admin | `admin@packandgo.in` |
 
-The sign-in dialog has quick-login buttons for these. To see both sides of a move, open a second (private) window and sign in as the driver there.
+There is **no demo admin**. The only admin is the fixed account set by `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `server/.env` (created on server start, or with `npm run admin:setup`). Nobody can register as admin.
+
+The sign-in dialog has quick-login buttons for the demo accounts. To see both sides of a move, open a second (private) window and sign in as the driver there.
 
 ### Try the whole flow
 
@@ -90,7 +91,9 @@ What the server still enforces, exactly as a real payment system would:
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` (optional `SMTP_SECURE`, `EMAIL_SUPPRESS_DOMAINS`) | verification, password reset, booking emails | nothing is sent and the app says so; in dev the verify/reset links are shown in the UI. Test with `npm run email:test -- you@example.com` |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | SMS updates (captain assigned, nearby, delivered…) | SMS printed to the server log |
 | `GEMINI_API_KEY` (free, recommended; get one at https://aistudio.google.com/apikey), or `GROQ_API_KEY`, `XAI_API_KEY`, `ANTHROPIC_API_KEY`. Optional `AI_PROVIDER`, `AI_MODEL`, `AI_VISION_MODEL` | PackBot answers, AI room-photo scan, voice/typed inventory | PackBot runs in basic keyword mode; scans ask you to add items by hand. Keys stay on the server and are never logged or sent to the browser |
-| `ADMIN_EMAILS` | extra admin accounts (comma-separated) | only DB users with `isAdmin` |
+| `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | the one admin account (password used only to create it; change it later in the app) | no admin; production logs an error |
+| `RUN_STARTUP_REPAIRS` | one-time repairs of old development data | skipped in production |
+| `ROUTING_URL`, `CSP_CONNECT_EXTRA` | own OSRM router / extra allowed browser origins (e.g. a keyed geocoder) | public OSRM demo router, OpenStreetMap geocoder |
 | `GST_RATE` | tax on fares | `0.18` |
 | `SEED_DEMO_ACCOUNTS` | demo data in production (**don't**) | demo data only outside production |
 
@@ -100,6 +103,7 @@ Frontend build-time values (in a root `.env` file, or as Docker build args):
 |---|---|
 | `VITE_COMPANY_NAME`, `VITE_COMPANY_ADDRESS`, `VITE_SUPPORT_EMAIL`, `VITE_GRIEVANCE_OFFICER` | receipts, legal pages, footer |
 | `VITE_MAP_TILE_URL`, `VITE_MAP_ATTRIBUTION` | map tiles. Defaults to OpenStreetMap (fine for light use); set a keyed provider such as MapTiler for production traffic, and add its host to the CSP `img-src` in `server/server.js` |
+| `VITE_GEOCODER_URL`, `VITE_GEOCODER_KEY` | address search. Defaults to the public OpenStreetMap geocoder (max 1 request/second, already spaced out); for production use a keyed Nominatim-compatible service such as LocationIQ and list its origin in `CSP_CONNECT_EXTRA` |
 | `VITE_COMPANY_GSTIN` | turns the payment receipt into a GST **tax invoice**. Leave empty until the business is GST-registered. |
 
 ---

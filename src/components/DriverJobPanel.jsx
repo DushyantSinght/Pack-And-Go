@@ -250,7 +250,7 @@ export const DriverJobPanel = ({ jobs, setJobs, loading, selectedJobId, setSelec
             {job.stage === 'pickup' && (
               <div style={{ marginTop: 14, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <ScanLine size={14} color="#D4AF37" /> Box check while loading ({(job.loadedBoxes || []).length} scanned)
+                  <ScanLine size={14} color="#2563EB" /> Box check while loading ({(job.loadedBoxes || []).length} scanned)
                 </div>
                 <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                   {(job.loadedBoxes || []).map((b) => (

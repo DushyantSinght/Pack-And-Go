@@ -15,6 +15,9 @@ export const call = async (path, { token, method = 'GET', body } = {}) => {
   return { status: r.status, body: await r.json().catch(() => ({})) };
 };
 
+/** A booking's item list adding up to `cuFt` (bookings are priced from their items). */
+export const qaItems = (cuFt) => [{ name: 'QA moving boxes', category: 'Boxes', cuFt }];
+
 /** Signs in a seeded demo account (read-only checks only — never create data with these). */
 export const login = async (email, password = 'demo1234') => {
   const r = await call('/auth/login', { method: 'POST', body: { email, password } });
@@ -48,6 +51,25 @@ export const makeUser = async (extra = {}, { verify = true } = {}) => {
   return { ...su.body, email, password: 'secret12' };
 };
 
+const DB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/packandgo';
+const db = async () => {
+  if (mongoose.connection.readyState !== 1) await mongoose.connect(DB_URI);
+  return mongoose.connection.db;
+};
+
+/**
+ * A throwaway admin for tests. There is no demo admin and nobody can register as admin, so the
+ * test flips isAdmin on its own throwaway account directly in the database (removed in cleanup).
+ */
+let testAdmin = null;
+export const makeAdmin = async () => {
+  if (testAdmin) return testAdmin;
+  const a = await makeUser({ name: 'QA Admin' });
+  await (await db()).collection('users').updateOne({ email: a.email }, { $set: { isAdmin: true } });
+  testAdmin = a;
+  return a;
+};
+
 /** Creates a driver application and, when `approve` is set, has the admin approve it. */
 export const makeCaptain = async ({ approve = true } = {}) => {
   const n = String(++seq).padStart(4, '0');
@@ -59,7 +81,7 @@ export const makeCaptain = async ({ approve = true } = {}) => {
     vehicleNumber: `KA01QA${n}`
   });
   if (approve) {
-    const admin = await login('admin@packandgo.in');
+    const admin = await makeAdmin();
     const r = await call(`/admin/captains/${cap.user._id}/review`, { token: admin.token, method: 'POST', body: { action: 'approve' } });
     assert.equal(r.status, 200, `approve: ${r.body.message}`);
   }
@@ -68,8 +90,7 @@ export const makeCaptain = async ({ approve = true } = {}) => {
 
 /** Removes every record the throwaway accounts created or touched. */
 export const cleanup = async () => {
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/packandgo');
-  const db = mongoose.connection.db;
+  const db = await (async () => { if (mongoose.connection.readyState !== 1) await mongoose.connect(DB_URI); return mongoose.connection.db; })();
   const emails = [...tracked.emails];
   const ids = (await db.collection('users').find({ email: { $in: emails } }).project({ _id: 1 }).toArray()).map((u) => u._id);
   const convs = (await db.collection('conversations').find({ participants: { $in: ids } }).project({ _id: 1 }).toArray()).map((c) => c._id);

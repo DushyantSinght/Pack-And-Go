@@ -12,6 +12,7 @@ import { DamageClaim } from './DamageClaim.js';
 import { ServiceRequest } from './ServiceRequest.js';
 import { ErrorLog } from './ErrorLog.js';
 import { PaymentTransaction } from './PaymentTransaction.js';
+import { RevokedToken } from './RevokedToken.js';
 
 export {
   generateOtp,
@@ -27,7 +28,8 @@ export {
   DamageClaim,
   ServiceRequest,
   ErrorLog,
-  PaymentTransaction
+  PaymentTransaction,
+  RevokedToken
 };
 
 export const SCHEMA_DEFINITIONS = [

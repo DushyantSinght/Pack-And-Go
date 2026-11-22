@@ -10,7 +10,8 @@ import http from 'http';
 import { connectDB, getDBStatus } from './config/db.js';
 import { seedDatabase } from './seed/seedData.js';
 import { ensureDemoAccounts } from './seed/demoAccounts.js';
-import { initSocket } from './socket.js';
+import mongoose from 'mongoose';
+import { initSocket, closeSocket } from './socket.js';
 
 // Import Route Handlers
 import databaseRoutes from './routes/databaseRoutes.js';
@@ -32,6 +33,7 @@ import { ErrorLog, User } from './models/index.js';
 import chatRoutes from './routes/chatRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import { emailConfig, maskEmail } from './services/notify.js';
+import { ensureAdminAccount } from './services/adminAccount.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,7 +51,8 @@ app.use(
       useDefaults: true,
       directives: {
         'script-src': ["'self'"],
-        'connect-src': ["'self'", 'wss:', 'ws:', 'https://nominatim.openstreetmap.org'],
+        // CSP_CONNECT_EXTRA: comma-separated origins, e.g. a keyed geocoder set via VITE_GEOCODER_URL.
+        'connect-src': ["'self'", 'wss:', 'ws:', 'https://nominatim.openstreetmap.org', ...String(process.env.CSP_CONNECT_EXTRA || '').split(',').map((o) => o.trim()).filter(Boolean)],
         'img-src': ["'self'", 'data:', 'blob:', 'https://tile.openstreetmap.org', 'https://*.tile.openstreetmap.org', 'https://*.basemaps.cartocdn.com', 'https://images.unsplash.com', 'https://unpkg.com'],
         'style-src': ["'self'", "'unsafe-inline'", 'https://unpkg.com', 'https://fonts.googleapis.com'],
         'font-src': ["'self'", 'https://fonts.gstatic.com', 'data:'],
@@ -92,10 +95,11 @@ app.use((req, res, next) => {
 });
 
 // ── Rate Limiters ─────────────────────────────────────────────────
-// General API: 1000 requests per 15 minutes per IP (chat history + inbox refreshes add up)
+// General API: 5000 requests per 15 minutes per IP. A whole campus Wi-Fi can share one IP, so this
+// is generous; sign-in and AI endpoints keep their own strict limits. Override: GENERAL_RATE_LIMIT_MAX.
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: Number(process.env.GENERAL_RATE_LIMIT_MAX) || 5000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests. Please try again later.' }
@@ -127,7 +131,9 @@ app.use((req, res, next) => {
   res.on('finish', () => {
     const duration = Date.now() - start;
     if (req.url.startsWith('/api')) {
-      console.log(`[API] ${req.method} ${req.url} ${res.statusCode} - ${duration}ms`);
+      // Never log secrets: drop query strings and hide family-tracking link tokens.
+      const safeUrl = req.originalUrl.split('?')[0].replace(/^\/api\/track\/[^/]+/, '/api/track/[link]');
+      console.log(`[API] ${req.method} ${safeUrl} ${res.statusCode} - ${duration}ms`);
     }
   });
   next();
@@ -135,29 +141,18 @@ app.use((req, res, next) => {
 
 // ── API Root ─────────────────────────────────────────────────────
 app.get('/api', (req, res) => {
-  const dbStatus = getDBStatus();
   res.json({
-    name: 'Pack&Go Relocation Operating System API',
-    version: '2.0.0',
-    database: dbStatus,
-    auth: 'JWT Bearer Token (7 day expiry)',
-    endpoints: [
-      '/api/auth/login',
-      '/api/auth/signup',
-      '/api/auth/logout',
-      '/api/auth/me',
-      '/api/moves/current',
-      '/api/passports',
-      '/api/marketplace',
-      '/api/corridors',
-      '/api/campus',
-      '/api/payments/create-order',
-      '/api/chat/conversations',
-      '/api/payments/verify',
-      '/api/database/status',
-      '/api/database/schema'
-    ]
+    name: 'Pack&Go API',
+    version: '2.1.0',
+    auth: 'JWT Bearer token (7-day expiry, revocable)',
+    health: '/api/health'
   });
+});
+
+// Lightweight liveness check for the hosting platform / Docker. Reveals nothing about the database.
+app.get('/api/health', (req, res) => {
+  const db = getDBStatus().isConnected;
+  res.status(db ? 200 : 503).json({ ok: db });
 });
 
 // ── Mount Routes ─────────────────────────────────────────────────
@@ -194,9 +189,11 @@ app.use((req, res) => {
 app.use((err, req, res, _next) => { // four args: Express treats this as the error handler
   console.error('Server Error:', err);
   ErrorLog.create({ source: 'server', message: err.message, stack: err.stack, url: `${req.method} ${req.originalUrl}`, userId: req.user?._id }).catch(() => {});
-  res.status(err.status || 500).json({
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
     success: false,
-    message: err.message || 'Internal Server Error',
+    // Server faults never leak internals in production; 4xx messages are meant for the user.
+    message: status >= 500 && process.env.NODE_ENV === 'production' ? 'Something went wrong. Please try again.' : err.message || 'Internal Server Error',
     // Only expose stack traces in development
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
@@ -212,7 +209,19 @@ const startServer = async () => {
     process.exit(1);
   }
   console.log('🚀 Initializing Pack&Go MongoDB Backend Server v2.0...');
-  const conn = await connectDB();
+  // A hosted database can be briefly unreachable while the app starts: retry in production, and
+  // exit if it never comes up so the host restarts us (instead of running without a database).
+  let conn = await connectDB();
+  for (let attempt = 1; !conn && isProd && attempt < 10; attempt += 1) {
+    const wait = Math.min(30_000, 2_000 * attempt);
+    console.warn(`⏳ Database not reachable — retrying in ${wait / 1000}s (attempt ${attempt + 1} of 10)`);
+    await new Promise((r) => setTimeout(r, wait));
+    conn = await connectDB();
+  }
+  if (!conn && isProd) {
+    console.error('❌ Could not reach the database. Exiting so the host can restart the app.');
+    process.exit(1);
+  }
 
   if (conn) {
     try {
@@ -221,27 +230,38 @@ const startServer = async () => {
     } catch (seedErr) {
       console.warn('⚠️  Seed skipped or failed:', seedErr.message);
     }
-    try {
-      const migrated = await migrateLegacyBookings();
-      if (migrated) console.log(`🧾 Reset ${migrated} legacy booking(s) with placeholder payment data to drafts.`);
-      await assignLegacyPassports();
-      const repaired = await repairListingPhotos();
-      if (repaired) console.log(`🖼️  Repaired ${repaired} listing photo(s) that were missing or wrong.`);
-      // Profile pictures: drop the old stock-photo default so the app shows initials.
-      await User.updateMany({ avatar: { $regex: 'photo-1535713875002-d1d0cf377fde' } }, { $set: { avatar: '' } });
-      const rotated = await rotateLegacyOtps();
-      if (rotated) console.log(`🔐 Replaced shared demo OTPs on ${rotated} booking(s) with unique codes.`);
-    } catch (err) {
-      console.warn('⚠️  OTP rotation skipped:', err.message);
+    // One-time repairs for data created by older development builds. They change stored data,
+    // so production skips them unless RUN_STARTUP_REPAIRS=true is set deliberately.
+    if (!isProd || process.env.RUN_STARTUP_REPAIRS === 'true') {
+      try {
+        const migrated = await migrateLegacyBookings();
+        if (migrated) console.log(`🧾 Reset ${migrated} legacy booking(s) with placeholder payment data to drafts.`);
+        await assignLegacyPassports();
+        const repaired = await repairListingPhotos();
+        if (repaired) console.log(`🖼️  Repaired ${repaired} listing photo(s) that were missing or wrong.`);
+        // Profile pictures: drop the old stock-photo default so the app shows initials.
+        await User.updateMany({ avatar: { $regex: 'photo-1535713875002-d1d0cf377fde' } }, { $set: { avatar: '' } });
+        const rotated = await rotateLegacyOtps();
+        if (rotated) console.log(`🔐 Replaced shared demo OTPs on ${rotated} booking(s) with unique codes.`);
+      } catch (err) {
+        console.warn('⚠️  OTP rotation skipped:', err.message);
+      }
     }
     try {
       if (seedDemo) await ensureDemoAccounts();
     } catch (err) {
       console.warn('⚠️  Demo contact accounts not synced:', err.message);
     }
+    try {
+      const admin = await ensureAdminAccount();
+      if (admin.status === 'created') console.log('👤 Admin account created.');
+      else if (admin.status === 'not_configured') console[isProd ? 'error' : 'log'](`${isProd ? '❌' : 'ℹ️ '} No admin configured: set ADMIN_EMAIL (and ADMIN_PASSWORD the first time) in server/.env.`);
+    } catch (err) {
+      console.error('❌ Admin account check failed:', err.message);
+    }
   }
 
-  if (process.env.NODE_ENV !== 'test') startSlotWatcher();
+  if (process.env.NODE_ENV !== 'test') slotWatcher = startSlotWatcher();
 
   const httpServer = http.createServer(app);
   initSocket(httpServer, (origin, cb) => cb(null, !origin || isAllowedOrigin(origin)));
@@ -250,7 +270,8 @@ const startServer = async () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
     console.log(`   NODE_ENV : ${process.env.NODE_ENV || 'development'}`);
     console.log(`   CORS     : ${allowedOrigins.join(', ')}${process.env.NODE_ENV !== 'production' ? ' + any localhost port (dev)' : ''}`);
-    console.log(`   DB       : ${process.env.MONGODB_URI}`);
+    // Host only: a hosted MONGODB_URI contains the database password.
+    console.log(`   DB       : ${getDBStatus().host}`);
     console.log(`   Realtime : Socket.IO chat + call signalling enabled`);
     const mail = emailConfig();
     if (mail.configured) console.log(`   Email    : SMTP ${mail.host}:${mail.port}${mail.secure ? ' (TLS)' : ' (STARTTLS)'} from ${maskEmail(mail.from.replace(/^.*<|>.*$/g, ''))}`);
@@ -258,6 +279,28 @@ const startServer = async () => {
     else console.log(`   Email    : not configured (${mail.errors.join('; ')}) — dev links are shown in the app instead`);
   });
 };
+
+// ── Graceful shutdown ── hosts send SIGTERM on redeploy/restart: stop taking requests, close
+// sockets and the database cleanly, and force-exit if that takes more than 10 seconds.
+let slotWatcher = null;
+let shuttingDown = false;
+const shutdown = (signal, code = 0) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`👋 ${signal} received — shutting down`);
+  if (slotWatcher) clearInterval(slotWatcher);
+  setTimeout(() => process.exit(1), 10_000).unref();
+  closeSocket(() => {
+    mongoose.disconnect().catch(() => {}).finally(() => process.exit(code));
+  });
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  ErrorLog.create({ source: 'server', message: err.message, stack: err.stack }).catch(() => {}).finally(() => shutdown('uncaughtException', 1));
+});
 
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled rejection:', reason);

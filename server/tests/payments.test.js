@@ -4,7 +4,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
-import { call, login, makeUser, makeCaptain, cleanup } from './_helpers.js';
+import { call, makeUser, makeAdmin, makeCaptain, cleanup, qaItems } from './_helpers.js';
 import { PLATFORM_FEE_RATE } from '../services/pricing.js';
 
 after(cleanup);
@@ -16,7 +16,7 @@ const TXN = /^DEMO-(PAY|RFND|PAYOUT)-[0-9A-F]{12}$/;
 const book = async (cust, slot = 'morning') => {
   const r = await call('/moves/book', {
     token: cust.token, method: 'POST',
-    body: { origin: 'HSR Layout, Bengaluru', destination: 'Whitefield, Bengaluru', originLocation: HSR, destinationLocation: WHITEFIELD, date: inDays(2), timeSlot: slot, totalCuFt: 80, contactPhone: '9876500000' }
+    body: { origin: 'HSR Layout, Bengaluru', destination: 'Whitefield, Bengaluru', originLocation: HSR, destinationLocation: WHITEFIELD, date: inDays(2), timeSlot: slot, totalCuFt: 80, items: qaItems(80), contactPhone: '9876500000' }
   });
   assert.equal(r.status, 201, r.body.message);
   return r.body.move;
@@ -177,7 +177,7 @@ test('admin can inspect the simulated ledger; others cannot', async () => {
   await call(`/moves/${m.bookingId}/cancel`, { token: cust.token, method: 'POST', body: { reason: 'Test' } });
 
   assert.equal((await call('/admin/transactions', { token: cust.token })).status, 403);
-  const admin = await login('admin@packandgo.in');
+  const admin = await makeAdmin();
   const r = await call(`/admin/transactions?q=${m.bookingId}`, { token: admin.token });
   assert.equal(r.status, 200);
   assert.equal(r.body.simulated, true);
@@ -202,7 +202,7 @@ test('approved damage claim: compensation recorded once; decisions only move for
   const filed = await call('/support/claims', { token: cust.token, method: 'POST', body: { bookingId: m.bookingId, description: 'Scratched table', amountClaimed: 800 } });
   assert.equal(filed.status, 201, filed.body.message);
   const id = filed.body.claim.claimId;
-  const admin = await login('admin@packandgo.in');
+  const admin = await makeAdmin();
   const resolve = (body) => call(`/admin/claims/${id}/resolve`, { token: admin.token, method: 'POST', body });
 
   assert.equal((await resolve({ status: 'approved', note: 'ok' })).status, 400, 'approval needs an amount');

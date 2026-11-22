@@ -65,10 +65,12 @@ const marketplaceItemSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['available', 'claimed', 'sold'],
+      // 'removed' = taken down by the admin (kept for the record, hidden from the marketplace)
+      enum: ['available', 'claimed', 'sold', 'removed'],
       default: 'available',
       index: true
     },
+    moderation: { reason: String, by: String, at: Date, previousStatus: String },
     claimedBy: {
       name: String,
       phone: String,

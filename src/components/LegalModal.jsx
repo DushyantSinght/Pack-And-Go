@@ -4,56 +4,50 @@ import { X } from 'lucide-react';
 import { useMove } from '../context/MoveContext';
 
 const CO = import.meta.env.VITE_COMPANY_NAME || 'Pack&Go';
-const ADDRESS = import.meta.env.VITE_COMPANY_ADDRESS || '[registered office address]';
-const EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'support@packandgo.in';
-const GRIEVANCE = import.meta.env.VITE_GRIEVANCE_OFFICER || '[Grievance Officer name]';
-const UPDATED = '9 November 2026';
+// Optional contact address for the project (set VITE_SUPPORT_EMAIL at build time). No invented address.
+const EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || '';
+const CONTACT = EMAIL ? `Email ${EMAIL}.` : 'Contact the project team (details are shared with the college evaluators).';
+const UPDATED = '22 November 2026';
 
 const DOCS = {
   terms: {
-    title: 'Terms of Service',
+    title: 'Terms of Use',
     body: [
-      ['Who we are', `${CO} ("we") runs a platform that connects customers with independent, verified Move Captains (drivers) for household relocation, and offers related services. Registered office: ${ADDRESS}.`],
-      ['Your account', 'You must be 18+ and give accurate details, including a working mobile number and email. You are responsible for activity on your account. Keep your password and handover OTPs private.'],
-      ['Bookings and prices', 'Prices are calculated from the volume you declare, road distance, stairs without a lift and the truck type, and include GST as shown at checkout. If the goods at pickup materially exceed what you declared, the Move Captain may decline the extra items or we may re-quote before loading.'],
-      ['Payment and escrow', 'Pack&Go is an academic demo: payments are SIMULATED and no real money is charged or refunded. You "pay" in advance; we hold the amount until you share the Delivery OTP, then release the captain\'s share. Never pay a captain directly.'],
-      ['Cancellation and rescheduling', 'See the Refund & Cancellation Policy. You may reschedule up to twice, until 4 hours before your slot (any time while no Move Captain has accepted it).'],
-      ['Prohibited items', 'We do not carry cash, jewellery, important documents, firearms, explosives, flammable liquids or gas cylinders, illegal goods, perishables, or live animals. Carry valuables yourself.'],
-      ['Handover OTPs', 'Share the Pickup OTP only once loading is complete and the Delivery OTP only after you have checked your goods. Sharing an OTP confirms that stage of the move.'],
-      ['Damage and loss', 'Report damage or missing items within 48 hours of delivery from My Moves, with photos. Our liability for goods not specially declared is limited to the amount set out in the claim decision, and in any case to the fare paid, except where the law does not allow such a limit.'],
-      ['Move Captains', 'Captains are independent service providers who pass our licence and vehicle checks. We may suspend captains who breach our standards.'],
-      ['Acceptable use', 'Do not misuse the platform, harass captains or other users, or try to access data that isn\'t yours.'],
-      ['Changes and termination', 'We may update these terms; we will notify you of material changes. We may suspend accounts that breach them.'],
-      ['Law and disputes', 'These terms are governed by the laws of India. Courts at our registered office city have jurisdiction, subject to your rights under the Consumer Protection Act, 2019.'],
-      ['Contact', `${EMAIL}. Grievance Officer: ${GRIEVANCE}, ${EMAIL}.`]
+      ['About this project', `${CO} is a college capstone project built by Dushyant Singh Tanwar. It is a working academic prototype, not a registered company or a commercial moving service. It is shown to professors and other users for evaluation.`],
+      ['No real moves, no real money', 'Bookings, Move Captains and payments here are for demonstration. Payments are SIMULATED: no money is ever charged, held, paid out or refunded, and no card, UPI or bank details are collected. Please do not rely on this site to move real belongings.'],
+      ['Your account', 'Give a working email so you can verify it, and keep your password and handover codes private. Please don\'t use other people\'s details. Accounts that misuse the site may be blocked.'],
+      ['Prices', 'Prices are calculated by fixed rules from the volume of your items, road distance and stairs without a lift, with GST shown separately. They are examples for the demo, not offers.'],
+      ['AI features', 'The AI estimate and PackBot use Google Gemini. Their answers can be wrong; always check the item list before booking.'],
+      ['Acceptable use', 'Don\'t try to break the site, access data that isn\'t yours, upload harmful or illegal content, or harass other users.'],
+      ['No warranty', 'The site is provided as is, for academic evaluation. It may be unavailable, reset or changed at any time.'],
+      ['Contact', CONTACT]
     ]
   },
   privacy: {
     title: 'Privacy Policy',
     body: [
-      ['What we collect', 'Name, email, mobile number, addresses and map locations, moving date, item list and photos you upload, simulated payment records (no card, UPI or bank details are ever collected), chat messages, call logs, ratings and damage claims. For Move Captains: driving licence and vehicle registration numbers, and live location while a job is active.'],
-      ['Why we use it', 'To quote, book and carry out your move; to let you and your Move Captain contact each other; to send booking updates by email/SMS; to process payments, refunds and claims; to keep the platform safe; and to meet legal obligations.'],
-      ['AI features', 'If you use the AI room scan, voice inventory or PackBot, your photo or message is sent to our AI provider (Google Gemini, Groq, xAI or Anthropic, depending on our setup) to generate the result. On free AI plans the provider may use this data to improve its services, so don\'t include personal documents or details in photos or messages.'],
-      ['Sharing', 'With your assigned Move Captain (name, phone, addresses, items) only once they accept your job; with SMS, email, mapping and AI providers who process data for us; and with authorities where required by law. We do not sell your data.'],
-      ['Live location', 'A captain\'s live location is shared with the customer of the active job only, and stops when the job ends.'],
-      ['Retention', 'We keep booking and payment records for as long as tax and accounting law requires, and other data for as long as your account is active or as needed to resolve claims.'],
-      ['Your rights', 'Under the Digital Personal Data Protection Act, 2023 you can ask to access, correct or erase your data, withdraw consent, and nominate someone to exercise your rights. Write to us at the address below.'],
-      ['Security', 'Passwords are hashed, connections are encrypted, and handover codes are visible only to you.'],
-      ['Grievances', `Grievance Officer: ${GRIEVANCE}, ${EMAIL}. We respond within the time required by law.`]
+      ['What we store', 'Name, email, mobile number, addresses and map points, moving date, item list and photos you upload, simulated payment records, chat messages, call logs, ratings and damage claims. For Move Captain accounts: driving licence and vehicle numbers, and live location while a job is active.'],
+      ['Why', 'Only to make the demo work: estimates, bookings, chat between customer and captain, booking emails, simulated payments and claims, and keeping the site safe.'],
+      ['Location', 'Your browser asks before sharing location. A captain\'s live location is shown only to the customer of the active job, and stops when the job ends or sharing is turned off. A family tracking link shows the truck on a map without prices or codes, and you can turn it off.'],
+      ['AI', 'If you use the AI room scan, voice or typed inventory, or PackBot, your photo or text is sent to Google Gemini to produce the result. On the free plan Google may use it to improve its services, so don\'t include documents or personal details in photos or messages.'],
+      ['Sharing', 'Your assigned captain sees your name, phone, addresses and items only after accepting your job. Emails are sent through Gmail. We don\'t sell or share data for advertising.'],
+      ['Retention and deletion', 'Data is kept only while the project is being evaluated. Ask us to delete your account and data at any time.'],
+      ['Security', 'Passwords are hashed, connections use HTTPS, sign-ins can be revoked, and handover codes are visible only to you.'],
+      ['Contact', CONTACT]
     ]
   },
   refunds: {
     title: 'Refund & Cancellation Policy',
     body: [
-      ['Cancelling', 'Cancel any time before pickup from My Moves. Refund depends on how long before your slot you cancel:'],
+      ['Simulated refunds', 'All payments and refunds on this site are simulated for the academic demo. No real money moves; refunds are recorded instantly in your booking history.'],
+      ['Cancelling', 'Cancel any time before pickup from My Moves. The demo refund depends on how long before your slot you cancel:'],
       ['24 hours or more before', '100% refund.'],
       ['Between 24 and 4 hours before', '50% refund.'],
-      ['Less than 4 hours before, or after pickup', 'No refund (the crew and truck are already committed). Contact support if there is a genuine emergency.'],
-      ['Before a Move Captain accepts', 'Until a Move Captain accepts your move, cancelling is free (100% refund) at any time. If your slot passes without one, you can also reschedule it from My Moves.'],
-      ['If we cancel', 'If we or the Move Captain cancel, you get a full refund.'],
-      ['Refund timing', 'Refunds are simulated and recorded instantly in your booking and transaction history. No real money moves.'],
-      ['Damage claims', 'Raise within 48 hours of delivery from My Moves with photos. We aim to decide within 2 working days; approved amounts are paid to you directly.'],
-      ['Contact', EMAIL]
+      ['Less than 4 hours before, or after pickup', 'No refund.'],
+      ['Before a Move Captain accepts', 'Until a Move Captain accepts your move, cancelling is free (100%) at any time. If your slot passes without one, you can reschedule it from My Moves.'],
+      ['If the move is cancelled for you', 'If the platform or the Move Captain cancels, you get a full (simulated) refund.'],
+      ['Damage claims', 'Raise within 48 hours of delivery from My Moves with photos. Decisions are recorded in the app; any compensation is simulated.'],
+      ['Contact', CONTACT]
     ]
   }
 };
@@ -70,11 +64,6 @@ export const LegalModal = () => {
           <button onClick={() => setLegalDoc(null)} className="btn btn-secondary btn-sm" style={{ width: 32, height: 32, padding: 0, borderRadius: '50%' }} title="Close"><X size={16} /></button>
         </div>
         <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', margin: '4px 0 16px' }}>Last updated {UPDATED}</div>
-        {import.meta.env.DEV && (
-          <div style={{ fontSize: '0.75rem', background: '#78350F', color: '#FEF3C7', padding: '6px 10px', borderRadius: 6, marginBottom: 14 }}>
-            Draft for development — have a lawyer review this and fill in VITE_COMPANY_* details before launch.
-          </div>
-        )}
         {doc.body.map(([h, t]) => (
           <div key={h} style={{ marginBottom: 12 }}>
             <div style={{ fontWeight: 700, fontSize: '0.92rem', marginBottom: 2 }}>{h}</div>

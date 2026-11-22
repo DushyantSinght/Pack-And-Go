@@ -9,10 +9,7 @@ const NO_CAPTAIN_AFTER_MS = 30 * 60_000; // slot started 30 min ago and still no
 const NO_PICKUP_AFTER_MS = 3 * 3_600_000; // slot over, captain assigned, pickup never verified
 const LOOKBACK_MS = 2 * 86_400_000; // ignore very old bookings (no surprise alerts after downtime)
 
-const admins = () => {
-  const env = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-  return User.find({ $or: [{ isAdmin: true }, { email: { $in: env } }] }).select('_id email').lean();
-};
+const admins = () => User.find({ isAdmin: true }).select('_id email').lean();
 
 /** `only` limits the check to some booking IDs (used by the tests). */
 export const checkMissedSlots = async ({ now = Date.now(), only } = {}) => {

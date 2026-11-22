@@ -87,6 +87,7 @@ export const FeatureGrid = () => (
 
 const FAQS = [
   ['How is my price calculated?', 'From the volume of your items, the road distance between your addresses, and any stairs without a lift. Pooled trucks take about 40% off the volume and distance charges. GST is shown separately. The price you see before paying is the price you pay.'],
+  ['How does Pack&Go use AI?', 'Where it helps, not everywhere. AI (Google Gemini) turns a photo of your room, or a sentence like "a bed, a sofa and 6 boxes", into a suggested item list that you can edit, and it powers the PackBot assistant. Prices, payments, refunds and the pickup and delivery codes are handled by Pack&Go\'s own fixed rules, not AI, so they stay exact and explainable.'],
   ['When does the Move Captain get paid?', 'Your payment is held by Pack&Go. The captain\'s share is released only after you read out your Delivery OTP, once you\'ve checked your boxes at the new place.'],
   ['Can I cancel or reschedule?', 'Yes, from My Moves. Until a Move Captain accepts your move, cancelling is always free. After that: cancel 24+ hours before your slot for a full refund, or between 24 and 4 hours for 50%. You can reschedule up to twice, until 4 hours before your slot.'],
   ['Who are the Move Captains?', 'Independent drivers who apply with their driving licence and vehicle registration. Our team checks each application before they can accept jobs, and customers rate every move.'],
@@ -123,7 +124,7 @@ export const CtaBand = () => {
     <section className="cta-band reveal reveal-scale">
       <div className="section-eyebrow">Ready when you are</div>
       <h2 className="section-title" style={{ maxWidth: 680, margin: '8px auto 12px' }}>
-        Your next home is <span className="gradient-text-animated" style={{ fontStyle: 'italic' }}>one booking away</span>
+        Your next home is <span className="gradient-text" style={{ fontStyle: 'italic' }}>one booking away</span>
       </h2>
       <p className="section-sub" style={{ margin: '0 auto 24px' }}>Get an exact price in under a minute. Free cancellation up to 24 hours before your slot.</p>
       <button className="btn btn-primary btn-lg btn-glow" onClick={openBooking}>Book a move <ArrowRight size={16} /></button>
@@ -134,7 +135,7 @@ export const CtaBand = () => {
 export const SiteFooter = () => {
   const { setLegalDoc, setActiveTab, openBooking, openMyMoves } = useMove();
   const go = (tab) => { setActiveTab(tab); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const email = import.meta.env.VITE_SUPPORT_EMAIL || 'support@packandgo.in';
+  const email = import.meta.env.VITE_SUPPORT_EMAIL || '';
   return (
     <footer className="site-footer">
       <div className="footer-grid">
@@ -145,7 +146,7 @@ export const SiteFooter = () => {
           <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', margin: '8px 0 14px', maxWidth: 320 }}>
             Packed with care. Settled with ease. Home relocation with escrow-protected payments and verified Move Captains.
           </p>
-          <a className="btn btn-secondary btn-sm" href={`mailto:${email}`} style={{ gap: 6 }}><Mail size={14} /> {email}</a>
+          {email && <a className="btn btn-secondary btn-sm" href={`mailto:${email}`} style={{ gap: 6 }}><Mail size={14} /> {email}</a>}
         </div>
         <div>
           <h4>Move</h4>
@@ -170,7 +171,7 @@ export const SiteFooter = () => {
         </div>
       </div>
       <div style={{ maxWidth: 1360, margin: '32px auto 0', paddingTop: 18, borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
-        <span>© {new Date().getFullYear()} {import.meta.env.VITE_COMPANY_NAME || 'Pack&Go'}. All rights reserved.</span>
+        <span>© {new Date().getFullYear()} {import.meta.env.VITE_COMPANY_NAME || 'Pack&Go'} • College capstone demo — payments are simulated, no real money.</span>
         <a className="dst-credit" href="https://github.com/DushyantSinght" target="_blank" rel="noreferrer" data-author="DST" title="Dushyant Singh Tanwar">
           <Star size={12} /> Designed & built by <strong>DST</strong>
         </a>

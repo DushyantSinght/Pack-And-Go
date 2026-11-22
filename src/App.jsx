@@ -9,7 +9,7 @@ import { ChatbotConcierge } from './components/ChatbotConcierge';
 import { ChatDrawer } from './components/ChatDrawer';
 import { CallModal } from './components/CallModal';
 import { VerifyEmailBanner } from './components/VerifyEmailBanner';
-import { AmbientBackground, ScrollProgress, BackToTop, Splash } from './components/Ambient';
+import { ScrollProgress, BackToTop, Splash } from './components/Ambient';
 import { HowItWorks, FeatureGrid, FAQ, CtaBand, SiteFooter } from './components/LandingSections';
 import { useGlobalMotion } from './hooks/useMotion';
 import { CommandPalette } from './components/CommandPalette';
@@ -34,6 +34,7 @@ const loaders = {
   BookingWizard: () => import('./components/BookingWizard'),
   MyMovesModal: () => import('./components/MyMovesModal'),
   LegalModal: () => import('./components/LegalModal'),
+  CinematicJourney: () => import('./components/CinematicJourney'),
 };
 const lazyNamed = (name) => lazy(() => loaders[name]().then((m) => ({ default: m[name] })));
 const LuggagePassport = lazyNamed('LuggagePassport');
@@ -52,6 +53,7 @@ const FamilyTrackingView = lazyNamed('FamilyTrackingView');
 const BookingWizard = lazyNamed('BookingWizard');
 const MyMovesModal = lazyNamed('MyMovesModal');
 const LegalModal = lazyNamed('LegalModal');
+const CinematicJourney = lazyNamed('CinematicJourney');
 
 /** Mounts a lazy dialog the first time it's needed, then keeps it mounted (so it keeps its state). */
 const OnDemand = ({ when, children }) => {
@@ -68,6 +70,7 @@ import {
 export function App() {
   const {
     activeTab,
+    setActiveTab,
     activeRole,
     setActiveRole,
     isAuthModalOpen,
@@ -110,13 +113,18 @@ export function App() {
     setTrackToken(null);
   };
   useGlobalMotion();
+
+  // Open a module tab and scroll up to the tab bar
+  const goToModule = (tab) => {
+    setActiveTab(tab);
+    setTimeout(() => document.querySelector('.nav-tabs-wrapper')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
   const captainPending = user?.userType === 'captain' && user?.captainStatus && user.captainStatus !== 'approved';
 
   return (
     <>
     <a className="skip-link" href="#main">Skip to content</a>
     <Splash />
-    <AmbientBackground />
     <ScrollProgress />
     <div className="app-container">
       {/* Role-Specific Notification Banner */}
@@ -145,7 +153,7 @@ export function App() {
                     ? user.captainStatus === 'pending'
                       ? 'Move Captain application under review — you can take jobs once Pack&Go approves your licence & vehicle.'
                       : `Move Captain account ${user.captainStatus}. Contact Pack&Go support.`
-                    : user ? 'Move Captain Mode Active: Geofence Checkpoints & OTP Handover verification enabled.' : 'Preview of the Move Captain view — sign in with an approved driver account to take jobs.'}
+                    : user ? 'Move Captain mode: accept jobs, share your location, and confirm pickup and delivery with the customer’s codes.' : 'Preview of the Move Captain view — sign in with an approved driver account to take jobs.'}
                 </span>
                 <button
                   onClick={openDriverConsole}
@@ -226,6 +234,10 @@ export function App() {
             <FeatureGrid />
             <FAQ />
             <CtaBand />
+            {/* Animated journey: truck loads boxes, shares a stop, delivers home */}
+            <Suspense fallback={null}>
+              <CinematicJourney onNavigate={goToModule} />
+            </Suspense>
           </>
         )}
       </main>

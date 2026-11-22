@@ -19,7 +19,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "node --test server/tests/",
-    "email:test": "node server/scripts/send-test-email.js"
+    "email:test": "node server/scripts/send-test-email.js",
+    "admin:setup": "node server/scripts/setup-admin.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

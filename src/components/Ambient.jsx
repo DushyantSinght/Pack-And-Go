@@ -39,7 +39,7 @@ export const Splash = () => {
   if (gone) return null;
   return (
     <div className={`splash ${hide ? 'hide' : ''}`} aria-hidden="true">
-      <div className="splash-logo"><Truck size={30} color="#0B0C10" /></div>
+      <div className="splash-logo"><Truck size={30} color="#FFFFFF" /></div>
       <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '1.4rem', letterSpacing: '-0.02em', animation: 'fadeUp .6s .15s both' }}>
         Pack<span style={{ color: 'var(--primary)', fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}>&</span>Go
       </div>

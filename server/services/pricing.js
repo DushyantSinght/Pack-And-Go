@@ -41,7 +41,10 @@ export const roadDistanceKm = async (from, to) => {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 3500);
-    const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`;
+    // Any OSRM-compatible router. The default public demo server is rate-limited and has no
+    // uptime guarantee, so production can set ROUTING_URL to its own or a hosted instance.
+    const base = (process.env.ROUTING_URL || 'https://router.project-osrm.org').replace(/\/$/, '');
+    const url = `${base}/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`;
     const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'PackAndGo/1.0' } });
     clearTimeout(t);
     const j = await res.json();
@@ -81,11 +84,17 @@ export const slotStart = (dateStr, slotId) => {
 export const OPEN_JOB_GRACE_MS = 2 * 3_600_000;
 
 /** Cancellation refund policy (also shown in the Refund Policy page). */
+/** Slot start + 3 h with an assigned captain and no pickup = captain no-show (matches the slot watcher). */
+export const NO_SHOW_AFTER_MS = 3 * 3_600_000;
+
 export const refundPercentFor = (booking, now = Date.now()) => {
   if (!booking.moveDate) return 100;
   if (['in_transit', 'delivered', 'cancelled'].includes(booking.status)) return 0;
   // No Move Captain has committed to it yet, so there's nothing to compensate — full refund.
   if (!booking.assignedCaptainEmail) return 100;
+  // The captain accepted but never confirmed pickup within 3 hours of the slot start: a no-show,
+  // so the customer is not at fault — full refund.
+  if (!booking.pickupVerifiedAt && now >= new Date(booking.moveDate).getTime() + NO_SHOW_AFTER_MS) return 100;
   const hoursLeft = (new Date(booking.moveDate).getTime() - now) / 3_600_000;
   if (hoursLeft >= 24) return 100;
   if (hoursLeft >= 4) return 50;

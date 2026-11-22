@@ -3,7 +3,10 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { User } from '../models/index.js';
-import { signToken, requireAuth } from '../middleware/auth.js';
+import { signToken, requireAuth, revokeToken } from '../middleware/auth.js';
+import { isReservedAdminEmail } from '../services/adminAccount.js';
+import { passwordProblem } from '../services/passwordPolicy.js';
+import { isAdminUser } from '../middleware/roles.js';
 import { profileOf, requireAdmin } from '../middleware/roles.js';
 import { notifyAdminsOfApplication } from './adminRoutes.js';
 import { sendEmail, emailConfigured, appUrl, notify } from '../services/notify.js';
@@ -73,9 +76,8 @@ router.post('/signup', async (req, res) => {
     if (!validateEmail(email)) {
       return res.status(400).json({ success: false, message: 'A valid email address is required.' });
     }
-    if (!validatePassword(password)) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
-    }
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) return res.status(400).json({ success: false, message: pwProblem });
 
     if (role === 'captain') {
       // Drivers apply; staff verify these details before approving.
@@ -91,6 +93,11 @@ router.post('/signup', async (req, res) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    // The admin address belongs to the fixed admin account; nobody can register it.
+    if (isReservedAdminEmail(normalizedEmail)) {
+      return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
+    }
 
     // ── Duplicate check ──────────────────────────────────────────
     const existing = await User.findOne({ email: normalizedEmail });
@@ -121,7 +128,7 @@ router.post('/signup', async (req, res) => {
       acceptedTermsAt: new Date()
     });
 
-    const token = signToken({ _id: newUser._id, email: newUser.email, userType: newUser.userType });
+    const token = signToken(newUser);
 
     if (role === 'captain') notifyAdminsOfApplication(newUser).catch(() => {});
     const verification = await sendVerification(newUser).catch(() => ({ status: 'failed' }));
@@ -169,8 +176,12 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Email or password is incorrect.' });
     }
+    // Only said after a correct password, so it can't be used to discover accounts.
+    if (user.isBlocked) {
+      return res.status(403).json({ success: false, code: 'blocked', message: 'This account has been blocked by Pack&Go. Contact support if you think this is a mistake.' });
+    }
 
-    const token = signToken({ _id: user._id, email: user.email, userType: user.userType });
+    const token = signToken(user);
 
     return res.json({ success: true, token, user: profileOf(user) });
   } catch {
@@ -222,12 +233,15 @@ router.post('/reset-password', async (req, res) => {
       passwordResetExpires: { $gt: new Date() }
     });
     if (!user) return res.status(400).json({ success: false, message: 'This reset link is invalid or has expired.' });
+    const pwProblem = passwordProblem(password, { admin: isAdminUser(user) });
+    if (pwProblem) return res.status(400).json({ success: false, message: pwProblem });
 
     await User.updateOne(
       { _id: user._id },
       {
         $set: { password: await bcrypt.hash(password, 12), emailVerified: true },
-        $unset: { passwordResetTokenHash: '', passwordResetExpires: '' }
+        $unset: { passwordResetTokenHash: '', passwordResetExpires: '' },
+        $inc: { tokenVersion: 1 } // signs out every device that had the old password
       }
     );
     notify(user, { type: 'account', title: 'Your password was changed', body: "If this wasn't you, contact Pack&Go support immediately.", email: true });
@@ -277,9 +291,16 @@ router.post('/change-password', requireAuth, async (req, res) => {
     if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
       return res.status(401).json({ success: false, message: 'Your current password is incorrect.' });
     }
-    await User.updateOne({ _id: user._id }, { $set: { password: await bcrypt.hash(newPassword, 12) }, $unset: { passwordResetTokenHash: '', passwordResetExpires: '' } });
+    const pwProblem = passwordProblem(newPassword, { admin: isAdminUser(user) });
+    if (pwProblem) return res.status(400).json({ success: false, message: pwProblem });
+    // Bumping tokenVersion signs out every other device; this one gets a fresh token.
+    const updated = await User.findOneAndUpdate(
+      { _id: user._id },
+      { $set: { password: await bcrypt.hash(newPassword, 12) }, $unset: { passwordResetTokenHash: '', passwordResetExpires: '' }, $inc: { tokenVersion: 1 } },
+      { returnDocument: 'after' }
+    );
     notify(user, { type: 'account', title: 'Your password was changed', body: "If this wasn't you, reset your password and contact Pack&Go support.", email: true });
-    res.json({ success: true, message: 'Password changed.' });
+    res.json({ success: true, message: 'Password changed. Other devices have been signed out.', token: signToken(updated) });
   } catch {
     res.status(500).json({ success: false, message: 'Could not change your password.' });
   }
@@ -299,10 +320,11 @@ router.patch('/me', requireAuth, async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────
 // POST /api/auth/logout
-// Token invalidation is client-side. Server simply confirms.
+// Signs this token out on the server too, so a copied token stops working right away.
 // ─────────────────────────────────────────────────────────────────
-router.post('/logout', (req, res) => {
-  return res.json({ success: true, message: 'Logged out successfully. Please discard your token.' });
+router.post('/logout', requireAuth, async (req, res) => {
+  await revokeToken(req.user).catch(() => {});
+  return res.json({ success: true, message: 'Logged out successfully.' });
 });
 
 // ─────────────────────────────────────────────────────────────────

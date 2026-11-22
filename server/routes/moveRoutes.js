@@ -197,8 +197,13 @@ router.post('/book', async (req, res) => {
     let draft = b.bookingId ? await findOwn(b.bookingId, req.user.email) : null;
     if (draft && statusOf(draft) !== 'draft') draft = null;
 
-    const totalCuFt = Number(b.totalCuFt ?? draft?.totalCuFt) || 0;
-    if (totalCuFt < 10) return res.status(400).json({ success: false, message: 'Add the items you are moving first.' });
+    // The price comes from the item list itself, never from a volume the browser sends
+    // (an empty list used to fall back to the draft's 115 cu ft default and still get a price).
+    const items = (Array.isArray(b.items) ? b.items : draft?.items || []).filter((it) => it && String(it.name || '').trim());
+    if (!items.length) return res.status(400).json({ success: false, code: 'no_items', message: 'Add the items you are moving first.' });
+    if (items.length > 300) return res.status(400).json({ success: false, message: 'That is too many items for one booking — contact us for a large move.' });
+    const cuFtOf = (it) => Math.max(0.5, Math.min(200, Number(it.cuFt) || 0));
+    const totalCuFt = Math.round(items.reduce((n, it) => n + cuFtOf(it), 0));
     if (totalCuFt > 2000) return res.status(400).json({ success: false, message: 'That is more than one truck can carry — contact us for a multi-truck move.' });
     const distanceKm = await roadDistanceKm(b.originLocation, b.destinationLocation);
     const pooled = b.pooled !== false;
@@ -206,6 +211,7 @@ router.post('/book', async (req, res) => {
 
     const fields = {
       ...pick(b, DRAFT_EDITABLE),
+      items,
       totalCuFt,
       origin: String(b.origin).slice(0, 300),
       destination: String(b.destination).slice(0, 300),

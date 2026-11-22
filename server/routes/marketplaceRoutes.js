@@ -61,7 +61,8 @@ router.get('/', optionalAuth, async (req, res) => {
 
     if (category && category !== 'All') query.category = category;
     if (society && society !== 'All') query.society = new RegExp(society, 'i');
-    if (status) query.status = status;
+    // Listings the admin removed are never shown publicly.
+    query.status = status && status !== 'removed' ? status : { $ne: 'removed' };
 
     const items = await MarketplaceItem.find(query).sort({ createdAt: -1 });
 
@@ -124,6 +125,7 @@ router.patch('/:itemId', requireAuth, async (req, res) => {
   try {
     const item = await MarketplaceItem.findOne({ itemId: String(req.params.itemId), 'seller.email': req.user.email });
     if (!item) return res.status(404).json({ success: false, message: 'Listing not found.' });
+    if (item.status === 'removed') return res.status(409).json({ success: false, message: 'Pack&Go removed this listing, so it can’t be edited.' });
     if (item.status !== 'available') return res.status(409).json({ success: false, message: 'This item has been claimed — chat with the buyer instead of editing it.' });
     const b = req.body || {};
     if ('title' in b) {
@@ -156,6 +158,7 @@ router.delete('/:itemId', requireAuth, async (req, res) => {
   try {
     const item = await MarketplaceItem.findOne({ itemId: String(req.params.itemId), 'seller.email': req.user.email });
     if (!item) return res.status(404).json({ success: false, message: 'Listing not found.' });
+    if (item.status === 'removed') return res.status(409).json({ success: false, message: 'Pack&Go already removed this listing.' });
     if (item.status !== 'available') return res.status(409).json({ success: false, message: 'Someone has claimed this item — arrange the handoff with them in Messages first.' });
     await item.deleteOne();
     res.json({ success: true });

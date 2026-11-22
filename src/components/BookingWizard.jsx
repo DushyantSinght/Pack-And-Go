@@ -71,8 +71,9 @@ export const BookingWizard = () => {
     }
   }, [isBookingOpen, user?.phone]);
 
-  const cuFt = currentEstimate?.totalCuFt || 0;
   const itemCount = currentEstimate?.items?.length || 0;
+  // No items means nothing to move: the server refuses such bookings too.
+  const cuFt = itemCount ? currentEstimate?.totalCuFt || 0 : 0;
 
   const quoteInput = useMemo(
     () => ({
@@ -229,7 +230,7 @@ export const BookingWizard = () => {
                   { v: true, icon: Users, t: 'Pooled', d: 'Share the truck on your route — cheaper, may take a little longer.' },
                   { v: false, icon: Truck, t: 'Dedicated', d: 'A truck just for you, direct to your new home.' }
                 ].map(({ v, icon: Icon, t, d }) => (
-                  <button key={t} type="button" onClick={() => setPooled(v)} style={{ textAlign: 'left', padding: 12, borderRadius: 'var(--radius-md)', cursor: 'pointer', background: pooled === v ? 'rgba(212,175,55,0.12)' : 'var(--bg-elevated)', border: `1px solid ${pooled === v ? 'var(--primary)' : 'var(--border-subtle)'}`, color: 'var(--text-main)' }}>
+                  <button key={t} type="button" onClick={() => setPooled(v)} style={{ textAlign: 'left', padding: 12, borderRadius: 'var(--radius-md)', cursor: 'pointer', background: pooled === v ? 'rgba(37, 99, 235,0.12)' : 'var(--bg-elevated)', border: `1px solid ${pooled === v ? 'var(--primary)' : 'var(--border-subtle)'}`, color: 'var(--text-main)' }}>
                     <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><Icon size={14} /> {t}</div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>{d}</div>
                   </button>
