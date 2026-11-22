@@ -64,7 +64,9 @@ const mailer = () => {
     host: cfg.host,
     port: cfg.port,
     secure: cfg.secure,
-    requireTLS: !cfg.secure && cfg.port === 587, // never send credentials in clear text
+    // Never send credentials in clear text: without implicit TLS (465), insist on STARTTLS on any
+    // port (587, or 2525 for hosts like Render's free plan that block the standard mail ports).
+    requireTLS: !cfg.secure,
     auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
     ...TIMEOUTS
   });
